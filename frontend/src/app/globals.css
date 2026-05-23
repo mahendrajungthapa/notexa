@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+/* TipTap Editor */
+.tiptap-editor .ProseMirror { min-height: 350px; outline: none; padding: 1.25rem; font-size: 1rem; line-height: 1.85; color: #1a1a2e; }
+.tiptap-editor .ProseMirror h1 { font-size: 1.875rem; font-weight: 800; margin: 1.2rem 0 0.6rem; letter-spacing: -0.5px; }
+.tiptap-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.tiptap-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 0.8rem 0 0.4rem; }
+.tiptap-editor .ProseMirror p { margin: 0.4rem 0; }
+.tiptap-editor .ProseMirror ul { list-style: disc; padding-left: 1.5rem; }
+.tiptap-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; }
+.tiptap-editor .ProseMirror li { margin: 0.2rem 0; }
+.tiptap-editor .ProseMirror blockquote { border-left: 4px solid #c7d2fe; padding: 0.5rem 1rem; margin: 0.8rem 0; color: #6366f1; background: #eef2ff; border-radius: 0 8px 8px 0; font-style: italic; }
+.tiptap-editor .ProseMirror code { background: #f1f5f9; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; font-family: 'JetBrains Mono', monospace; color: #e11d48; }
+.tiptap-editor .ProseMirror pre { background: #1e293b; color: #e2e8f0; border-radius: 12px; padding: 1rem; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.875rem; margin: 0.8rem 0; }
+.tiptap-editor .ProseMirror img { max-width: 100%; border-radius: 12px; margin: 0.8rem 0; }
+.tiptap-editor .ProseMirror a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+.tiptap-editor .ProseMirror mark { background: #fef08a; padding: 1px 4px; border-radius: 3px; }
+.tiptap-editor .ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: 1.5rem 0; }
+.tiptap-editor .ProseMirror .is-empty::before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; float: left; height: 0; }
+.tiptap-editor .ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
+.tiptap-editor .ProseMirror ul[data-type="taskList"] li label input { margin-top: 0.3rem; accent-color: #4f46e5; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

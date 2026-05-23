@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Note;
+use App\Models\NoteShare;
+use App\Models\Friendship;
+use App\Models\Payment;
+use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
+use App\Models\File;
+use App\Models\SiteSetting;
+use App\Models\ActivityLog;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class AdminController extends Controller
+{
+    // ═══ DASHBOARD ═══
+    public function dashboard()
+    {
+        $today = now()->toDateString();
+        $thisMonth = now()->startOfMonth();
+
+        return response()->json(['status' => 'success', 'data' => [
+            'total_users' => User::count(),
+            'active_users' => User::where('is_active', true)->count(),
+            'premium_users' => User::where('is_premium', true)->count(),
+            'total_notes' => Note::count(),
+            'total_shared_notes' => NoteShare::count(),
+            'total_friendships' => Friendship::where('status', 'accepted')->count(),
+            'total_files' => File::count(),
+            'total_storage_gb' => round(User::sum('storage_used') / 1073741824, 2),
+            'total_revenue' => Payment::where('status', 'success')->sum('amount'),
+            'active_subscriptions' => Subscription::where('is_active', true)->where('expires_at', '>', now())->count(),
+            'new_users_today' => User::whereDate('created_at', $today)->count(),
+            'new_users_month' => User::where('created_at', '>=', $thisMonth)->count(),
+            'revenue_month' => Payment::where('status', 'success')->where('created_at', '>=', $thisMonth)->sum('amount'),
+            'notes_today' => Note::whereDate('created_at', $today)->count(),
+            // Chart data
+            'users_chart' => User::where('created_at', '>=', now()->subDays(30))
+                ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
+                ->groupBy('date')->orderBy('date')->get(),
+            'revenue_chart' => Payment::where('status', 'success')->where('created_at', '>=', now()->subDays(30))
+                ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(amount) as total'))
+                ->groupBy('date')->orderBy('date')->get(),
+        ]]);
+    }
+
+    // ═══ USERS ═══
+    public function users(Request $request)
+    {
+        $query = User::withCount(['notes', 'files', 'payments']);
+
+        if ($s = $request->get('search')) {
+            $query->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")->orWhere('username', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%");
+            });
+        }
+        if ($request->get('premium') === 'true') $query->where('is_premium', true);
+        if ($r = $request->get('role')) $query->where('role', $r);
+
+        return response()->json(['status' => 'success', 'data' =>
+            $query->orderByDesc('created_at')->paginate($request->get('per_page', 20))
+        ]);
+    }
+
+    // Full user detail with ALL data
+    public function userDetail(User $user)
+    {
+        $user->load(['notes' => function ($q) { $q->select('id','user_id','title','color','is_pinned','is_archived','is_trashed','created_at','updated_at'); },
+            'files', 'payments.plan', 'subscriptions.plan']);
+
+        $friendsList = $user->friends();
+        $sharedByUser = NoteShare::where('shared_by', $user->id)->with('note:id,title', 'recipient:id,name,username')->get();
+        $sharedWithUser = NoteShare::where('shared_with', $user->id)->with('note:id,title', 'sharer:id,name,username')->get();
+
+        return response()->json(['status' => 'success', 'data' => [
+            'user' => $user,
+            'friends' => $friendsList->map(fn($f) => ['id'=>$f->id,'name'=>$f->name,'username'=>$f->username,'email'=>$f->email]),
+            'friends_count' => count($friendsList),
+            'shared_by_user' => $sharedByUser,
+            'shared_with_user' => $sharedWithUser,
+            'storage_used_mb' => round($user->storage_used / 1048576, 2),
+            'storage_limit_mb' => round($user->storage_limit / 1048576, 2),
+            'activity' => ActivityLog::where('user_id', $user->id)->latest()->limit(50)->get(),
+        ]]);
+    }
+
+    public function updateUser(Request $request, User $user)
+    {
+        $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'username' => 'sometimes|string|max:30|alpha_dash|unique:users,username,' . $user->id,
+            'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'role' => 'sometimes|in:user,admin',
+            'is_active' => 'sometimes|boolean',
+            'is_premium' => 'sometimes|boolean',
+            'storage_limit' => 'sometimes|integer',
+        ]);
+        $user->update($request->only(['name','username','email','role','is_active','is_premium','storage_limit']));
+        return response()->json(['status' => 'success', 'data' => $user->fresh()]);
+    }
+
+    public function deleteUser(User $user)
+    {
+        if ($user->role === 'admin') return response()->json(['status'=>'error','message'=>'Cannot delete admin.'], 400);
+        $user->delete();
+        return response()->json(['status' => 'success']);
+    }
+
+    // ═══ NOTES ═══
+    public function notes(Request $request)
+    {
+        $query = Note::with('user:id,name,username');
+        if ($s = $request->get('search')) $query->where('title', 'like', "%{$s}%");
+        if ($uid = $request->get('user_id')) $query->where('user_id', $uid);
+        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate(20)]);
+    }
+
+    public function deleteNote(Note $note) { $note->delete(); return response()->json(['status' => 'success']); }
+
+    // ═══ PAYMENTS ═══
+    public function payments(Request $request)
+    {
+        $query = Payment::with(['user:id,name,username,email', 'plan:id,name']);
+        if ($st = $request->get('status')) $query->where('status', $st);
+        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate(20)]);
+    }
+
+    // ═══ PLANS ═══
+    public function plans() { return response()->json(['status'=>'success','data'=>SubscriptionPlan::withCount('subscriptions')->get()]); }
+
+    public function createPlan(Request $request)
+    {
+        $request->validate(['name'=>'required|string','price'=>'required|numeric','duration_days'=>'required|integer','storage_limit'=>'required|integer']);
+        return response()->json(['status'=>'success','data'=>SubscriptionPlan::create($request->all())], 201);
+    }
+
+    public function updatePlan(Request $request, SubscriptionPlan $plan)
+    {
+        $plan->update($request->all());
+        return response()->json(['status'=>'success','data'=>$plan->fresh()]);
+    }
+
+    public function deletePlan(SubscriptionPlan $plan) { $plan->update(['is_active'=>false]); return response()->json(['status'=>'success']); }
+
+    // ═══ SETTINGS (includes R2, Payment, DeepSeek keys) ═══
+    public function getSettings(Request $request)
+    {
+        $group = $request->get('group');
+        $query = SiteSetting::query();
+        if ($group) $query->where('group', $group);
+        return response()->json(['status' => 'success', 'data' => $query->get()]);
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $request->validate(['settings' => 'required|array']);
+
+        foreach ($request->settings as $s) {
+            $key = $s['key'] ?? null;
+            if (!$key) continue;
+            $value = $s['value'] ?? '';
+            $type = $s['type'] ?? 'string';
+            $group = $s['group'] ?? 'general';
+
+            SiteSetting::updateOrCreate(
+                ['key' => $key],
+                ['value' => is_array($value) ? json_encode($value) : (string) $value, 'type' => $type, 'group' => $group]
+            );
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Settings updated successfully.']);
+    }
+
+    public function testSmtp(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+        try {
+            \Illuminate\Support\Facades\Mail::raw('Test email from Notexa admin panel.', function ($m) use ($request) {
+                $m->to($request->email)->subject('SMTP Test - Notexa');
+            });
+            return response()->json(['status' => 'success', 'message' => 'Email sent.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'SMTP Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+    // ═══ SHARED NOTES & FRIENDSHIPS ═══
+    public function sharedNotes(Request $request)
+    {
+        return response()->json(['status' => 'success', 'data' =>
+            NoteShare::with(['note:id,title', 'sharer:id,name,username', 'recipient:id,name,username'])
+                ->orderByDesc('created_at')->paginate(20)
+        ]);
+    }
+
+    public function friendships(Request $request)
+    {
+        $query = Friendship::with(['sender:id,name,username', 'receiver:id,name,username']);
+        if ($st = $request->get('status')) $query->where('status', $st);
+        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate(20)]);
+    }
+
+    public function activityLogs(Request $request)
+    {
+        return response()->json(['status' => 'success', 'data' =>
+            ActivityLog::with('user:id,name,username')->orderByDesc('created_at')->paginate(50)
+        ]);
+    }
+}

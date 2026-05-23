@@ -1,0 +1,567 @@
+{
+  "info": {
+    "_postman_id": "notexa-api-v2",
+    "name": "Notexa API - Complete Collection",
+    "description": "Full API collection for Notexa collaborative note-taking platform.\n\nBase URL: http://localhost:8000/api\n\nAuth: Bearer Token (get from /login or /register)\n\nSharing rules: share codes grant view-only access; edit access is only granted by the note owner to accepted friends.\n\nFiles: uploads can attach to owned/editable notes. If Cloudflare R2 is not configured, the API stores files locally and returns a temporary signed download URL.\n\nAdmin: admin@notexa.com / password123",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api" },
+    { "key": "token", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "note_id", "value": "1" },
+    { "key": "user_id", "value": "2" },
+    { "key": "friendship_id", "value": "1" },
+    { "key": "file_id", "value": "1" },
+    { "key": "plan_id", "value": "1" },
+    { "key": "payment_id", "value": "1" },
+    { "key": "share_code", "value": "ABCD1234" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "🔓 Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ram Sharma\",\n  \"username\": \"ramsharma\",\n  \"email\": \"ram@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/register", "host": ["{{base_url}}"], "path": ["register"] }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Registration successful.\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"avatar\": null,\n    \"role\": \"user\",\n    \"is_premium\": false,\n    \"storage_used\": 0,\n    \"storage_limit\": 52428800,\n    \"is_active\": true,\n    \"created_at\": \"2026-04-03T10:00:00.000000Z\"\n  },\n  \"token\": \"1|abc123def456ghi789jkl012mno345pqr678stu901vwx\"\n}"
+            },
+            {
+              "name": "Fail - Username taken",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"message\": \"The username has already been taken.\",\n  \"errors\": {\n    \"username\": [\"The username has already been taken.\"]\n  }\n}"
+            },
+            {
+              "name": "Fail - Validation",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "body": "{\n  \"message\": \"The password field must be at least 8 characters.\",\n  \"errors\": {\n    \"password\": [\"The password field must be at least 8 characters.\"],\n    \"email\": [\"The email has already been taken.\"]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json();", "if(json.token) pm.collectionVariables.set('token', json.token);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"ramsharma\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"role\": \"user\",\n    \"is_premium\": false,\n    \"is_active\": true,\n    \"active_subscription\": null\n  },\n  \"token\": \"2|xyz789abc012def345ghi678jkl901mno234pqr567stu\"\n}"
+            },
+            {
+              "name": "Fail - Wrong credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid credentials.\"\n}"
+            },
+            {
+              "name": "Fail - Account deactivated",
+              "status": "Forbidden",
+              "code": 403,
+              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Account deactivated.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login as Admin",
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json();", "if(json.token) pm.collectionVariables.set('admin_token', json.token);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Accept", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"admin@notexa.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Admin\",\n    \"username\": \"admin\",\n    \"email\": \"admin@notexa.com\",\n    \"role\": \"admin\",\n    \"is_premium\": false\n  },\n  \"token\": \"3|admin_token_here\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/me", "host": ["{{base_url}}"], "path": ["me"] }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"is_premium\": false,\n    \"storage_used\": 1048576,\n    \"storage_limit\": 52428800\n  },\n  \"stats\": {\n    \"notes_count\": 5,\n    \"friends_count\": 3,\n    \"shared_with_me\": 2,\n    \"files_count\": 1,\n    \"storage_used_mb\": 1.0,\n    \"storage_limit_mb\": 50.0\n  }\n}"
+            },
+            {
+              "name": "Fail - Unauthenticated",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"message\": \"Unauthenticated.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ram K. Sharma\",\n  \"username\": \"ramksharma\"\n}" },
+            "url": { "raw": "{{base_url}}/profile", "host": ["{{base_url}}"], "path": ["profile"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"user\": { \"id\": 2, \"name\": \"Ram K. Sharma\", \"username\": \"ramksharma\" }\n}" }
+          ]
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"newpassword456\",\n  \"password_confirmation\": \"newpassword456\"\n}" },
+            "url": { "raw": "{{base_url}}/change-password", "host": ["{{base_url}}"], "path": ["change-password"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Password changed.\"\n}" },
+            { "name": "Fail", "code": 400, "body": "{\n  \"status\": \"error\",\n  \"message\": \"Current password incorrect.\"\n}" }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Logged out.\"\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "📝 Notes",
+      "item": [
+        {
+          "name": "List Notes",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/notes?search=&page=1&per_page=20", "host": ["{{base_url}}"], "path": ["notes"], "query": [{ "key": "search", "value": "" }, { "key": "page", "value": "1" }, { "key": "per_page", "value": "20" }] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"title\": \"My First Note\",\n        \"content\": \"<p>Hello world</p>\",\n        \"plain_text\": \"Hello world\",\n        \"color\": \"#ffffff\",\n        \"is_pinned\": false,\n        \"is_archived\": false,\n        \"is_trashed\": false,\n        \"share_code\": \"XK7M2NPA\",\n        \"ai_summary\": null,\n        \"created_at\": \"2026-04-03T10:00:00.000000Z\",\n        \"updated_at\": \"2026-04-03T10:00:00.000000Z\"\n      }\n    ],\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"total\": 1\n  }\n}" }]
+        },
+        {
+          "name": "Create Note",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Sprint Planning Q4\",\n  \"content\": \"<h1>Sprint Planning</h1><p>Key priorities for Q4...</p>\",\n  \"color\": \"#dbeafe\"\n}" },
+            "url": { "raw": "{{base_url}}/notes", "host": ["{{base_url}}"], "path": ["notes"] }
+          },
+          "response": [
+            { "name": "Success", "code": 201, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Sprint Planning Q4\",\n    \"content\": \"<h1>Sprint Planning</h1><p>Key priorities for Q4...</p>\",\n    \"color\": \"#dbeafe\",\n    \"share_code\": \"XK7M2NPA\",\n    \"ai_summary\": null\n  }\n}" },
+            { "name": "Fail - Validation", "code": 422, "body": "{\n  \"message\": \"The title field is required.\",\n  \"errors\": { \"title\": [\"The title field is required.\"] }\n}" }
+          ]
+        },
+        {
+          "name": "Get Single Note",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/{{note_id}}", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}"] } },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Sprint Planning Q4\",\n    \"content\": \"<h1>Sprint Planning</h1><p>Key priorities...</p>\",\n    \"share_code\": \"XK7M2NPA\",\n    \"ai_summary\": \"Focus on mobile launch and onboarding improvements for Q4.\",\n    \"user\": { \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\" },\n    \"shares\": [],\n    \"files\": []\n  },\n  \"permission\": \"owner\"\n}" },
+            { "name": "Fail - Unauthorized", "code": 403, "body": "{\n  \"status\": \"error\",\n  \"message\": \"Unauthorized\"\n}" }
+          ]
+        },
+        {
+          "name": "Update Note",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated Title\",\n  \"content\": \"<p>Updated content here</p>\",\n  \"color\": \"#fef3c7\"\n}" },
+            "url": { "raw": "{{base_url}}/notes/{{note_id}}", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"title\": \"Updated Title\" }\n}" }]
+        },
+        {
+          "name": "Delete Note (Trash)",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/notes/{{note_id}}", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Moved to trash.\"\n}" }]
+        },
+        {
+          "name": "Restore Note",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/notes/{{note_id}}/restore", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "restore"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\" }" }]
+        },
+        {
+          "name": "Permanent Delete",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/notes/{{note_id}}/permanent", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "permanent"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\" }" }]
+        },
+        {
+          "name": "Toggle Pin",
+          "request": { "method": "PATCH", "url": { "raw": "{{base_url}}/notes/{{note_id}}/pin", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "pin"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"is_pinned\": true }\n}" }]
+        },
+        {
+          "name": "Toggle Archive",
+          "request": { "method": "PATCH", "url": { "raw": "{{base_url}}/notes/{{note_id}}/archive", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "archive"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"is_archived\": true }\n}" }]
+        },
+        {
+          "name": "Get Share Code",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/{{note_id}}/share-code", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "share-code"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"share_code\": \"XK7M2NPA\"\n}" }]
+        },
+        {
+          "name": "Regenerate Share Code",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/notes/{{note_id}}/regenerate-code", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "regenerate-code"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"share_code\": \"P9QR4TUV\"\n}" }]
+        },
+        {
+          "name": "Redeem Share Code",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"XK7M2NPA\"\n}" },
+            "url": { "raw": "{{base_url}}/notes/redeem-code", "host": ["{{base_url}}"], "path": ["notes", "redeem-code"] }
+          },
+          "response": [
+            { "name": "Success - View Only", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Note 'Sprint Planning Q4' added to your shared notes.\",\n  \"data\": { \"id\": 1, \"title\": \"Sprint Planning Q4\", \"user\": { \"id\": 2, \"username\": \"ramsharma\" } }\n}" },
+            { "name": "Fail - Invalid code", "code": 404, "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid code.\"\n}" },
+            { "name": "Fail - Own note", "code": 400, "body": "{\n  \"status\": \"error\",\n  \"message\": \"This is your own note.\"\n}" },
+            { "name": "Fail - Already shared", "code": 400, "body": "{\n  \"status\": \"error\",\n  \"message\": \"Already shared with you.\"\n}" }
+          ]
+        },
+        {
+          "name": "AI Summary",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/notes/{{note_id}}/ai-summary", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "ai-summary"] } },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"summary\": \"This note outlines Q4 sprint priorities: mobile app launch and onboarding flow improvements. Two key initiatives driving growth.\"\n}" },
+            { "name": "Fail - No API key", "code": 500, "body": "{\n  \"status\": \"error\",\n  \"message\": \"AI service unavailable. Check DeepSeek API key in admin settings.\"\n}" },
+            { "name": "Fail - Too short", "code": 400, "body": "{\n  \"status\": \"error\",\n  \"message\": \"Note is too short to summarize.\"\n}" }
+          ]
+        },
+        {
+          "name": "Archived Notes",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/archived", "host": ["{{base_url}}"], "path": ["notes", "archived"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"data\": [], \"total\": 0 } }" }]
+        },
+        {
+          "name": "Trashed Notes",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/trashed", "host": ["{{base_url}}"], "path": ["notes", "trashed"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"data\": [], \"total\": 0 } }" }]
+        },
+        {
+          "name": "Note Versions",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/{{note_id}}/versions", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "versions"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      { \"id\": 1, \"version_number\": 1, \"user\": { \"id\": 2, \"name\": \"Ram\" }, \"created_at\": \"2026-04-03T10:00:00Z\" }\n    ]\n  }\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "🤝 Sharing",
+      "item": [
+        {
+          "name": "Share Note with Friend",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"user_id\": 3,\n  \"permission\": \"edit\"\n}" },
+            "url": { "raw": "{{base_url}}/notes/{{note_id}}/share", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "share"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Shared with @sita.\",\n  \"data\": { \"id\": 1, \"permission\": \"edit\", \"recipient\": { \"id\": 3, \"name\": \"Sita\", \"username\": \"sita\" } }\n}" },
+            { "name": "Fail - Not owner", "code": 403, "body": "{ \"status\": \"error\", \"message\": \"Only owner can share.\" }" },
+            { "name": "Fail - Not friends", "code": 403, "body": "{ \"status\": \"error\", \"message\": \"Add this user as a friend before sharing notes.\" }" }
+          ]
+        },
+        {
+          "name": "Update Permission",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"permission\": \"view\" }" },
+            "url": { "raw": "{{base_url}}/notes/{{note_id}}/share/{{user_id}}", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "share", "{{user_id}}"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"permission\": \"view\" } }" }]
+        },
+        {
+          "name": "Unshare",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/notes/{{note_id}}/share/{{user_id}}", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "share", "{{user_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\" }" }]
+        },
+        {
+          "name": "List Collaborators",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/notes/{{note_id}}/collaborators", "host": ["{{base_url}}"], "path": ["notes", "{{note_id}}", "collaborators"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 1, \"shared_with\": 3, \"permission\": \"edit\", \"recipient\": { \"id\": 3, \"name\": \"Sita\", \"username\": \"sita\" } }\n  ]\n}" }]
+        },
+        {
+          "name": "Shared with Me",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/shared-with-me", "host": ["{{base_url}}"], "path": ["shared-with-me"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      { \"id\": 1, \"title\": \"Sprint Planning\", \"user\": { \"id\": 2, \"username\": \"ramsharma\" }, \"pivot\": { \"permission\": \"edit\" } }\n    ]\n  }\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "👥 Friends",
+      "item": [
+        {
+          "name": "My Friends",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/friends", "host": ["{{base_url}}"], "path": ["friends"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 3, \"name\": \"Sita Devi\", \"username\": \"sita\", \"email\": \"sita@example.com\", \"is_premium\": true }\n  ]\n}" }]
+        },
+        {
+          "name": "Pending Requests",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/friends/requests", "host": ["{{base_url}}"], "path": ["friends", "requests"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"received\": [{ \"id\": 1, \"sender\": { \"id\": 4, \"name\": \"Hari\", \"username\": \"hari\" }, \"status\": \"pending\" }],\n    \"sent\": [{ \"id\": 2, \"receiver\": { \"id\": 5, \"name\": \"Gita\", \"username\": \"gita\" }, \"status\": \"pending\" }]\n  }\n}" }]
+        },
+        {
+          "name": "Send Friend Request (by username)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"sita\"\n}" },
+            "url": { "raw": "{{base_url}}/friends/request", "host": ["{{base_url}}"], "path": ["friends", "request"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"message\": \"Friend request sent to @sita.\"\n}" },
+            { "name": "Fail - Not found", "code": 404, "body": "{ \"status\": \"error\", \"message\": \"User not found.\" }" },
+            { "name": "Fail - Already friends", "code": 400, "body": "{ \"status\": \"error\", \"message\": \"Already friends.\" }" },
+            { "name": "Fail - Self", "code": 400, "body": "{ \"status\": \"error\", \"message\": \"Cannot add yourself.\" }" }
+          ]
+        },
+        {
+          "name": "Accept Request",
+          "request": { "method": "PUT", "url": { "raw": "{{base_url}}/friends/accept/{{friendship_id}}", "host": ["{{base_url}}"], "path": ["friends", "accept", "{{friendship_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Friend request accepted.\" }" }]
+        },
+        {
+          "name": "Reject Request",
+          "request": { "method": "PUT", "url": { "raw": "{{base_url}}/friends/reject/{{friendship_id}}", "host": ["{{base_url}}"], "path": ["friends", "reject", "{{friendship_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Rejected.\" }" }]
+        },
+        {
+          "name": "Remove Friend",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/friends/{{user_id}}", "host": ["{{base_url}}"], "path": ["friends", "{{user_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Friend removed.\" }" }]
+        },
+        {
+          "name": "Search Users",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/friends/search?query=ram", "host": ["{{base_url}}"], "path": ["friends", "search"], "query": [{ "key": "query", "value": "ram" }] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [{ \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\", \"is_premium\": false }]\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "📁 Files",
+      "item": [
+        {
+          "name": "List Files",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/files", "host": ["{{base_url}}"], "path": ["files"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [{\n      \"id\": 1,\n      \"original_name\": \"report.pdf\",\n      \"mime_type\": \"application/pdf\",\n      \"size\": 524288,\n      \"created_at\": \"2026-04-03T10:00:00Z\"\n    }]\n  }\n}" }]
+        },
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" },
+                { "key": "note_id", "value": "1", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/files/upload", "host": ["{{base_url}}"], "path": ["files", "upload"] }
+          },
+          "response": [
+            { "name": "Success", "code": 201, "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"original_name\": \"report.pdf\", \"size\": 524288, \"note_id\": 1 }\n}" },
+            { "name": "Fail - Storage full", "code": 400, "body": "{ \"status\": \"error\", \"message\": \"Storage limit reached. Upgrade to Premium.\" }" },
+            { "name": "Fail - No note permission", "code": 403, "body": "{ \"status\": \"error\", \"message\": \"No edit permission for this note.\" }" }
+          ]
+        },
+        {
+          "name": "Download File",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/files/{{file_id}}/download", "host": ["{{base_url}}"], "path": ["files", "{{file_id}}", "download"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"download_url\": \"http://localhost:8000/api/files/1/content?expires=...&signature=...\"\n}" }]
+        },
+        {
+          "name": "Delete File",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/files/{{file_id}}", "host": ["{{base_url}}"], "path": ["files", "{{file_id}}"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\" }" }]
+        }
+      ]
+    },
+    {
+      "name": "💳 Subscription",
+      "item": [
+        {
+          "name": "List Plans",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/subscription/plans", "host": ["{{base_url}}"], "path": ["subscription", "plans"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 1, \"name\": \"Premium Monthly\", \"price\": \"199.00\", \"currency\": \"NPR\", \"duration_days\": 30, \"storage_limit\": 5368709120 },\n    { \"id\": 2, \"name\": \"Premium Yearly\", \"price\": \"1899.00\", \"currency\": \"NPR\", \"duration_days\": 365 }\n  ]\n}" }]
+        },
+        {
+          "name": "My Subscription",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/subscription/my", "host": ["{{base_url}}"], "path": ["subscription", "my"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"is_premium\": false,\n    \"subscription\": null,\n    \"storage_used\": 1.0,\n    \"storage_limit\": 50.0\n  }\n}" }]
+        },
+        {
+          "name": "Subscribe (Initiate Payment)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"plan_id\": 1\n}" },
+            "url": { "raw": "{{base_url}}/subscription/subscribe", "host": ["{{base_url}}"], "path": ["subscription", "subscribe"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"redirect_url\": \"https://apinepal.com/payment/checkout?payment_trx=...\",\n  \"sdk_url\": \"https://apinepal.com/sdk/checkout/...\",\n  \"payment_id\": 1\n}" },
+            { "name": "Fail - No keys", "code": 400, "body": "{ \"status\": \"error\", \"message\": \"Payment failed.\", \"errors\": [\"Invalid api key\"] }" }
+          ]
+        },
+        {
+          "name": "Payment History",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/subscription/payment-history", "host": ["{{base_url}}"], "path": ["subscription", "payment-history"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      { \"id\": 1, \"amount\": \"199.00\", \"status\": \"pending\", \"plan\": { \"name\": \"Premium Monthly\" }, \"created_at\": \"2026-04-03T10:00:00Z\" }\n    ]\n  }\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "🌐 Public",
+      "item": [
+        {
+          "name": "Public Settings",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": { "raw": "{{base_url}}/settings/public", "host": ["{{base_url}}"], "path": ["settings", "public"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"site_name\": \"Notexa\",\n    \"site_logo\": \"\",\n    \"site_description\": \"Collaborative Note Taking Platform\",\n    \"privacy_policy\": \"<h1>Privacy Policy</h1>...\",\n    \"terms_conditions\": \"<h1>Terms</h1>...\",\n    \"about_us\": \"<h2>About Notexa</h2>...\"\n  }\n}" }]
+        }
+      ]
+    },
+    {
+      "name": "🔒 Admin",
+      "description": "Requires admin token. Set admin_token variable first by logging in as admin.",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_token}}" }] },
+      "item": [
+        {
+          "name": "Dashboard",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/dashboard", "host": ["{{base_url}}"], "path": ["admin", "dashboard"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"total_users\": 10,\n    \"active_users\": 9,\n    \"premium_users\": 3,\n    \"total_notes\": 45,\n    \"total_shared_notes\": 12,\n    \"total_friendships\": 8,\n    \"total_files\": 15,\n    \"total_storage_gb\": 0.5,\n    \"total_revenue\": 1194.00,\n    \"active_subscriptions\": 3,\n    \"new_users_today\": 2,\n    \"new_users_month\": 10,\n    \"revenue_month\": 597.00,\n    \"notes_today\": 5,\n    \"users_chart\": [{ \"date\": \"2026-04-01\", \"count\": 3 }, { \"date\": \"2026-04-02\", \"count\": 5 }],\n    \"revenue_chart\": [{ \"date\": \"2026-04-01\", \"total\": \"199.00\" }]\n  }\n}" }]
+        },
+        {
+          "name": "List Users",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/users?search=&page=1", "host": ["{{base_url}}"], "path": ["admin", "users"], "query": [{ "key": "search", "value": "" }, { "key": "page", "value": "1" }] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"data\": [{ \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\", \"notes_count\": 5, \"files_count\": 2, \"payments_count\": 1 }] } }" }]
+        },
+        {
+          "name": "User Detail (Full Data)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/users/2", "host": ["{{base_url}}"], "path": ["admin", "users", "2"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"user\": { \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\", \"notes\": [...], \"files\": [...], \"payments\": [...], \"subscriptions\": [...] },\n    \"friends\": [{ \"id\": 3, \"username\": \"sita\" }],\n    \"friends_count\": 1,\n    \"shared_by_user\": [{ \"note\": { \"title\": \"Sprint\" }, \"recipient\": { \"username\": \"sita\" }, \"permission\": \"edit\" }],\n    \"shared_with_user\": [],\n    \"storage_used_mb\": 1.0,\n    \"storage_limit_mb\": 50.0,\n    \"activity\": [{ \"action\": \"created_note\", \"created_at\": \"2026-04-03T10:00:00Z\" }]\n  }\n}" }]
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"is_premium\": true,\n  \"is_active\": true,\n  \"role\": \"user\"\n}" },
+            "url": { "raw": "{{base_url}}/admin/users/2", "host": ["{{base_url}}"], "path": ["admin", "users", "2"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"id\": 2, \"is_premium\": true } }" }]
+        },
+        {
+          "name": "Delete User",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/admin/users/2", "host": ["{{base_url}}"], "path": ["admin", "users", "2"] } },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{ \"status\": \"success\" }" },
+            { "name": "Fail - Admin", "code": 400, "body": "{ \"status\": \"error\", \"message\": \"Cannot delete admin.\" }" }
+          ]
+        },
+        {
+          "name": "Get Settings",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/settings?group=", "host": ["{{base_url}}"], "path": ["admin", "settings"], "query": [{ "key": "group", "value": "" }] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"apinepal_public_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"payment\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"deepseek_api_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}" }]
+        },
+        {
+          "name": "Update Settings (R2 Keys Example)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"settings\": [\n    { \"key\": \"r2_access_key\", \"value\": \"your_access_key\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_secret_key\", \"value\": \"your_secret\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_bucket\", \"value\": \"notexa-files\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_endpoint\", \"value\": \"https://xxx.r2.cloudflarestorage.com\", \"type\": \"string\", \"group\": \"storage\" }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/admin/settings", "host": ["{{base_url}}"], "path": ["admin", "settings"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }" }]
+        },
+        {
+          "name": "Update Settings (Payment Keys)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"settings\": [\n    { \"key\": \"apinepal_mode\", \"value\": \"live\", \"type\": \"string\", \"group\": \"payment\" },\n    { \"key\": \"apinepal_public_key\", \"value\": \"pk_live_xxx\", \"type\": \"string\", \"group\": \"payment\" },\n    { \"key\": \"apinepal_secret_key\", \"value\": \"sk_live_xxx\", \"type\": \"string\", \"group\": \"payment\" }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/admin/settings", "host": ["{{base_url}}"], "path": ["admin", "settings"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }" }]
+        },
+        {
+          "name": "Update Settings (DeepSeek Key)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"settings\": [\n    { \"key\": \"deepseek_api_key\", \"value\": \"sk-xxxx\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/admin/settings", "host": ["{{base_url}}"], "path": ["admin", "settings"] }
+          },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }" }]
+        },
+        {
+          "name": "Test SMTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"email\": \"test@example.com\" }" },
+            "url": { "raw": "{{base_url}}/admin/settings/smtp/test", "host": ["{{base_url}}"], "path": ["admin", "settings", "smtp", "test"] }
+          },
+          "response": [
+            { "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"message\": \"Email sent.\" }" },
+            { "name": "Fail", "code": 500, "body": "{ \"status\": \"error\", \"message\": \"SMTP Error: Connection refused\" }" }
+          ]
+        },
+        {
+          "name": "All Notes (Admin)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/notes", "host": ["{{base_url}}"], "path": ["admin", "notes"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"data\": [] } }" }]
+        },
+        {
+          "name": "All Payments (Admin)",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/admin/payments", "host": ["{{base_url}}"], "path": ["admin", "payments"] } },
+          "response": [{ "name": "Success", "code": 200, "body": "{ \"status\": \"success\", \"data\": { \"data\": [] } }" }]
+        },
+        {
+          "name": "Fail - Not Admin",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}" }] },
+            "url": { "raw": "{{base_url}}/admin/dashboard", "host": ["{{base_url}}"], "path": ["admin", "dashboard"] }
+          },
+          "response": [{ "name": "Fail", "code": 403, "body": "{ \"status\": \"error\", \"message\": \"Admin access required.\" }" }]
+        }
+      ]
+    }
+  ]
+}
