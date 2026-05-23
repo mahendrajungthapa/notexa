@@ -49,6 +49,7 @@ export const authApi = {
   me: () => api.get('/me'),
   updateProfile: (d: any) => api.put('/profile', d),
   changePassword: (d: any) => api.put('/change-password', d),
+  resendVerification: (email: string) => api.post('/email/verification-notification', { email }),
 };
 
 export const notesApi = {
@@ -81,26 +82,25 @@ export const friendsApi = {
   sendRequest: (username: string) => api.post('/friends/request', { username }),
   acceptRequest: (id: number) => api.put(`/friends/accept/${id}`),
   rejectRequest: (id: number) => api.put(`/friends/reject/${id}`),
+  cancelRequest: (id: number) => api.delete(`/friends/request/${id}`),
   removeFriend: (userId: number) => api.delete(`/friends/${userId}`),
   searchUsers: (query: string) => api.get('/friends/search', { params: { query } }),
 };
 
 export const filesApi = {
   list: (p?: any) => api.get('/files', { params: p }),
+  sharedWithMe: (p?: any) => api.get('/files/shared-with-me', { params: p }),
   upload: (file: File, noteId?: number) => {
     const fd = new FormData(); fd.append('file', file);
     if (noteId) fd.append('note_id', String(noteId));
     return api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  preview: (id: number) => api.get(`/files/${id}/preview`),
   download: (id: number) => api.get(`/files/${id}/download`),
+  shares: (id: number) => api.get(`/files/${id}/shares`),
+  share: (id: number, userId: number) => api.post(`/files/${id}/share`, { user_id: userId }),
+  unshare: (id: number, userId: number) => api.delete(`/files/${id}/share/${userId}`),
   delete: (id: number) => api.delete(`/files/${id}`),
-};
-
-export const subscriptionApi = {
-  plans: () => api.get('/subscription/plans'),
-  mySubscription: () => api.get('/subscription/my'),
-  subscribe: (planId: number) => api.post('/subscription/subscribe', { plan_id: planId }),
-  paymentHistory: () => api.get('/subscription/payment-history'),
 };
 
 export const adminApi = {
@@ -111,11 +111,6 @@ export const adminApi = {
   deleteUser: (id: number) => api.delete(`/admin/users/${id}`),
   notes: (p?: any) => api.get('/admin/notes', { params: p }),
   deleteNote: (id: number) => api.delete(`/admin/notes/${id}`),
-  payments: (p?: any) => api.get('/admin/payments', { params: p }),
-  plans: () => api.get('/admin/plans'),
-  createPlan: (d: any) => api.post('/admin/plans', d),
-  updatePlan: (id: number, d: any) => api.put(`/admin/plans/${id}`, d),
-  deletePlan: (id: number) => api.delete(`/admin/plans/${id}`),
   getSettings: (g?: string) => api.get('/admin/settings', { params: { group: g } }),
   updateSettings: (s: any[]) => api.put('/admin/settings', { settings: s }),
   testSmtp: (email: string) => api.post('/admin/settings/smtp/test', { email }),

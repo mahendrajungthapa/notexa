@@ -1,6 +1,6 @@
 # Frontend Guide
 
-The Notexa frontend is a Next.js application. It contains the public pages, authentication screens, notes dashboard, settings, files, friends, subscription views, and admin UI.
+The Notexa frontend is a Next.js application. It contains the public pages, authentication screens, notes dashboard, settings, files, friends, and admin UI.
 
 Path:
 
@@ -75,7 +75,7 @@ npm run start
 | --- | --- |
 | `src/app/page.tsx` | Public home page |
 | `src/app/auth` | Login and registration screens |
-| `src/app/dashboard` | User dashboard, notes, files, friends, sharing, settings, subscription |
+| `src/app/dashboard` | User dashboard, notes, file preview/share, friends, sharing, and settings |
 | `src/app/admin` | Admin dashboard and management pages |
 | `src/components/editor/NoteEditor.tsx` | Rich note editor |
 | `src/components/layout` | Shared header, footer, auth provider |

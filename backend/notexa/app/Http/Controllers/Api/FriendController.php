@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 
 class FriendController extends Controller
 {
+    // Accepted friends used by sharing screens.
     public function index(Request $request)
     {
         $friends = $request->user()->friends();
@@ -16,11 +17,12 @@ class FriendController extends Controller
             'status' => 'success',
             'data' => $friends->map(fn($f) => [
                 'id' => $f->id, 'name' => $f->name, 'username' => $f->username,
-                'email' => $f->email, 'avatar' => $f->avatar, 'is_premium' => $f->is_premium,
+                'email' => $f->email, 'avatar' => $f->avatar,
             ]),
         ]);
     }
 
+    // Incoming and outgoing pending requests for the Friends page.
     public function pendingRequests(Request $request)
     {
         $received = $request->user()->receivedFriendRequests()
@@ -31,7 +33,7 @@ class FriendController extends Controller
         return response()->json(['status' => 'success', 'data' => ['received' => $received, 'sent' => $sent]]);
     }
 
-    // Send friend request BY USERNAME
+    // Create or re-open a friend request by username.
     public function sendRequest(Request $request)
     {
         $request->validate(['username' => 'required|string']);
@@ -70,6 +72,7 @@ class FriendController extends Controller
         ]);
     }
 
+    // Accept a request that was sent to the current user.
     public function acceptRequest(Request $request, Friendship $friendship)
     {
         if ($friendship->receiver_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
@@ -78,6 +81,7 @@ class FriendController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Friend request accepted.']);
     }
 
+    // Reject a request that was sent to the current user.
     public function rejectRequest(Request $request, Friendship $friendship)
     {
         if ($friendship->receiver_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
@@ -85,6 +89,16 @@ class FriendController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Rejected.']);
     }
 
+    // Cancel a pending request sent by the current user.
+    public function cancelRequest(Request $request, Friendship $friendship)
+    {
+        if ($friendship->sender_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
+        if ($friendship->status !== 'pending') return response()->json(['status'=>'error','message'=>'Not pending.'], 400);
+        $friendship->delete();
+        return response()->json(['status' => 'success', 'message' => 'Request cancelled.']);
+    }
+
+    // Remove an accepted friendship in either direction.
     public function removeFriend(Request $request, $userId)
     {
         $user = $request->user();
@@ -101,15 +115,43 @@ class FriendController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Friend removed.']);
     }
 
+    // Search active users and include the current relationship state.
     public function searchUsers(Request $request)
     {
         $request->validate(['query' => 'required|string|min:2']);
-        $users = User::where('id', '!=', $request->user()->id)->where('is_active', true)
+        $current = $request->user();
+
+        $users = User::where('id', '!=', $current->id)->where('is_active', true)
             ->where(function ($q) use ($request) {
                 $q->where('username', 'like', "%{$request->query('query')}%")
                   ->orWhere('name', 'like', "%{$request->query('query')}%");
-            })->select('id', 'name', 'username', 'avatar', 'is_premium')->limit(20)->get();
+            })->select('id', 'name', 'username', 'avatar')->limit(20)->get()
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'avatar' => $user->avatar,
+                'relationship' => $this->relationshipTo($current, $user),
+            ]);
 
         return response()->json(['status' => 'success', 'data' => $users]);
+    }
+
+    private function relationshipTo(User $current, User $other): string
+    {
+        $friendship = Friendship::where(function ($q) use ($current, $other) {
+            $q->where(function ($q2) use ($current, $other) {
+                $q2->where('sender_id', $current->id)->where('receiver_id', $other->id);
+            })->orWhere(function ($q2) use ($current, $other) {
+                $q2->where('sender_id', $other->id)->where('receiver_id', $current->id);
+            });
+        })->first();
+
+        if (!$friendship) return 'none';
+        if ($friendship->status === 'accepted') return 'friend';
+        if ($friendship->status === 'pending' && $friendship->sender_id === $current->id) return 'sent';
+        if ($friendship->status === 'pending') return 'received';
+
+        return $friendship->status;
     }
 }

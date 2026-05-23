@@ -15,8 +15,6 @@ return new class extends Migration {
             $table->string('password');
             $table->string('avatar')->nullable();
             $table->enum('role', ['user', 'admin'])->default('user');
-            $table->boolean('is_premium')->default(false);
-            $table->timestamp('premium_expires_at')->nullable();
             $table->bigInteger('storage_used')->default(0);
             $table->bigInteger('storage_limit')->default(52428800);
             $table->boolean('is_active')->default(true);

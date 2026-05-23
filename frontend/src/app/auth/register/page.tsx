@@ -27,7 +27,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const res = await authApi.register({ ...form, username: form.username.toLowerCase() });
-      if (res.data?.token && res.data?.user) {
+      if (res.data?.email_verification_required) {
+        toast.success(res.data.message || 'Check your email to verify your account.');
+        router.push(`/auth/login?verify=1&email=${encodeURIComponent(res.data.email || form.email)}`);
+      } else if (res.data?.token && res.data?.user) {
         setAuth(res.data.user, res.data.token);
         toast.success(res.data.message || 'Account created!');
         router.push('/dashboard/notes');

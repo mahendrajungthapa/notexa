@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Note;
 use App\Models\NoteShare;
 use App\Models\NoteVersion;
+use App\Models\SiteSetting;
 use App\Services\DeepSeekService;
 use Illuminate\Http\Request;
 
@@ -208,13 +209,17 @@ class NoteController extends Controller
     {
         if (!$note->canView($request->user())) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
 
-        $text = $note->plain_text ?? strip_tags($note->content ?? '');
-        if (strlen($text) < 10) return response()->json(['status' => 'error', 'message' => 'Note is too short to summarize.'], 400);
+        if (!SiteSetting::get('ai_enabled', true)) {
+            return response()->json(['status' => 'error', 'message' => 'AI summaries are disabled in admin settings.'], 403);
+        }
+
+        $text = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($note->plain_text ?: $note->content ?: ''))));
+        if (strlen($text) < 20) return response()->json(['status' => 'error', 'message' => 'Note is too short to summarize.'], 400);
 
         $service = new DeepSeekService();
         $summary = $service->summarize($text);
 
-        if (!$summary) return response()->json(['status' => 'error', 'message' => 'AI service unavailable. Check DeepSeek API key in admin settings.'], 500);
+        if (!$summary) return response()->json(['status' => 'error', 'message' => 'Could not generate a summary for this note.'], 500);
 
         $note->update(['ai_summary' => $summary]);
 

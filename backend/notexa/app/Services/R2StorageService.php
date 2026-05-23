@@ -72,6 +72,15 @@ class R2StorageService
         }
     }
 
+    public function getTemporaryPreviewUrl(string $path, int $minutes = 60, ?int $fileId = null): string
+    {
+        if ($this->isLocalKey($path) && $fileId) {
+            return URL::temporarySignedRoute('api.files.preview', now()->addMinutes($minutes), ['file' => $fileId]);
+        }
+
+        return $this->getTemporaryUrl($path, $minutes, $fileId);
+    }
+
     public function downloadResponse(string $path, string $downloadName): StreamedResponse
     {
         $disk = $this->diskFor($path);
@@ -80,6 +89,19 @@ class R2StorageService
         abort_unless(Storage::disk($disk)->exists($key), 404, 'File not found.');
 
         return Storage::disk($disk)->download($key, $downloadName);
+    }
+
+    public function inlineResponse(string $path, string $name, string $mimeType): StreamedResponse
+    {
+        $disk = $this->diskFor($path);
+        $key = $this->cleanKey($path);
+
+        abort_unless(Storage::disk($disk)->exists($key), 404, 'File not found.');
+
+        return Storage::disk($disk)->response($key, $name, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+        ]);
     }
 
     private function r2Configured(): bool

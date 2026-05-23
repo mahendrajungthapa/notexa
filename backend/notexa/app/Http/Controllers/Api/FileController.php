@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\File;
+use App\Models\FileShare;
 use App\Models\Note;
+use App\Models\User;
 use App\Services\R2StorageService;
 use Illuminate\Http\Request;
 
@@ -12,13 +14,28 @@ class FileController extends Controller
 {
     public function __construct(private R2StorageService $r2) {}
 
+    // Owned files for the My Files page.
     public function index(Request $request)
     {
         return response()->json(['status' => 'success', 'data' =>
-            $request->user()->files()->orderByDesc('created_at')->paginate(20)
+            $request->user()->files()
+                ->with('shares.recipient:id,name,username,avatar')
+                ->orderByDesc('created_at')->paginate(20)
         ]);
     }
 
+    // Files that friends shared directly with the current user.
+    public function sharedWithMe(Request $request)
+    {
+        $files = $request->user()->sharedFiles()
+            ->with('user:id,name,username,avatar')
+            ->orderByDesc('file_shares.created_at')
+            ->paginate(20);
+
+        return response()->json(['status' => 'success', 'data' => $files]);
+    }
+
+    // Upload file metadata and binary content, using R2 when configured.
     public function upload(Request $request)
     {
         $request->validate([
@@ -38,7 +55,7 @@ class FileController extends Controller
         }
 
         if (!$user->hasStorageSpace($uploaded->getSize())) {
-            return response()->json(['status' => 'error', 'message' => 'Storage limit reached. Upgrade to Premium.'], 400);
+            return response()->json(['status' => 'error', 'message' => 'Storage limit reached. Delete unused files or ask an admin to increase your storage limit.'], 400);
         }
 
         $fileData = $this->r2->upload($uploaded, "users/{$user->id}");
@@ -53,27 +70,96 @@ class FileController extends Controller
         return response()->json(['status' => 'success', 'data' => $file], 201);
     }
 
+    // Return a short-lived URL for preview/download after checking access.
     public function download(Request $request, File $file)
     {
-        if ($file->user_id !== $request->user()->id) {
-            if ($file->note_id) {
-                $note = $file->note;
-                if (!$note || !$note->canView($request->user())) {
-                    return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
-                }
-            } else {
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
-            }
+        if (!$file->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
+
         $url = $this->r2->getTemporaryUrl($file->r2_key, 30, $file->id);
         return response()->json(['status' => 'success', 'download_url' => $url]);
     }
 
+    // Return a browser-friendly signed URL for images and PDFs.
+    public function preview(Request $request, File $file)
+    {
+        if (!$file->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        $url = $this->r2->getTemporaryPreviewUrl($file->r2_key, 30, $file->id);
+
+        return response()->json(['status' => 'success', 'preview_url' => $url]);
+    }
+
+    // Signed local-file response used when R2 is not configured.
     public function serve(Request $request, File $file)
     {
         return $this->r2->downloadResponse($file->r2_key, $file->original_name);
     }
 
+    // Signed local-file response with inline disposition for previews.
+    public function previewContent(Request $request, File $file)
+    {
+        return $this->r2->inlineResponse($file->r2_key, $file->original_name, $file->mime_type);
+    }
+
+    // Share an owned file with an accepted friend.
+    public function share(Request $request, File $file)
+    {
+        if ($file->user_id !== $request->user()->id) {
+            return response()->json(['status' => 'error', 'message' => 'Only the owner can share this file.'], 403);
+        }
+
+        $request->validate(['user_id' => 'required|exists:users,id']);
+
+        $target = User::findOrFail($request->user_id);
+        if ($target->id === $request->user()->id) {
+            return response()->json(['status' => 'error', 'message' => 'Cannot share with yourself.'], 400);
+        }
+        if (!$request->user()->isFriendWith($target)) {
+            return response()->json(['status' => 'error', 'message' => 'Add this user as a friend before sharing files.'], 403);
+        }
+
+        $share = FileShare::updateOrCreate(
+            ['file_id' => $file->id, 'shared_with' => $target->id],
+            ['shared_by' => $request->user()->id]
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "File shared with @{$target->username}.",
+            'data' => $share->load('recipient:id,name,username,avatar'),
+        ]);
+    }
+
+    // Current recipients for one owned file.
+    public function shares(Request $request, File $file)
+    {
+        if ($file->user_id !== $request->user()->id) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $file->shares()->with('recipient:id,name,username,avatar')->get(),
+        ]);
+    }
+
+    // Remove a friend's direct access to an owned file.
+    public function unshare(Request $request, File $file, int $userId)
+    {
+        if ($file->user_id !== $request->user()->id) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        FileShare::where('file_id', $file->id)->where('shared_with', $userId)->delete();
+
+        return response()->json(['status' => 'success']);
+    }
+
+    // Delete owned file metadata and the backing storage object.
     public function destroy(Request $request, File $file)
     {
         if ($file->user_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);

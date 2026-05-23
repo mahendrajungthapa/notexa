@@ -21,11 +21,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_pass.text != _confirm.text) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords mismatch'))); return; }
     setState(() => _loading = true);
     try {
-      await context.read<AuthService>().register(
+      final response = await context.read<AuthService>().register(
         name: _name.text, username: _username.text.toLowerCase(),
         email: _email.text, password: _pass.text, passwordConfirmation: _confirm.text,
       );
-      if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+      if (!mounted) return;
+      if (response['email_verification_required'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'] ?? 'Check your email to verify your account.'), backgroundColor: Colors.green));
+        Navigator.pop(context);
+      } else {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+      }
     } catch (error, stackTrace) {
       if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
     } finally { if (mounted) setState(() => _loading = false); }

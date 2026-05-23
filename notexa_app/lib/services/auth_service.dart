@@ -15,7 +15,6 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
   bool get isAdmin => _user?['role'] == 'admin';
-  bool get isPremium => _user?['is_premium'] == true;
 
   AuthService() {
     _initialize();
@@ -50,7 +49,9 @@ class AuthService extends ChangeNotifier {
       'password': password, 'password_confirmation': passwordConfirmation,
     }, auth: false);
 
-    await _setAuth(res['user'], res['token']);
+    if (res['token'] != null && res['user'] != null) {
+      await _setAuth(Map<String, dynamic>.from(res['user']), res['token'].toString());
+    }
     return res;
   }
 
@@ -74,6 +75,10 @@ class AuthService extends ChangeNotifier {
     _stats = null;
     _isAuthenticated = false;
     notifyListeners();
+  }
+
+  Future<Map<String, dynamic>> resendVerification(String email) async {
+    return ApiService.post('/email/verification-notification', body: {'email': email}, auth: false);
   }
 
   Future<void> fetchMe() async {

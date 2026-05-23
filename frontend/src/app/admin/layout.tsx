@@ -3,13 +3,12 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
-import { LayoutDashboard, Users, FileText, CreditCard, Settings, ArrowLeft, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, ArrowLeft, Shield } from 'lucide-react';
 
 const nav = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/notes', label: 'Notes', icon: FileText },
-  { href: '/admin/payments', label: 'Payments', icon: CreditCard },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

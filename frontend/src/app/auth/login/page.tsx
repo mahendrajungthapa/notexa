@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/services/api';
@@ -15,7 +15,23 @@ export default function LoginPage() {
   const [form, setForm] = useState({ login: '', password: '' });
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || '';
+    if (email) {
+      setForm((current) => ({ ...current, login: email }));
+      setVerificationEmail(email);
+    }
+    if (params.get('verified') === '1') {
+      toast.success('Email verified. You can sign in now.');
+    } else if (params.get('verify') === '1') {
+      toast.success('Check your email to verify your account.');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +55,9 @@ export default function LoginPage() {
         msg = 'Cannot connect to server. Check if backend is running.';
       } else if (err.response?.data?.message) {
         msg = err.response.data.message;
+        if (err.response.data.code === 'email_not_verified') {
+          setVerificationEmail(err.response.data.email || form.login);
+        }
       } else if (err.response?.status === 401) {
         msg = 'Invalid username/email or password.';
       } else if (err.response?.status === 403) {
@@ -54,6 +73,23 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
+  const resendVerification = async () => {
+    const email = verificationEmail || form.login;
+    if (!email || !email.includes('@')) {
+      toast.error('Enter your email address first.');
+      return;
+    }
+    setResending(true);
+    try {
+      const response = await authApi.resendVerification(email);
+      toast.success(response.data.message || 'Verification email sent.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not send verification email.');
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -66,7 +102,15 @@ export default function LoginPage() {
           <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
             {error && (
               <div className="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-                <AlertCircle size={18} className="shrink-0 mt-0.5" /><span>{error}</span>
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <div>
+                  <span>{error}</span>
+                  {verificationEmail && (
+                    <button type="button" onClick={resendVerification} disabled={resending} className="mt-2 block text-left font-semibold text-red-800 underline disabled:opacity-50">
+                      {resending ? 'Sending verification email...' : 'Resend verification email'}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -74,6 +118,7 @@ export default function LoginPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Username or Email</label>
                 <input type="text" required value={form.login} autoComplete="username"
                   onChange={(e) => { setForm({ ...form, login: e.target.value }); setError(''); }}
+                  onInput={() => setVerificationEmail('')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm transition"
                   placeholder="@username or email" />
               </div>

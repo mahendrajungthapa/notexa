@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi } from '@/services/api';
 import toast from 'react-hot-toast';
-import { Users, FileText, Crown, CreditCard, Share2, HardDrive, TrendingUp, UserPlus, Zap, BarChart3, CalendarDays, Activity } from 'lucide-react';
+import { Users, FileText, Share2, HardDrive, UserPlus, BarChart3, CalendarDays, Activity } from 'lucide-react';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -16,7 +16,6 @@ export default function AdminDashboardPage() {
   const cards = [
     { label: 'Total Users', value: stats.total_users, icon: Users, color: 'bg-blue-50 text-blue-600' },
     { label: 'Active Users', value: stats.active_users, icon: Users, color: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Premium Users', value: stats.premium_users, icon: Crown, color: 'bg-amber-50 text-amber-600' },
     { label: 'New Today', value: stats.new_users_today, icon: UserPlus, color: 'bg-cyan-50 text-cyan-600' },
     { label: 'Total Notes', value: stats.total_notes, icon: FileText, color: 'bg-violet-50 text-violet-600' },
     { label: 'Notes Today', value: stats.notes_today, icon: CalendarDays, color: 'bg-indigo-50 text-indigo-600' },
@@ -24,9 +23,6 @@ export default function AdminDashboardPage() {
     { label: 'Friendships', value: stats.total_friendships, icon: Users, color: 'bg-rose-50 text-rose-600' },
     { label: 'Total Files', value: stats.total_files, icon: HardDrive, color: 'bg-teal-50 text-teal-600' },
     { label: 'Storage Used', value: `${stats.total_storage_gb} GB`, icon: HardDrive, color: 'bg-orange-50 text-orange-600' },
-    { label: 'Total Revenue', value: `Rs. ${stats.total_revenue}`, icon: CreditCard, color: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Revenue (30d)', value: `Rs. ${stats.revenue_month}`, icon: TrendingUp, color: 'bg-green-50 text-green-600' },
-    { label: 'Active Subs', value: stats.active_subscriptions, icon: Crown, color: 'bg-yellow-50 text-yellow-600' },
     { label: 'New Users (30d)', value: stats.new_users_month, icon: Activity, color: 'bg-sky-50 text-sky-600' },
   ];
 
@@ -47,22 +43,13 @@ export default function AdminDashboardPage() {
 
       {/* Charts - simple bar representation */}
       {stats.users_chart && stats.users_chart.length > 0 && (
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid gap-6">
           <div className="bg-white rounded-2xl border border-gray-200 p-6">
             <h3 className="font-bold mb-4 flex items-center gap-2"><BarChart3 size={16} /> User Signups (30 days)</h3>
             <div className="flex items-end gap-1 h-32">
               {stats.users_chart.map((d: any, i: number) => {
                 const max = Math.max(...stats.users_chart.map((x: any) => x.count), 1);
                 return <div key={i} className="flex-1 bg-indigo-200 hover:bg-indigo-400 rounded-t transition-colors" style={{ height: `${(d.count / max) * 100}%`, minHeight: '4px' }} title={`${d.date}: ${d.count}`} />;
-              })}
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
-            <h3 className="font-bold mb-4 flex items-center gap-2"><TrendingUp size={16} /> Revenue (30 days)</h3>
-            <div className="flex items-end gap-1 h-32">
-              {(stats.revenue_chart || []).map((d: any, i: number) => {
-                const max = Math.max(...(stats.revenue_chart || []).map((x: any) => parseFloat(x.total)), 1);
-                return <div key={i} className="flex-1 bg-emerald-200 hover:bg-emerald-400 rounded-t transition-colors" style={{ height: `${(parseFloat(d.total) / max) * 100}%`, minHeight: '4px' }} title={`${d.date}: Rs.${d.total}`} />;
               })}
             </div>
           </div>

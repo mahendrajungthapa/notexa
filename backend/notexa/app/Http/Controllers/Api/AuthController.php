@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\SiteSetting;
+use App\Services\MailSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Auth\Events\Registered;
+use Illuminate\Support\Facades\Redirect;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -30,11 +32,27 @@ class AuthController extends Controller
 
         $emailEnabled = SiteSetting::get('email_verification_enabled', false);
         if ($emailEnabled) {
-            try { event(new Registered($user)); } catch (\Exception $e) { /* SMTP not configured, skip */ }
-        } else {
-            $user->markEmailAsVerified();
+            try {
+                MailSettingsService::apply();
+                $user->sendEmailVerificationNotification();
+            } catch (Throwable $e) {
+                return response()->json([
+                    'status' => 'success',
+                    'email_verification_required' => true,
+                    'email' => $user->email,
+                    'message' => 'Account created, but the verification email could not be sent. Please ask an admin to check SMTP settings, then resend verification.',
+                ], 201);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'email_verification_required' => true,
+                'email' => $user->email,
+                'message' => 'Account created. Please check your email to verify your account before signing in.',
+            ], 201);
         }
 
+        $user->markEmailAsVerified();
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -81,11 +99,20 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if (SiteSetting::get('email_verification_enabled', false) && !$user->hasVerifiedEmail()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'email_not_verified',
+                'email' => $user->email,
+                'message' => 'Please verify your email before signing in.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
             'status' => 'success',
-            'user' => $user->load('activeSubscription'),
+            'user' => $user->fresh(),
             'token' => $token,
         ]);
     }
@@ -98,7 +125,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user()->load('activeSubscription');
+        $user = $request->user();
         return response()->json([
             'status' => 'success',
             'user' => $user,
@@ -134,5 +161,45 @@ class AuthController extends Controller
         }
         $request->user()->update(['password' => Hash::make($request->password)]);
         return response()->json(['status' => 'success', 'message' => 'Password changed.']);
+    }
+
+    public function verifyEmail(Request $request, string $id, string $hash)
+    {
+        $user = User::findOrFail($id);
+
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            abort(403, 'Invalid verification link.');
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
+        return Redirect::away($frontendUrl . '/auth/login?verified=1&email=' . urlencode($user->email));
+    }
+
+    public function resendVerification(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        if (!SiteSetting::get('email_verification_enabled', false)) {
+            return response()->json(['status' => 'success', 'message' => 'Email verification is currently disabled.']);
+        }
+
+        $user = User::where('email', strtolower($request->email))->first();
+
+        if (!$user) {
+            return response()->json(['status' => 'success', 'message' => 'If that account exists, a verification email will be sent.']);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['status' => 'success', 'message' => 'This email is already verified.']);
+        }
+
+        MailSettingsService::apply();
+        $user->sendEmailVerificationNotification();
+
+        return response()->json(['status' => 'success', 'message' => 'Verification email sent.']);
     }
 }

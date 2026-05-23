@@ -70,7 +70,7 @@ export default function AboutPage() {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold mb-6">Tech Stack</h2>
             <div className="flex flex-wrap justify-center gap-3">
-              {['Laravel 12','Next.js 14','MySQL','Tailwind CSS','Cloudflare R2','API Nepal','Pusher','DeepSeek AI','TypeScript','TipTap Editor'].map((t,i)=>(
+              {['Laravel 13','Next.js 16','MySQL','Tailwind CSS','Cloudflare R2','SMTP Email','DeepSeek AI','TypeScript','TipTap Editor','Flutter'].map((t,i)=>(
                 <span key={i} className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700">{t}</span>
               ))}
             </div>

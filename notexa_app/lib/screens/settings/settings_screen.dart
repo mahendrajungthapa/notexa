@@ -99,7 +99,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              if (auth.isPremium) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.workspace_premium, size: 16, color: Colors.amber)),
             ]),
             Text('@${auth.user?['username'] ?? ''}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
             Text(auth.user?['email'] ?? '', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),

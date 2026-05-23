@@ -3,33 +3,31 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'name', 'username', 'email', 'password', 'avatar', 'role',
-        'is_premium', 'premium_expires_at', 'storage_used', 'storage_limit', 'is_active',
+        'storage_used', 'storage_limit', 'is_active',
     ];
 
     protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'premium_expires_at' => 'datetime',
-        'is_premium' => 'boolean',
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];
 
+    // Owned content
     public function notes() { return $this->hasMany(Note::class); }
     public function files() { return $this->hasMany(File::class); }
-    public function payments() { return $this->hasMany(Payment::class); }
-    public function subscriptions() { return $this->hasMany(Subscription::class); }
     public function activityLogs() { return $this->hasMany(ActivityLog::class); }
 
     public function sentFriendRequests()
@@ -48,12 +46,13 @@ class User extends Authenticatable
             ->withPivot('permission', 'shared_by')->withTimestamps();
     }
 
-    public function activeSubscription()
+    public function sharedFiles()
     {
-        return $this->hasOne(Subscription::class)->where('is_active', true)->where('expires_at', '>', now());
+        return $this->belongsToMany(File::class, 'file_shares', 'shared_with', 'file_id')
+            ->withPivot('shared_by')->withTimestamps();
     }
 
-    // FIXED: friends() returns proper collection using query
+    // Accepted friend list used by note/file sharing.
     public function friends()
     {
         $sentIds = Friendship::where('sender_id', $this->id)->where('status', 'accepted')->pluck('receiver_id');
@@ -63,11 +62,6 @@ class User extends Authenticatable
     }
 
     public function isAdmin(): bool { return $this->role === 'admin'; }
-
-    public function isPremium(): bool
-    {
-        return $this->is_premium && $this->premium_expires_at && $this->premium_expires_at->isFuture();
-    }
 
     public function hasStorageSpace(int $bytes): bool
     {

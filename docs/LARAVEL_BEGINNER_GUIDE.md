@@ -1,177 +1,60 @@
-# Laravel Beginner Guide for Notexa
+# Notexa Laravel Beginner Guide
 
-## What Laravel Does
+The Laravel backend is the API server for Notexa. It receives requests from the Next.js frontend and Flutter app, validates input, checks permissions, stores data, and returns JSON responses.
 
-Laravel is the backend of Notexa. It receives requests from the Next.js website and Flutter app, checks permissions, talks to the database, and returns JSON responses.
+## Main Backend Responsibilities
 
-In this project Laravel is used as a REST API, not a traditional Blade website.
-
-## Current Version
-
-- Laravel framework installed: `v13.6.0`
-- PHP runtime checked locally: `8.4.20`
-- Auth package: Laravel Sanctum `v4.3.1`
-
-Laravel 13 is the latest major Laravel release for this project line. The project already uses the correct Laravel 13 dependency constraint: `laravel/framework: ^13.0`.
+- Register and log in users with Laravel Sanctum tokens.
+- Send signed email verification links when verification is enabled.
+- Manage notes, versions, archive, trash, pinning, share codes, and AI summaries.
+- Manage friends and note sharing permissions.
+- Upload, download, and serve attached files.
+- Provide admin dashboards for users, notes, settings, sharing, friendships, and activity logs.
+- Store configurable settings for SMTP, R2 storage, legal content, and AI.
 
 ## Important Folders
 
-```text
-backend/notexa
-  routes/api.php              API route list
-  app/Http/Controllers        Request handlers
-  app/Models                  Database table classes
-  app/Services                Extra business logic
-  app/Http/Middleware         Route guards
-  database/migrations         Database table definitions
-  database/seeders            Default data
-  config                      App configuration
-```
-
-## Request Lifecycle
-
-Example: user creates a note.
-
-```text
-Next.js or Flutter
-  -> POST /api/notes
-  -> routes/api.php
-  -> auth:sanctum middleware
-  -> NoteController@store
-  -> Note model
-  -> database notes table
-  -> JSON response
-```
-
-## Routes
-
-Routes are in `routes/api.php`.
-
-Examples:
-
-```php
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/notes', [NoteController::class, 'index']);
-Route::post('/notes', [NoteController::class, 'store']);
-```
-
-Meaning:
-
-- `POST /api/login` calls `AuthController@login`.
-- `GET /api/notes` calls `NoteController@index`.
-- `POST /api/notes` calls `NoteController@store`.
-
-## Controllers
-
-Controllers contain the logic for each API request.
-
-Main controllers:
-
-| Controller | Job |
+| Path | Purpose |
 | --- | --- |
-| `AuthController` | Register, login, logout, profile, password |
-| `NoteController` | Create, read, update, delete, archive, pin, share code, AI summary |
-| `NoteShareController` | Share notes with friends |
-| `FriendController` | Friend requests and friend list |
-| `FileController` | Upload, download, delete files |
-| `SubscriptionController` | Plans, payments, subscriptions |
-| `AdminController` | Admin dashboard and management |
-
-## Models
-
-Models represent database tables.
-
-Examples:
-
-| Model | Table |
-| --- | --- |
-| `User` | `users` |
-| `Note` | `notes` |
-| `Friendship` | `friendships` |
-| `NoteShare` | `note_shares` |
-| `File` | `files` |
-| `Payment` | `payments` |
-
-Example relationship:
-
-```php
-public function notes()
-{
-    return $this->hasMany(Note::class);
-}
-```
-
-This means one user can have many notes.
+| `routes/api.php` | API route definitions |
+| `app/Http/Controllers/Api` | User-facing API controllers |
+| `app/Http/Controllers/Admin` | Admin API controller |
+| `app/Models` | Eloquent models |
+| `app/Services` | Mail settings, R2 storage, and AI summary services |
+| `database/migrations` | Database schema files |
+| `database/seeders` | Default admin account and site settings |
 
 ## Authentication
 
-Notexa uses Laravel Sanctum.
-
-Login flow:
+Notexa uses Laravel Sanctum. After login, the backend returns a token. The frontend and app send that token in the `Authorization` header:
 
 ```text
-1. User sends login and password.
-2. Laravel checks password hash.
-3. Laravel creates Sanctum token.
-4. Frontend stores token.
-5. Future requests send Authorization: Bearer <token>.
+Authorization: Bearer TOKEN
 ```
 
-Protected routes use:
+## Email Verification
 
-```php
-Route::middleware('auth:sanctum')->group(function () {
-    // logged-in routes
-});
+The admin can enable email verification from the settings panel. When enabled:
+
+1. A new user registers.
+2. Laravel sends a signed verification link using the SMTP settings.
+3. The user clicks the link.
+4. The backend marks `email_verified_at`.
+5. The user can sign in.
+
+If SMTP is not configured, admins can save and test SMTP settings before enabling verification.
+
+## AI Summary
+
+The backend reads `ai_enabled` and `deepseek_api_key` from `site_settings`. If a DeepSeek key exists, the backend asks DeepSeek to summarize the note. If the key is missing or the external service fails, Notexa creates a short local fallback summary so the feature still works.
+
+## Useful Commands
+
+```powershell
+php artisan migrate
+php artisan migrate:fresh --seed
+php artisan route:list
+php artisan config:clear
+php artisan cache:clear
+php artisan test
 ```
-
-## Authorization
-
-Authorization means checking what a user can do.
-
-Examples:
-
-- Admin routes use `is_admin` middleware.
-- Note owner can delete notes.
-- Shared users can view notes.
-- Shared users can edit only when permission is `edit`.
-
-Important methods:
-
-```php
-$note->canView($user);
-$note->canEdit($user);
-$user->isAdmin();
-$user->isPremium();
-```
-
-## Services
-
-Services keep complex logic outside controllers.
-
-| Service | Purpose |
-| --- | --- |
-| `DeepSeekService` | Calls AI API for note summaries |
-| `R2StorageService` | Uploads/downloads files using Cloudflare R2 or local storage |
-| `ApiNepalPaymentService` | Starts and validates payments |
-
-## How To Run Laravel
-
-```bash
-cd backend/notexa
-composer install
-php artisan key:generate
-php artisan migrate --seed
-php artisan serve
-```
-
-Backend URL:
-
-```text
-http://localhost:8000
-```
-
-## Teacher Explanation
-
-Laravel is the secure backend brain of Notexa. It provides API routes, validates input, authenticates users with Sanctum tokens, checks permissions, stores data through Eloquent ORM, and returns JSON to the web and mobile apps.
-

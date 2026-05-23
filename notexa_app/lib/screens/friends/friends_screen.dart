@@ -187,9 +187,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                                 ),
                                 title: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
                                 subtitle: Text('@$username', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-                                trailing: friend['is_premium'] == true
-                                    ? const Icon(Icons.workspace_premium, size: 18, color: Colors.amber)
-                                    : null,
                                 onLongPress: () async {
                                   final confirm = await showDialog<bool>(
                                     context: context,

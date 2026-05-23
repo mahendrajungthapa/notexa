@@ -2,10 +2,10 @@
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
 import { useState, useEffect } from 'react';
-import { Menu, X, FileText, Crown } from 'lucide-react';
+import { Menu, X, FileText } from 'lucide-react';
 
 export default function Header() {
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -29,11 +29,9 @@ export default function Header() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/#features" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">Features</Link>
-            <Link href="/#pricing" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">Pricing</Link>
             <Link href="/about" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition">About</Link>
             {isAuthenticated ? (
               <Link href="/dashboard/notes" className="ml-2 px-5 py-2 bg-indigo-600 text-white rounded-full text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
-                {user?.is_premium && <Crown size={14} className="text-amber-300" />}
                 Dashboard
               </Link>
             ) : (
@@ -57,7 +55,6 @@ export default function Header() {
       {menuOpen && (
         <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-3 shadow-lg">
           <Link href="/#features" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-gray-700 py-2">Features</Link>
-          <Link href="/#pricing" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-gray-700 py-2">Pricing</Link>
           <Link href="/about" onClick={() => setMenuOpen(false)} className="block text-sm font-medium text-gray-700 py-2">About</Link>
           <div className="pt-2 border-t border-gray-100 flex gap-3">
             {isAuthenticated ? (

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\User;
-use App\Models\SubscriptionPlan;
 use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Hash;
 
@@ -20,18 +19,6 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => 'admin',
             'email_verified_at' => now(),
-        ]);
-
-        // Plans
-        SubscriptionPlan::create([
-            'name' => 'Premium Monthly', 'description' => '5GB storage, file sharing, premium badge.',
-            'price' => 199.00, 'currency' => 'NPR', 'duration_days' => 30,
-            'storage_limit' => 5368709120, 'file_sharing_enabled' => true,
-        ]);
-        SubscriptionPlan::create([
-            'name' => 'Premium Yearly', 'description' => 'Save 20%! All premium features for 1 year.',
-            'price' => 1899.00, 'currency' => 'NPR', 'duration_days' => 365,
-            'storage_limit' => 5368709120, 'file_sharing_enabled' => true,
         ]);
 
         // Settings
@@ -50,16 +37,11 @@ class DatabaseSeeder extends Seeder
             ['key'=>'smtp_password','value'=>'','type'=>'string','group'=>'smtp'],
             ['key'=>'smtp_encryption','value'=>'tls','type'=>'string','group'=>'smtp'],
             ['key'=>'smtp_from_address','value'=>'noreply@notexa.com','type'=>'string','group'=>'smtp'],
+            ['key'=>'smtp_from_name','value'=>'Notexa','type'=>'string','group'=>'smtp'],
 
             // Legal
             ['key'=>'privacy_policy','value'=>'<h1>Privacy Policy</h1><p>Your privacy matters to us.</p>','type'=>'text','group'=>'legal'],
             ['key'=>'terms_conditions','value'=>'<h1>Terms and Conditions</h1><p>By using Notexa you agree to these terms.</p>','type'=>'text','group'=>'legal'],
-
-            // Payment Gateway (admin configurable)
-            ['key'=>'payment_gateway_enabled','value'=>'true','type'=>'boolean','group'=>'payment'],
-            ['key'=>'apinepal_mode','value'=>'test','type'=>'string','group'=>'payment'],
-            ['key'=>'apinepal_public_key','value'=>'','type'=>'string','group'=>'payment'],
-            ['key'=>'apinepal_secret_key','value'=>'','type'=>'string','group'=>'payment'],
 
             // Cloudflare R2 (admin configurable)
             ['key'=>'r2_access_key','value'=>'','type'=>'string','group'=>'storage'],

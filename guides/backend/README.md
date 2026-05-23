@@ -1,6 +1,6 @@
 # Backend Guide
 
-The Notexa backend is a Laravel API application. It handles authentication, notes, sharing, friends, files, subscriptions, admin screens, settings, and integrations.
+The Notexa backend is a Laravel API application. It handles authentication, SMTP email verification, notes, sharing, friends, files, admin screens, settings, and integrations.
 
 Path:
 
@@ -67,9 +67,6 @@ Optional integrations:
 
 | Setting | Purpose |
 | --- | --- |
-| `APINEPAL_PUBLIC_KEY` | API Nepal payment public key |
-| `APINEPAL_SECRET_KEY` | API Nepal payment secret key |
-| `APINEPAL_MODE` | Payment mode, usually `test` or `live` |
 | `CLOUDFLARE_R2_*` | R2-compatible storage credentials |
 | `MAIL_*` | SMTP or mail transport configuration |
 | `AWS_*` | AWS-compatible fallback settings if needed |
@@ -117,9 +114,9 @@ php artisan test
 | `app/Http/Controllers/Api` | User-facing API controllers |
 | `app/Http/Controllers/Admin` | Admin API controller |
 | `app/Models` | Eloquent models |
-| `app/Services` | Payment, AI, and storage service classes |
+| `app/Services` | SMTP, AI, and storage service classes |
 | `database/migrations` | Database schema |
-| `database/seeders/DatabaseSeeder.php` | Default plans, settings, and admin user |
+| `database/seeders/DatabaseSeeder.php` | Default settings and admin user |
 | `config/cors.php` | CORS configuration for frontend/app requests |
 
 ## API Testing
@@ -135,7 +132,7 @@ Typical flow:
 1. Register or login.
 2. Copy the returned token.
 3. Use `Authorization: Bearer TOKEN` for protected endpoints.
-4. Test notes, files, sharing, friends, subscription, and admin endpoints.
+4. Test notes, file preview/share, sharing, friends, settings, and admin endpoints.
 
 ## Production Notes
 
@@ -144,7 +141,7 @@ Typical flow:
 - Use a strong generated `APP_KEY`.
 - Use a real database, not local SQLite, for production.
 - Configure `APP_URL` with HTTPS.
-- Configure queue, cache, mail, storage, payment, and AI settings.
+- Configure queue, cache, mail, storage, and AI settings.
 - Replace or remove seeded demo credentials.
 - Run `php artisan migrate --force` during deployment.
 - Do not commit `.env`, logs, cache files, uploaded files, `vendor`, or `node_modules`.

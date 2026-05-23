@@ -5,14 +5,13 @@ import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
 import { notesApi } from '@/services/api';
 import toast from 'react-hot-toast';
-import { FileText, Users, Share2, FolderOpen, Crown, Settings, LogOut, LayoutDashboard, Menu, X, KeyRound } from 'lucide-react';
+import { FileText, Users, Share2, FolderOpen, Settings, LogOut, LayoutDashboard, Menu, X, KeyRound } from 'lucide-react';
 
 const nav = [
   { href: '/dashboard/notes', label: 'My Notes', icon: FileText },
   { href: '/dashboard/shared', label: 'Shared with Me', icon: Share2 },
   { href: '/dashboard/friends', label: 'Friends', icon: Users },
   { href: '/dashboard/files', label: 'My Files', icon: FolderOpen },
-  { href: '/dashboard/subscription', label: 'Subscription', icon: Crown },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -61,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate flex items-center gap-1">
-                {user?.name} {user?.is_premium && <Crown size={12} className="text-amber-500" />}
+                {user?.name}
               </p>
               <p className="text-xs text-gray-400 truncate">@{user?.username}</p>
             </div>

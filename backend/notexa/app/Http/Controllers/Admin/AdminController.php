@@ -7,14 +7,13 @@ use App\Models\User;
 use App\Models\Note;
 use App\Models\NoteShare;
 use App\Models\Friendship;
-use App\Models\Payment;
-use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
 use App\Models\File;
 use App\Models\SiteSetting;
 use App\Models\ActivityLog;
+use App\Services\MailSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class AdminController extends Controller
 {
@@ -27,24 +26,16 @@ class AdminController extends Controller
         return response()->json(['status' => 'success', 'data' => [
             'total_users' => User::count(),
             'active_users' => User::where('is_active', true)->count(),
-            'premium_users' => User::where('is_premium', true)->count(),
             'total_notes' => Note::count(),
             'total_shared_notes' => NoteShare::count(),
             'total_friendships' => Friendship::where('status', 'accepted')->count(),
             'total_files' => File::count(),
             'total_storage_gb' => round(User::sum('storage_used') / 1073741824, 2),
-            'total_revenue' => Payment::where('status', 'success')->sum('amount'),
-            'active_subscriptions' => Subscription::where('is_active', true)->where('expires_at', '>', now())->count(),
             'new_users_today' => User::whereDate('created_at', $today)->count(),
             'new_users_month' => User::where('created_at', '>=', $thisMonth)->count(),
-            'revenue_month' => Payment::where('status', 'success')->where('created_at', '>=', $thisMonth)->sum('amount'),
             'notes_today' => Note::whereDate('created_at', $today)->count(),
-            // Chart data
             'users_chart' => User::where('created_at', '>=', now()->subDays(30))
                 ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
-                ->groupBy('date')->orderBy('date')->get(),
-            'revenue_chart' => Payment::where('status', 'success')->where('created_at', '>=', now()->subDays(30))
-                ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(amount) as total'))
                 ->groupBy('date')->orderBy('date')->get(),
         ]]);
     }
@@ -52,14 +43,13 @@ class AdminController extends Controller
     // ═══ USERS ═══
     public function users(Request $request)
     {
-        $query = User::withCount(['notes', 'files', 'payments']);
+        $query = User::withCount(['notes', 'files']);
 
         if ($s = $request->get('search')) {
             $query->where(function ($q) use ($s) {
                 $q->where('name', 'like', "%{$s}%")->orWhere('username', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%");
             });
         }
-        if ($request->get('premium') === 'true') $query->where('is_premium', true);
         if ($r = $request->get('role')) $query->where('role', $r);
 
         return response()->json(['status' => 'success', 'data' =>
@@ -71,7 +61,7 @@ class AdminController extends Controller
     public function userDetail(User $user)
     {
         $user->load(['notes' => function ($q) { $q->select('id','user_id','title','color','is_pinned','is_archived','is_trashed','created_at','updated_at'); },
-            'files', 'payments.plan', 'subscriptions.plan']);
+            'files']);
 
         $friendsList = $user->friends();
         $sharedByUser = NoteShare::where('shared_by', $user->id)->with('note:id,title', 'recipient:id,name,username')->get();
@@ -97,10 +87,9 @@ class AdminController extends Controller
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'role' => 'sometimes|in:user,admin',
             'is_active' => 'sometimes|boolean',
-            'is_premium' => 'sometimes|boolean',
             'storage_limit' => 'sometimes|integer',
         ]);
-        $user->update($request->only(['name','username','email','role','is_active','is_premium','storage_limit']));
+        $user->update($request->only(['name','username','email','role','is_active','storage_limit']));
         return response()->json(['status' => 'success', 'data' => $user->fresh()]);
     }
 
@@ -122,32 +111,7 @@ class AdminController extends Controller
 
     public function deleteNote(Note $note) { $note->delete(); return response()->json(['status' => 'success']); }
 
-    // ═══ PAYMENTS ═══
-    public function payments(Request $request)
-    {
-        $query = Payment::with(['user:id,name,username,email', 'plan:id,name']);
-        if ($st = $request->get('status')) $query->where('status', $st);
-        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate(20)]);
-    }
-
-    // ═══ PLANS ═══
-    public function plans() { return response()->json(['status'=>'success','data'=>SubscriptionPlan::withCount('subscriptions')->get()]); }
-
-    public function createPlan(Request $request)
-    {
-        $request->validate(['name'=>'required|string','price'=>'required|numeric','duration_days'=>'required|integer','storage_limit'=>'required|integer']);
-        return response()->json(['status'=>'success','data'=>SubscriptionPlan::create($request->all())], 201);
-    }
-
-    public function updatePlan(Request $request, SubscriptionPlan $plan)
-    {
-        $plan->update($request->all());
-        return response()->json(['status'=>'success','data'=>$plan->fresh()]);
-    }
-
-    public function deletePlan(SubscriptionPlan $plan) { $plan->update(['is_active'=>false]); return response()->json(['status'=>'success']); }
-
-    // ═══ SETTINGS (includes R2, Payment, DeepSeek keys) ═══
+    // ═══ SETTINGS (includes SMTP, R2, and AI keys) ═══
     public function getSettings(Request $request)
     {
         $group = $request->get('group');
@@ -167,20 +131,22 @@ class AdminController extends Controller
             $type = $s['type'] ?? 'string';
             $group = $s['group'] ?? 'general';
 
-            SiteSetting::updateOrCreate(
-                ['key' => $key],
-                ['value' => is_array($value) ? json_encode($value) : (string) $value, 'type' => $type, 'group' => $group]
-            );
+            SiteSetting::set($key, $value, $type, $group);
         }
 
-        return response()->json(['status' => 'success', 'message' => 'Settings updated successfully.']);
+        return response()->json(['status' => 'success', 'message' => 'Settings updated successfully.', 'data' => SiteSetting::all()]);
     }
 
     public function testSmtp(Request $request)
     {
         $request->validate(['email' => 'required|email']);
         try {
-            \Illuminate\Support\Facades\Mail::raw('Test email from Notexa admin panel.', function ($m) use ($request) {
+            if (!MailSettingsService::hasSmtpConfig()) {
+                return response()->json(['status' => 'error', 'message' => 'SMTP host is required before sending a test email.'], 422);
+            }
+
+            MailSettingsService::apply();
+            Mail::raw('Test email from Notexa admin panel.', function ($m) use ($request) {
                 $m->to($request->email)->subject('SMTP Test - Notexa');
             });
             return response()->json(['status' => 'success', 'message' => 'Email sent.']);

@@ -1,5 +1,5 @@
 <?php
-/* Site Settings - admin-configurable key-value store for SMTP, payment keys, AI keys, etc. */
+/* Site Settings - admin-configurable key-value store for SMTP, storage, AI, legal, and site content. */
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

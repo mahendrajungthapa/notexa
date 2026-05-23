@@ -6,13 +6,16 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteShareController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\FileController;
-use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Admin\AdminController;
 
 // ═══ PUBLIC ═══
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/subscription/ipn', [SubscriptionController::class, 'handleIPN'])->name('payment.ipn');
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
+Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])
+    ->middleware('throttle:6,1');
 
 Route::get('/settings/public', function () {
     return response()->json(['status' => 'success', 'data' => [
@@ -28,6 +31,9 @@ Route::get('/settings/public', function () {
 Route::get('/files/{file}/content', [FileController::class, 'serve'])
     ->middleware('signed')
     ->name('api.files.content');
+Route::get('/files/{file}/preview-content', [FileController::class, 'previewContent'])
+    ->middleware('signed')
+    ->name('api.files.preview');
 
 // ═══ AUTHENTICATED ═══
 Route::middleware('auth:sanctum')->group(function () {
@@ -73,20 +79,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/friends/request', [FriendController::class, 'sendRequest']);
     Route::put('/friends/accept/{friendship}', [FriendController::class, 'acceptRequest']);
     Route::put('/friends/reject/{friendship}', [FriendController::class, 'rejectRequest']);
+    Route::delete('/friends/request/{friendship}', [FriendController::class, 'cancelRequest']);
     Route::delete('/friends/{userId}', [FriendController::class, 'removeFriend']);
     Route::get('/friends/search', [FriendController::class, 'searchUsers']);
 
     // Files
     Route::get('/files', [FileController::class, 'index']);
+    Route::get('/files/shared-with-me', [FileController::class, 'sharedWithMe']);
     Route::post('/files/upload', [FileController::class, 'upload']);
     Route::get('/files/{file}/download', [FileController::class, 'download']);
+    Route::get('/files/{file}/preview', [FileController::class, 'preview']);
+    Route::get('/files/{file}/shares', [FileController::class, 'shares']);
+    Route::post('/files/{file}/share', [FileController::class, 'share']);
+    Route::delete('/files/{file}/share/{userId}', [FileController::class, 'unshare']);
     Route::delete('/files/{file}', [FileController::class, 'destroy']);
 
-    // Subscription
-    Route::get('/subscription/plans', [SubscriptionController::class, 'plans']);
-    Route::get('/subscription/my', [SubscriptionController::class, 'mySubscription']);
-    Route::post('/subscription/subscribe', [SubscriptionController::class, 'subscribe']);
-    Route::get('/subscription/payment-history', [SubscriptionController::class, 'paymentHistory']);
 });
 
 // ═══ ADMIN ═══
@@ -100,13 +107,6 @@ Route::middleware(['auth:sanctum', 'is_admin'])->prefix('admin')->group(function
 
     Route::get('/notes', [AdminController::class, 'notes']);
     Route::delete('/notes/{note}', [AdminController::class, 'deleteNote']);
-
-    Route::get('/payments', [AdminController::class, 'payments']);
-
-    Route::get('/plans', [AdminController::class, 'plans']);
-    Route::post('/plans', [AdminController::class, 'createPlan']);
-    Route::put('/plans/{plan}', [AdminController::class, 'updatePlan']);
-    Route::delete('/plans/{plan}', [AdminController::class, 'deletePlan']);
 
     Route::get('/settings', [AdminController::class, 'getSettings']);
     Route::put('/settings', [AdminController::class, 'updateSettings']);

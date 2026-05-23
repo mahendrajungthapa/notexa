@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import { ArrowRight, Sparkles, Users, Zap, HardDrive, Lock, CreditCard, Check } from 'lucide-react';
+import { ArrowRight, Sparkles, Users, Zap, HardDrive, Lock, CheckCircle2 } from 'lucide-react';
 
 const features = [
   { icon: Sparkles, title: 'Rich Text Editor', desc: 'Bold, headings, lists, code blocks, images, tasks, highlights — a powerful editor that stays out of your way.', color: 'bg-indigo-50 text-indigo-600' },
@@ -14,7 +14,6 @@ const features = [
   { icon: Zap, title: 'Collaborative Editing', desc: 'Share notes with classmates or friends, choose view/edit access, and keep versions of important changes.', color: 'bg-amber-50 text-amber-600' },
   { icon: HardDrive, title: 'Cloud Storage & Files', desc: 'Upload PDFs, images, documents. Cloudflare R2 powered — fast, reliable, global.', color: 'bg-rose-50 text-rose-600' },
   { icon: Lock, title: 'Share Codes', desc: 'Generate a unique 8-character code for any note. Anyone with the code can join as a viewer or editor.', color: 'bg-violet-50 text-violet-600' },
-  { icon: CreditCard, title: 'Premium via API Nepal', desc: 'Pay with eSewa, Khalti, IME Pay. Get 5GB storage, file sharing, AI summaries, and premium badge.', color: 'bg-pink-50 text-pink-600' },
 ];
 
 export default function HomePage() {
@@ -121,41 +120,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="pricing" className="py-24 px-4 bg-gray-950 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20 pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.4), transparent 70%)' }} />
-        <div className="max-w-4xl mx-auto relative z-10">
-          <div className="text-center mb-16">
-            <p className="text-sm font-semibold text-indigo-400 uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">Simple, honest pricing.</h2>
-            <p className="text-lg text-gray-400">Start free. Upgrade when you need more.</p>
+      {/* WORKFLOW */}
+      <section className="py-24 px-4 bg-gray-950 text-white relative overflow-hidden">
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="text-center mb-14">
+            <p className="text-sm font-semibold text-indigo-400 uppercase tracking-widest mb-3">Workflow</p>
+            <h2 className="text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">Capture, share, summarize.</h2>
+            <p className="text-lg text-gray-400">A simple loop for class notes, project plans, and team ideas.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Free */}
-            <div className="rounded-3xl p-10 bg-white/5 border border-white/10 hover:-translate-y-1 transition-transform">
-              <div className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Free</div>
-              <div className="text-5xl font-extrabold tracking-tight mb-1">Rs. 0</div>
-              <p className="text-sm text-gray-500 mb-8">Perfect for getting started</p>
-              <ul className="space-y-3 mb-8">
-                {['Unlimited notes','Share with friends','Rich text editor','50 MB storage','Share codes'].map((t,i)=>(
-                  <li key={i} className="flex items-center gap-3 text-sm text-gray-300"><Check size={16} className="text-gray-500 shrink-0" />{t}</li>
-                ))}
-              </ul>
-              <Link href="/auth/register" className="block text-center py-3.5 rounded-2xl text-sm font-semibold bg-white/10 border border-white/20 hover:bg-white/15 transition">Get Started</Link>
-            </div>
-            {/* Premium */}
-            <div className="rounded-3xl p-10 bg-gradient-to-br from-indigo-600 to-violet-600 relative shadow-2xl shadow-indigo-500/20 hover:-translate-y-1 transition-transform">
-              <div className="absolute -top-3 right-6 bg-emerald-400 text-gray-900 text-xs font-bold px-4 py-1 rounded-full">Popular</div>
-              <div className="text-xs font-bold uppercase tracking-widest text-indigo-200 mb-2">Premium</div>
-              <div className="text-5xl font-extrabold tracking-tight mb-1">Rs. 199<span className="text-lg font-normal text-white/50">/mo</span></div>
-              <p className="text-sm text-indigo-200 mb-8">For power users and teams</p>
-              <ul className="space-y-3 mb-8">
-                {['Everything in Free','5 GB cloud storage','File sharing in notes','AI note summaries','Premium badge ✨'].map((t,i)=>(
-                  <li key={i} className="flex items-center gap-3 text-sm text-white/90"><Check size={16} className="text-white/70 shrink-0" />{t}</li>
-                ))}
-              </ul>
-              <Link href="/auth/register" className="block text-center py-3.5 rounded-2xl text-sm font-semibold bg-white text-indigo-600 hover:-translate-y-0.5 hover:shadow-lg transition-all">Upgrade Now</Link>
-            </div>
+          <div className="grid md:grid-cols-3 gap-5">
+            {['Write rich notes with files and formatting', 'Share with friends or a secure code', 'Generate a concise summary when you need it'].map((text, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <CheckCircle2 size={20} className="mb-4 text-emerald-300" />
+                <p className="text-sm leading-relaxed text-gray-200">{text}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
