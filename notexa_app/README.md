@@ -1,17 +1,33 @@
-# notexa_app
+# Notexa Flutter App
 
-A new Flutter project.
+Flutter client for the Notexa API. It supports login/register, email verification, notes, friends, files, settings, and local draft sync against the Laravel backend.
 
-## Getting Started
+## Local API
 
-This project is a starting point for a Flutter application.
+Default API URL:
 
-A few resources to get you started if this is your first Flutter project:
+```text
+http://127.0.0.1:8000/api
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+For Android emulator use:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```text
+http://10.0.2.2:8000/api
+```
+
+Update `lib/services/api_service.dart` when testing on a device that cannot reach `127.0.0.1`.
+
+## Current Feature Notes
+
+- Subscription, premium, and payment UI are removed.
+- Archive is removed; notes use trash/restore/permanent delete instead.
+- Offline note drafts sync only fields accepted by the backend.
+- AI features use backend/admin API keys, never personal app keys.
+
+## Run
+
+```powershell
+flutter pub get
+flutter run
+```

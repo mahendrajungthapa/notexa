@@ -7,7 +7,7 @@ The Laravel backend is the API server for Notexa. It receives requests from the 
 - Register and log in users with Laravel Sanctum tokens.
 - Send 6-digit SMTP email verification codes when verification is enabled.
 - Send 6-digit SMTP password reset codes and reset passwords after code verification.
-- Manage notes, versions, archive, trash, pinning, share codes, and AI tools.
+- Manage notes, versions, trash, pinning, share codes, file sharing, and AI tools.
 - Manage friends and note sharing permissions.
 - Upload, download, directly share, and safely preview attached files.
 - Provide admin dashboards for users, notes, settings, sharing, friendships, and activity logs.

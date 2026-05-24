@@ -12,8 +12,6 @@ backend/notexa
 
 - PHP 8.3 or newer
 - Composer
-- Node.js 24.15 or newer
-- npm 11.12 or newer
 - SQLite for the simplest local setup
 - MySQL or PostgreSQL if you prefer a server database
 
@@ -22,7 +20,6 @@ backend/notexa
 ```powershell
 cd backend/notexa
 composer install
-npm install
 Copy-Item .env.example .env
 New-Item -ItemType File database/database.sqlite -Force
 php artisan key:generate
@@ -35,7 +32,6 @@ For Bash or Git Bash, use:
 ```bash
 cd backend/notexa
 composer install
-npm install
 cp .env.example .env
 touch database/database.sqlite
 php artisan key:generate

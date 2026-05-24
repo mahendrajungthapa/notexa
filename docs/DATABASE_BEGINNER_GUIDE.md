@@ -7,7 +7,7 @@ This guide explains the current Notexa database in simple terms. Notexa stores u
 | Table | Purpose |
 | --- | --- |
 | `users` | Registered accounts, roles, email verification, account status, and storage usage |
-| `notes` | User-created notes with title, content, color, archive/trash flags, share code, and AI summary |
+| `notes` | User-created notes with title, content, color, trash state, share code, and AI summary |
 | `note_versions` | Saved versions of note content |
 | `friendships` | Friend requests and accepted friend links |
 | `note_shares` | Which users can view or edit shared notes |
@@ -53,12 +53,11 @@ Important note fields:
 - `plain_text`
 - `color`
 - `is_pinned`
-- `is_archived`
 - `is_trashed`
 - `share_code`
 - `ai_summary`
 
-The backend keeps plain text for searching and HTML content for rich display.
+The backend keeps plain text for searching, HTML content for rich display, and trashed notes for restore/permanent delete flows.
 
 ## Site Settings
 

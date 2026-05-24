@@ -246,7 +246,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       'plain_text': _contentC.text.trim(),
       'color': _color,
       'is_pinned': _note?['is_pinned'] == true,
-      'is_archived': _note?['is_archived'] == true,
       'files': _files,
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -279,7 +278,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       'content': data['content'],
       'color': data['color'],
       'is_pinned': data['is_pinned'] == true,
-      'is_archived': data['is_archived'] == true,
     };
 
     try {

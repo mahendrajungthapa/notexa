@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "notexa-api-v2",
     "name": "Notexa API - Complete Collection",
-    "description": "Full API collection for Notexa collaborative note-taking platform.\n\nBase URL: http://127.0.0.1:8000/api\n\nAuth: Bearer Token (get from /login or /register)\n\nEmail verification: when enabled in Admin Settings, registration sends a 6-digit SMTP code and users verify with /email/verify-code.\n\nPassword reset: /forgot-password sends a 6-digit SMTP code and /reset-password applies it with a new password.\n\nSharing rules: share codes grant view-only access; edit access is only granted by the note owner to accepted friends.\n\nAI: server-side AI endpoints use admin-configured OpenAI, Gemini, or DeepSeek keys. Public settings never expose API keys.\n\nFiles: uploads can attach to owned/editable notes. If Cloudflare R2 is not configured, the API stores files locally and returns a temporary signed download URL.\n\nAdmin: admin@notexa.com / password123",
+    "description": "Notexa API collection for the current Laravel backend.\n\nBase URL: http://127.0.0.1:8000/api\n\nAuth: Bearer Token from /login or /register.\n\nEmail verification: when enabled in Admin Settings, registration sends a 6-digit SMTP code and users verify with /email/verify-code.\n\nPassword reset: /forgot-password sends a 6-digit SMTP code and /reset-password applies it with a new password.\n\nNotes: archive is removed; use trash, restore, permanent delete, pin, share codes, collaborators, and version history restore.\n\nRealtime collaboration: the Next.js editor uses Yjs WebRTC rooms for authorized note editors; REST endpoints manage note sharing permissions and share codes.\n\nAI: /notes/{note}/ai-summary and /notes/{note}/ai-query use admin-configured backend API keys only. Public settings expose ai_enabled, not private keys or personal workspace keys.\n\nFiles: supported previews use signed URLs for PDFs, text/code, and images; unsafe executable preview is blocked.\n\nAdmin: admin@notexa.com / password123",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -489,7 +489,7 @@
             {
               "name": "Success",
               "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"title\": \"My First Note\",\n        \"content\": \"<p>Hello world</p>\",\n        \"plain_text\": \"Hello world\",\n        \"color\": \"#ffffff\",\n        \"is_pinned\": false,\n        \"is_archived\": false,\n        \"is_trashed\": false,\n        \"share_code\": \"XK7M2NPA\",\n        \"ai_summary\": null,\n        \"created_at\": \"2026-04-03T10:00:00.000000Z\",\n        \"updated_at\": \"2026-04-03T10:00:00.000000Z\"\n      }\n    ],\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"total\": 1\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"title\": \"My First Note\",\n        \"content\": \"<p>Hello world</p>\",\n        \"plain_text\": \"Hello world\",\n        \"color\": \"#ffffff\",\n        \"is_pinned\": false,\n        \"is_trashed\": false,\n        \"share_code\": \"XK7M2NPA\",\n        \"ai_summary\": null,\n        \"created_at\": \"2026-04-03T10:00:00.000000Z\",\n        \"updated_at\": \"2026-04-03T10:00:00.000000Z\"\n      }\n    ],\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"total\": 1\n  }\n}"
             }
           ]
         },
@@ -687,30 +687,6 @@
           ]
         },
         {
-          "name": "Toggle Archive",
-          "request": {
-            "method": "PATCH",
-            "url": {
-              "raw": "{{base_url}}/notes/{{note_id}}/archive",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "notes",
-                "{{note_id}}",
-                "archive"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"is_archived\": true }\n}"
-            }
-          ]
-        },
-        {
           "name": "Get Share Code",
           "request": {
             "method": "GET",
@@ -876,29 +852,6 @@
               "name": "Fail - Not configured",
               "code": 503,
               "body": "{\n  \"status\": \"error\",\n  \"message\": \"No server AI provider is configured. Add an API key in Admin Settings.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Archived Notes",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/notes/archived",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "notes",
-                "archived"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"data\": [], \"total\": 0 } }"
             }
           ]
         },
@@ -1251,6 +1204,35 @@
           ]
         },
         {
+          "name": "Cancel Sent Request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/friends/request/{{friendship_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "friends",
+                "request",
+                "{{friendship_id}}"
+              ]
+            },
+            "description": "Cancel a pending friend request that the authenticated user sent."
+          },
+          "response": []
+        },
+        {
           "name": "Remove Friend",
           "request": {
             "method": "DELETE",
@@ -1580,7 +1562,7 @@
             {
               "name": "Success",
               "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"site_name\": \"Notexa\",\n    \"site_logo\": \"\",\n    \"site_description\": \"Collaborative Note Taking Platform\",\n    \"privacy_policy\": \"<h1>Privacy Policy</h1>...\",\n    \"terms_conditions\": \"<h1>Terms</h1>...\",\n    \"about_us\": \"<h2>About Notexa</h2>...\",\n    \"ai_enabled\": true,\n    \"ai_provider\": \"deepseek\",\n    \"deepseek_model\": \"deepseek-chat\",\n    \"openai_model\": \"gpt-4o-mini\",\n    \"gemini_model\": \"gemini-1.5-flash\"\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"site_name\": \"Notexa\",\n    \"site_logo\": \"\",\n    \"site_description\": \"Collaborative Note Taking Platform\",\n    \"privacy_policy\": \"<h1>Privacy Policy</h1>...\",\n    \"terms_conditions\": \"<h1>Terms</h1>...\",\n    \"about_us\": \"<h2>About Notexa</h2>...\",\n    \"ai_enabled\": true\n  }\n}"
             }
           ]
         }
@@ -1767,7 +1749,7 @@
             {
               "name": "Success",
               "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_api_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"openai_api_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
             }
           ]
         },
@@ -1805,7 +1787,7 @@
           ]
         },
         {
-          "name": "Update Settings (DeepSeek Key)",
+          "name": "Update Settings (AI Provider Key)",
           "request": {
             "method": "PUT",
             "header": [
@@ -1816,7 +1798,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"settings\": [\n    { \"key\": \"deepseek_api_key\", \"value\": \"sk-xxxx\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
+              "raw": "{\n  \"settings\": [\n    { \"key\": \"openai_api_key\", \"value\": \"sk-your-admin-provider-key\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/admin/settings",

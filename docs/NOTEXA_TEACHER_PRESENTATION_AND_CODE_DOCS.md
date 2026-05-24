@@ -2,7 +2,7 @@
 
 ## Short Introduction
 
-Notexa is a collaborative note-taking platform. Users can register, verify email when required, log in, create notes, edit notes, share notes and files with friends, redeem share codes, safely preview supported files, and use AI study tools. Admins can manage users, notes, settings, shared notes, friendships, and activity logs.
+Notexa is a collaborative note-taking platform. Users can register, verify email when required, log in, create notes, edit notes, restore previous note versions, share notes and files with friends, redeem share codes, safely preview supported files, and use AI study tools. Admins can manage users, notes, settings, shared notes, friendships, and activity logs.
 
 ## Architecture
 
@@ -76,8 +76,22 @@ Flutter App
 1. User clicks AI summary, Ask AI, Flashcards, Quiz, or Clean Notes.
 2. Client saves latest note content.
 3. Backend checks access.
-4. Backend uses the configured AI provider.
+4. Backend uses the configured AI provider from Admin Settings.
 5. Summary is saved to the note, while prompt responses return directly.
+
+### Restore Version History
+
+1. Note edits create server snapshots when content changes.
+2. The Version History panel loads `/api/notes/{note}/versions`.
+3. Users can preview recent edits and restore any older snapshot.
+4. Restoring a snapshot saves it as the current note content.
+
+### Realtime Collaboration
+
+1. Authorized editors open the same shared note.
+2. The editor joins a Yjs WebRTC room based on the note and share token.
+3. Tiptap Collaboration syncs text changes between active collaborators.
+4. The server still autosaves the current HTML content to the note record.
 
 ### Preview And Share Files
 
@@ -96,4 +110,4 @@ Flutter App
 
 ## Demo Script
 
-Good morning sir/ma'am. Our project is Notexa, a collaborative note-taking platform. It has a Laravel REST API backend, a Next.js web frontend, a Flutter app, and a relational database. Users can register, verify email, create notes, share notes and files, safely preview supported files, and use AI study tools. Admins can manage users, notes, settings, sharing records, friendships, and activity logs.
+Good morning sir/ma'am. Our project is Notexa, a collaborative note-taking platform. It has a Laravel REST API backend, a Next.js web frontend, a Flutter app, and a relational database. Users can register, verify email, create notes, restore version history, collaborate in real time, share notes and files, safely preview supported files, and use AI study tools. Admins can manage users, notes, settings, sharing records, friendships, and activity logs.

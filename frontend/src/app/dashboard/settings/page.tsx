@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const [changingPw, setChangingPw] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Stats State
   const [stats, setStats] = useState<{ notesCreated: number | null; notesShared: number | null }>({
@@ -186,6 +187,31 @@ export default function SettingsPage() {
     } finally { setChangingPw(false); }
   };
 
+  const handleShareProfile = async () => {
+    if (typeof window === 'undefined') return;
+    const handle = username ? `@${username}` : user?.email || '';
+    const text = `Add me on Notexa: ${name || user?.name || 'Notexa user'}${handle ? ` (${handle})` : ''}`;
+    const url = `${window.location.origin}/dashboard/friends`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Notexa profile', text, url });
+        toast.success('Profile shared');
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast.success('Profile details copied');
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') toast.error('Unable to share profile');
+    }
+  };
+
+  const handleEditProfile = () => {
+    document.getElementById('account-info')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => nameInputRef.current?.focus(), 250);
+  };
+
   const triggerImageUpload = () => {
     fileInputRef.current?.click();
   };
@@ -281,11 +307,16 @@ export default function SettingsPage() {
 
         {/* Actions */}
         <div className="flex flex-col items-center gap-3 shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
-          <button className="w-full px-5 py-2.5 rounded-xl border-2 border-outline-variant/30 font-bold text-sm text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={handleShareProfile}
+            className="w-full px-5 py-2.5 rounded-xl border-2 border-outline-variant/30 font-bold text-sm text-on-surface hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2"
+          >
             <Share size={16} /> Share Profile
           </button>
           <button
-            onClick={() => { document.getElementById('account-info')?.scrollIntoView({ behavior: 'smooth' }) }}
+            type="button"
+            onClick={handleEditProfile}
             className="w-full px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-md shadow-primary/20 hover:bg-[#291eb0] transition-colors flex items-center justify-center gap-2"
           >
             <Pencil size={16} /> Edit Profile
@@ -313,6 +344,8 @@ export default function SettingsPage() {
                   <div className="relative">
                     <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-outline" />
                     <input
+                      ref={nameInputRef}
+                      id="display-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}

@@ -30,13 +30,14 @@ interface NoteEditorProps {
   editable?: boolean;
   noteId?: number;
   collaborationToken?: string | null;
+  forceContentVersion?: number;
 }
 
 function roomSafe(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'room';
 }
 
-export default function NoteEditor({ content, onChange, editable = true, noteId, collaborationToken }: NoteEditorProps) {
+export default function NoteEditor({ content, onChange, editable = true, noteId, collaborationToken, forceContentVersion }: NoteEditorProps) {
   const currentUser = useAuthStore((s) => s.user);
 
   // Genuine real-time collaboration state (Yjs + WebRTC + Tiptap Collaboration).
@@ -94,10 +95,15 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   useEffect(() => {
     if (collabActive) return;
-    if (editor && content && editor.getHTML() !== content) {
-      editor.commands.setContent(content, false);
+    if (editor && editor.getHTML() !== (content || '')) {
+      editor.commands.setContent(content || '', false);
     }
   }, [collabActive, content, editor]);
+
+  useEffect(() => {
+    if (!editor || typeof forceContentVersion !== 'number') return;
+    editor.commands.setContent(content || '', false);
+  }, [editor, forceContentVersion]);
 
   useEffect(() => {
     if (editor) editor.setEditable(editable);
@@ -435,9 +441,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [targetLanguage, setTargetLanguage] = useState('Spanish');
   const [ocrImageUrl, setOcrImageUrl] = useState('');
 
-  // Server-managed AI state. API keys live only in the Admin Panel/backend.
-  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini' | 'deepseek'>('openai');
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  // Server-managed AI state. API keys and provider choices live only in the Admin Panel/backend.
   const [aiEnabled, setAiEnabled] = useState(true);
 
   const readSetting = (source: any, key: string, fallback: unknown = '') => {
@@ -453,27 +457,12 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   // Resolve only public server AI metadata. Keys are never read from browser storage.
   const getAIConfig = async () => {
-    const config = {
-      enabled: true,
-      provider: 'deepseek' as 'openai' | 'gemini' | 'deepseek',
-      openaiModel: 'gpt-4o-mini',
-      geminiModel: 'gemini-1.5-flash',
-      deepseekModel: 'deepseek-chat',
-    };
+    const config = { enabled: true };
 
     try {
       const res = await publicApi.settings();
       const data = res.data?.data || res.data || {};
-
-      const provider = String(readSetting(data, 'ai_provider', config.provider)).toLowerCase();
-      if (provider === 'openai' || provider === 'gemini' || provider === 'deepseek') {
-        config.provider = provider;
-      }
-
       config.enabled = settingIsEnabled(readSetting(data, 'ai_enabled', true));
-      config.openaiModel = String(readSetting(data, 'openai_model', config.openaiModel) || config.openaiModel);
-      config.geminiModel = String(readSetting(data, 'gemini_model', config.geminiModel) || config.geminiModel);
-      config.deepseekModel = String(readSetting(data, 'deepseek_model', config.deepseekModel) || config.deepseekModel);
     } catch (e) {
       console.warn('Could not load public AI settings; backend AI endpoint will still enforce admin configuration.', e);
     }
@@ -507,14 +496,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     const loadAISettings = async () => {
       const config = await getAIConfig();
       setAiEnabled(config.enabled);
-      setSelectedProvider(config.provider);
-      setSelectedModel(
-        config.provider === 'openai'
-          ? config.openaiModel
-          : config.provider === 'gemini'
-            ? config.geminiModel
-            : config.deepseekModel
-      );
     };
     loadAISettings();
   }, []);
@@ -717,22 +698,34 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
+  const [toolbarTooltip, setToolbarTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
+
+  const showToolbarTooltip = (event: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, label?: string) => {
+    if (!label || typeof window === 'undefined') return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.min(Math.max(rect.left + rect.width / 2, 56), window.innerWidth - 56);
+    const y = Math.min(rect.bottom + 8, window.innerHeight - 32);
+    setToolbarTooltip({ label, x, y });
+  };
+
+  const hideToolbarTooltip = () => setToolbarTooltip(null);
+
   const ToolButton = ({ onClick, active, children, title, className = '', disabled = false }: any) => (
-    <div className="relative group flex justify-center shrink-0">
+    <div className="flex justify-center shrink-0">
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
+        aria-label={title}
+        onMouseEnter={(e) => showToolbarTooltip(e, title)}
+        onMouseLeave={hideToolbarTooltip}
+        onFocus={(e) => showToolbarTooltip(e, title)}
+        onBlur={hideToolbarTooltip}
         onMouseDown={(e) => e.preventDefault()}
-        className={`p-2 sm:p-1.5 rounded-lg transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${disabled ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''} ${className}`}
+        className={`h-9 w-9 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${disabled ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''} ${className}`}
       >
         {children}
       </button>
-      {title && (
-        <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
-          {title}
-        </span>
-      )}
     </div>
   );
 
@@ -747,6 +740,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         className="hidden"
         onChange={handleImageUpload}
       />
+      {toolbarTooltip && (
+        <div
+          className="fixed z-[9999] px-2 py-1 bg-slate-900/95 text-white text-[10px] font-black rounded-lg shadow-xl whitespace-nowrap pointer-events-none select-none"
+          style={{ left: toolbarTooltip.x, top: toolbarTooltip.y, transform: 'translateX(-50%)' }}
+        >
+          {toolbarTooltip.label}
+        </div>
+      )}
 
       {/* Toolbar */}
       {editable && (
@@ -833,16 +834,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
           <div className="hidden sm:block flex-1 min-w-[10px]" />
 
-          {/* Server AI Features Group */}
           {aiEnabled && (
-            <div className="flex items-center gap-1 bg-indigo-50/70 border border-indigo-100/40 px-2.5 py-1.5 rounded-xl shrink-0 shadow-sm mr-1">
-              <Sparkles size={13} className="text-indigo-500 shrink-0" />
-              <span className="text-[10px] font-bold text-indigo-700 whitespace-nowrap capitalize">
-                {selectedProvider} {selectedModel && <span className="hidden sm:inline">/ {selectedModel}</span>}
-              </span>
-            </div>
-          )}
-
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
             <ToolButton onClick={() => { setAiFeature('ask'); setAiResult(''); setAiPrompt(''); }} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
               <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
@@ -867,6 +859,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <BookOpen size={16} className="text-amber-500 group-hover:text-amber-600 group-hover:scale-110 transition-transform" />
             </ToolButton>
           </div>
+          )}
 
           {/* ADHD, PDF, & Real-Time Collaboration Boosters Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-rose-50/50 to-pink-50/50 p-1 rounded-xl border border-rose-100/30 ml-1.5 shadow-sm">
@@ -875,7 +868,12 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <button
                 type="button"
                 onClick={() => { setShowAdhdHub(!showAdhdHub); setShowPdfSidebar(false); }}
-                className={`p-1.5 px-2 rounded-lg transition-all duration-100 flex items-center gap-1.5 hover:bg-rose-100 hover:scale-105 ${showAdhdHub ? 'bg-rose-200 text-rose-700 font-bold scale-105 shadow-sm' : 'text-rose-500 animate-pulse'}`}
+                aria-label={adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub'}
+                onMouseEnter={(e) => showToolbarTooltip(e, adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub')}
+                onMouseLeave={hideToolbarTooltip}
+                onFocus={(e) => showToolbarTooltip(e, adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub')}
+                onBlur={hideToolbarTooltip}
+                className={`h-9 min-w-9 px-2 rounded-lg transition-all duration-100 flex items-center justify-center gap-1.5 hover:bg-rose-100 hover:scale-105 ${showAdhdHub ? 'bg-rose-200 text-rose-700 font-bold scale-105 shadow-sm' : 'text-rose-500 animate-pulse'}`}
               >
                 <Heart size={16} className={`fill-rose-400 ${adhdTimerActive ? 'animate-bounce' : ''}`} />
                 {adhdTimerActive && (
@@ -884,40 +882,41 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                   </span>
                 )}
               </button>
-              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
-                {adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub'}
-              </span>
             </div>
             <div className="w-px h-4 bg-rose-200/50 mx-0.5" />
             {/* Split Screen PDF Study Button */}
-            <div className="relative group flex justify-center">
+            <div className="flex justify-center">
               <button
                 type="button"
                 onClick={() => { setShowPdfSidebar(!showPdfSidebar); setShowAdhdHub(false); fetchPdfFiles(); }}
-                className={`p-1.5 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-pink-100 hover:scale-110 ${showPdfSidebar ? 'bg-pink-200 text-pink-700 font-bold scale-105 shadow-sm' : 'text-pink-500'}`}
+                aria-label="Open Study PDF (Split Screen)"
+                onMouseEnter={(e) => showToolbarTooltip(e, 'Open Study PDF (Split Screen)')}
+                onMouseLeave={hideToolbarTooltip}
+                onFocus={(e) => showToolbarTooltip(e, 'Open Study PDF (Split Screen)')}
+                onBlur={hideToolbarTooltip}
+                className={`h-9 w-9 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-pink-100 hover:scale-110 ${showPdfSidebar ? 'bg-pink-200 text-pink-700 font-bold scale-105 shadow-sm' : 'text-pink-500'}`}
               >
                 <FileText size={16} />
               </button>
-              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
-                Open Study PDF (Split Screen)
-              </span>
             </div>
             <div className="w-px h-4 bg-pink-200/50 mx-0.5" />
             {/* P2P Collaboration Button */}
-            <div className="relative group flex justify-center">
+            <div className="flex justify-center">
               <button
                 type="button"
                 onClick={() => { setCollabActive(!collabActive); }}
-                className={`p-1.5 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-indigo-100 hover:scale-110 relative ${collabActive ? 'bg-indigo-200 text-indigo-700 font-bold scale-105 shadow-sm' : 'text-indigo-500'}`}
+                aria-label={collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration'}
+                onMouseEnter={(e) => showToolbarTooltip(e, collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration')}
+                onMouseLeave={hideToolbarTooltip}
+                onFocus={(e) => showToolbarTooltip(e, collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration')}
+                onBlur={hideToolbarTooltip}
+                className={`h-9 w-9 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-indigo-100 hover:scale-110 relative ${collabActive ? 'bg-indigo-200 text-indigo-700 font-bold scale-105 shadow-sm' : 'text-indigo-500'}`}
               >
                 <Users size={16} />
                 {collabActive && (
                   <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white shrink-0 animate-pulse ${collabStatus === 'connected' ? 'bg-emerald-500' : collabStatus === 'connecting' ? 'bg-amber-500' : 'bg-red-500'}`} />
                 )}
               </button>
-              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
-                {collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration'}
-              </span>
             </div>
           </div>
 

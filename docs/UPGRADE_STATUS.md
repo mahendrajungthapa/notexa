@@ -6,18 +6,29 @@
 | --- | --- |
 | Laravel | Already on Laravel `13.6.0`, current Laravel 13 line |
 | PHP | Local runtime is `8.4.20`, compatible with Laravel 13 |
-| Next.js | Already on `16.2.4`; official Next.js blog lists 16.2 as latest stable release line |
-| React | Project lockfile has `19.2.5`; package constraints updated to `^19.2.5` |
-| TypeScript | Project lockfile has `5.9.3`; package constraints updated to `^5.9.3` |
+| Next.js | Project uses the Next.js `16.2.x` stable line |
+| React | Project uses React `18.3.x`, matching the current app code and lockfile constraints |
+| TypeScript | Project uses TypeScript `5.x` |
 | Tailwind CSS | Project lockfile has `3.4.19`; package constraints updated to `^3.4.19` |
-| Node.js target | Added project target `24.15.0` through `package.json`, `.nvmrc`, `.node-version` |
-| Flutter | Not upgraded, per instruction |
+| Node.js target | Frontend target is `24.15.0` through `frontend/package.json`, `.nvmrc`, and `.node-version` |
+| Flutter | App code was aligned with the current backend feature set |
+| Payments/subscriptions | Removed from the product and API surface |
+| Notes | Archive was removed; trash, restore, and permanent delete remain |
+| AI | Browser-side personal AI keys were removed; all AI keys are admin/backend settings only |
+| Realtime collaboration | Next.js editor uses Tiptap Collaboration with Yjs WebRTC rooms per shared note |
 
 ## Files Changed
 
 ```text
 frontend/package.json
 frontend/package-lock.json
+frontend/src/components/editor/NoteEditor.tsx
+frontend/src/app/dashboard/notes/page.tsx
+frontend/src/app/dashboard/notes/[id]/page.tsx
+frontend/src/app/dashboard/settings/page.tsx
+backend/notexa/routes/api.php
+backend/notexa/app/Http/Controllers/Api/NoteController.php
+postman/Notexa_API_Collection.json
 frontend/.nvmrc
 frontend/.node-version
 docs/LARAVEL_BEGINNER_GUIDE.md
@@ -47,4 +58,3 @@ php artisan route:list --path=api
 ## Important Node Note
 
 The project now targets Node `24.15.0`, but the machine currently reports Node `22.20.0`. A project file can declare the Node version, but installing the system Node runtime must be done with a Node installer, nvm, fnm, Volta, or similar tool.
-

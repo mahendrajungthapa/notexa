@@ -68,7 +68,7 @@ export interface NoteVersion {
   plain_text: string | null;
   version_number: number;
   created_at: string;
-  user?: Pick<User, 'id' | 'name'>;
+  user?: Pick<User, 'id' | 'name' | 'username'>;
 }
 
 // ═══════════════════════════════════════════

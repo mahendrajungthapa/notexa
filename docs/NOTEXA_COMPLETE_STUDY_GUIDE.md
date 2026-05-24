@@ -14,7 +14,7 @@ Admin panel       -> Laravel API -> Site settings
 
 - Authentication and Sanctum token login.
 - Optional SMTP email verification.
-- Notes, archive, trash, restore, pinning, version history, and AI summaries.
+- Notes, trash, restore, pinning, version history restore, and AI summaries.
 - Friends and friend requests.
 - Note sharing with view/edit permissions.
 - Share code redemption.

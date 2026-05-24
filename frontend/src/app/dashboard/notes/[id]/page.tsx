@@ -63,6 +63,7 @@ export default function NoteDetailPage() {
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [previewingVersionId, setPreviewingVersionId] = useState<number | null>(null);
+  const [editorContentVersion, setEditorContentVersion] = useState(0);
 
   // AI & Attachments
   const [aiLoading, setAiLoading] = useState(false);
@@ -180,7 +181,9 @@ export default function NoteDetailPage() {
       ]);
       setFriends(friendsResponse.data.data || []);
       setCollaborators(collaboratorsResponse.data.data || []);
-      setShareCode(codeResponse.data.share_code || '');
+      const currentCode = codeResponse.data.share_code || '';
+      setShareCode(currentCode);
+      setNote((current) => current && currentCode ? { ...current, share_code: currentCode } : current);
     } catch {
       toast.error('Unable to load sharing options');
     }
@@ -228,35 +231,39 @@ export default function NoteDetailPage() {
   const handleRegenCode = async () => {
     try {
       const response = await notesApi.regenerateCode(noteId);
-      setShareCode(response.data.share_code);
+      const nextCode = response.data.share_code;
+      setShareCode(nextCode);
+      setNote((current) => current ? { ...current, share_code: nextCode } : current);
       toast.success('New share code generated!');
     } catch {
       toast.error('Failed to generate new code');
     }
   };
 
-  // Revert version handler
+  // Restore version handler
   const handleRevertVersion = async (version: NoteVersion) => {
-    if (!confirm(`Are you sure you want to revert to Version #${version.version_number}? This will replace your current note editor content.`)) return;
+    if (!confirm(`Restore Version #${version.version_number}? This will replace your current note editor content.`)) return;
     try {
-      toast.loading(`Reverting to Version #${version.version_number}...`, { id: 'revert-loading' });
+      toast.loading(`Restoring Version #${version.version_number}...`, { id: 'revert-loading' });
       
-      // Save it as current active draft on server
-      await notesApi.update(noteId, { title, content: version.content });
+      const response = await notesApi.update(noteId, { title, content: version.content });
+      const saved = response.data?.data;
+      const savedTitle = saved?.title || title;
+      const savedContent = saved?.content || version.content;
       
-      // Update local states
-      setContent(version.content);
-      setLastSaved((prev) => ({ ...prev, content: version.content }));
+      setNote(saved || note);
+      setTitle(savedTitle);
+      setContent(savedContent);
+      setLastSaved({ title: savedTitle, content: savedContent });
+      setEditorContentVersion((value) => value + 1);
       setDirty(false);
       setSaveState('saved');
+      localStorage.removeItem(draftKey);
       
-      toast.success(`Successfully reverted note to Version #${version.version_number}!`, { id: 'revert-loading' });
+      toast.success(`Restored Version #${version.version_number}`, { id: 'revert-loading' });
       setShowHistory(false);
-      
-      // Fetch fresh note details to fully synchronize everything
-      await fetchNote();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to revert version', { id: 'revert-loading' });
+      toast.error(error.response?.data?.message || 'Failed to restore version', { id: 'revert-loading' });
     }
   };
 
@@ -290,29 +297,33 @@ export default function NoteDetailPage() {
     return `User #${val.user_id}`;
   };
 
+  const getVersionSnippet = (html: string) => {
+    if (typeof window !== 'undefined') {
+      const element = document.createElement('div');
+      element.innerHTML = html || '';
+      return (element.textContent || element.innerText || '').replace(/\s+/g, ' ').trim();
+    }
+    return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
   const openHistoryModal = async () => {
     setShowHistory(true);
     setHistoryLoading(true);
     setPreviewingVersionId(null);
     try {
       const response = await notesApi.versions(noteId);
-      console.log('Versions API Response:', response.data);
-      
-      let list = [];
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          list = response.data;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          list = response.data.data;
-        } else if (response.data.versions && Array.isArray(response.data.versions)) {
-          list = response.data.versions;
-        } else if (response.data.history && Array.isArray(response.data.history)) {
-          list = response.data.history;
-        }
-      }
-      setVersions(list);
+      const payload = response.data?.data ?? response.data;
+      const list = Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload)
+          ? payload
+          : Array.isArray(response.data?.versions)
+            ? response.data.versions
+            : Array.isArray(response.data?.history)
+              ? response.data.history
+              : [];
+      setVersions([...list].sort((a, b) => (b.version_number || 0) - (a.version_number || 0)));
     } catch (error: any) {
-      console.error('Failed to load version history:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to load version history');
     } finally {
       setHistoryLoading(false);
@@ -544,6 +555,7 @@ export default function NoteDetailPage() {
               editable={canEdit}
               noteId={noteId}
               collaborationToken={note?.share_code}
+              forceContentVersion={editorContentVersion}
             />
           </div>
         </section>
@@ -807,22 +819,31 @@ export default function NoteDetailPage() {
                   <p className="text-xs text-slate-400 font-semibold">No version history recorded yet.</p>
                 </div>
               ) : (
-                versions.map((v) => {
+                versions.map((v, index) => {
                   const isPreviewing = previewingVersionId === v.id;
+                  const snippet = getVersionSnippet(v.content);
                   return (
                     <div key={v.id} className="border border-slate-100 bg-slate-50/50 rounded-2xl p-4 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-300">
                       <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-md text-[10px] font-black tracking-wide">
-                              Draft #{v.version_number}
+                              Version #{v.version_number}
                             </span>
+                            {index === 0 && (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                                Latest edit
+                              </span>
+                            )}
                             <span className="text-xs font-bold text-slate-700">
                               by {getVersionAuthorName(v)}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-400 font-semibold">
                             {new Date(v.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium line-clamp-2 max-w-[260px]">
+                            {snippet || 'Empty note content'}
                           </p>
                         </div>
 
@@ -837,7 +858,7 @@ export default function NoteDetailPage() {
                             onClick={() => handleRevertVersion(v)}
                             className="px-3 py-1.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold hover:shadow-md hover:shadow-indigo-500/20 active:scale-95 transition-all duration-200"
                           >
-                            Revert
+                            Restore
                           </button>
                         </div>
                       </div>

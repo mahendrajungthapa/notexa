@@ -5,15 +5,15 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 ## Features
 
 - User registration, login, SMTP password reset codes, profile updates, and Laravel Sanctum token authentication.
-- Rich note editor with headings, formatting, task lists, links, images, highlights, and code-friendly content.
-- Notes dashboard with create, edit, pin, trash, restore, and permanent delete flows.
-- Version history for notes so important changes can be reviewed later.
+- Rich note editor with fixed-size toolbar icons, image upload, formatting, task lists, links, highlights, and code-friendly content.
+- Notes dashboard with mobile two-column grid cards, create, edit, pin, trash, restore, and permanent delete flows.
+- Version history for notes so recent edits can be previewed and restored.
 - Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
 - Note sharing through friends, permissions, collaborators, and share codes.
-- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC for multiple authorized editors.
+- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC for multiple authorized editors on the same shared note.
 - File upload, safe PDF/text/image previews, download, note attachments, and direct file sharing with friends.
 - Admin area for users, notes, site settings, shared notes, friendships, and activity logs.
-- AI summary and prompt endpoints through the backend service layer.
+- AI summary and prompt endpoints through the backend service layer; API keys are configured only in the Admin Panel.
 - Optional 6-digit SMTP email verification during registration.
 - Flutter app for mobile/desktop access to the same API, with local drafts and resilient offline note sync.
 
@@ -31,7 +31,7 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 ## Tech Stack
 
 - Backend: PHP 8.3, Laravel 13, Laravel Sanctum, SQLite/MySQL/PostgreSQL-ready migrations.
-- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS, TipTap editor, Zustand, Axios.
+- Frontend: Next.js 16, React 18, TypeScript, Tailwind CSS, TipTap editor, Zustand, Axios.
 - App: Flutter 3, Dart, Provider, Shared Preferences, HTTP client, File Picker, PDF viewer.
 - Storage and services: local filesystem by default, Cloudflare R2-compatible configuration, SMTP mail configuration, and OpenAI/Gemini/DeepSeek AI settings.
 
@@ -54,7 +54,6 @@ Start the backend first because both the web frontend and Flutter app call the L
 ```powershell
 cd backend/notexa
 composer install
-npm install
 Copy-Item .env.example .env
 New-Item -ItemType File database/database.sqlite -Force
 php artisan key:generate
@@ -148,6 +147,7 @@ Important values:
 - Flutter app setup: `guides/app/README.md`
 - All setup guides: `guides/README.md`
 - API collection: `postman/Notexa_API_Collection.json`
+- API/Postman update notes: `docs/API_AND_POSTMAN_UPDATE.md`
 - Full study guide: `docs/NOTEXA_COMPLETE_STUDY_GUIDE.md`
 - Minor project documentation: `docs/NOTEXA_MINOR_PROJECT_DOCUMENTATION.md`
 

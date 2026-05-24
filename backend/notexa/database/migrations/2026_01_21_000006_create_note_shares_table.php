@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
+        if (Schema::hasTable('note_shares')) {
+            return;
+        }
+
         Schema::create('note_shares', function (Blueprint $table) {
             $table->id();
             $table->foreignId('note_id')->constrained()->onDelete('cascade');

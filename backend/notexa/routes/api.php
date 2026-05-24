@@ -29,10 +29,6 @@ Route::get('/settings/public', function () {
         'terms_conditions' => \App\Models\SiteSetting::get('terms_conditions', ''),
         'about_us' => \App\Models\SiteSetting::get('about_us', ''),
         'ai_enabled' => \App\Models\SiteSetting::get('ai_enabled', true),
-        'ai_provider' => \App\Models\SiteSetting::get('ai_provider', 'deepseek'),
-        'openai_model' => \App\Models\SiteSetting::get('openai_model', 'gpt-4o-mini'),
-        'gemini_model' => \App\Models\SiteSetting::get('gemini_model', 'gemini-1.5-flash'),
-        'deepseek_model' => \App\Models\SiteSetting::get('deepseek_model', 'deepseek-chat'),
     ]]);
 });
 

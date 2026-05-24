@@ -16,7 +16,6 @@ class AuthService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
   bool get isAdmin => _user?['role'] == 'admin';
-  bool get isPremium => _user?['is_premium'] == true;
 
   AuthService() {
     _initialize();

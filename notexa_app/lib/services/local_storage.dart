@@ -27,7 +27,6 @@ class LocalNoteStorage {
           'plain_text': htmlToPlain(content),
           'color': color,
           'is_pinned': false,
-          'is_archived': false,
           'is_trashed': false,
           'share_code': null,
           'created_at': now,
@@ -79,7 +78,7 @@ class LocalNoteStorage {
     final query = search.trim().toLowerCase();
     final values = notes.values
         .map((v) => Map<String, dynamic>.from(v))
-        .where((n) => n['is_trashed'] != true && n['is_archived'] != true)
+        .where((n) => n['is_trashed'] != true)
         .where((n) {
       if (query.isEmpty) return true;
       final title = (n['title'] ?? '').toString().toLowerCase();
@@ -168,7 +167,6 @@ class LocalNoteStorage {
         'content': note['content'] ?? '',
         'color': note['color'] ?? '#ffffff',
         'is_pinned': note['is_pinned'] == true,
-        'is_archived': note['is_archived'] == true,
       };
 
       try {

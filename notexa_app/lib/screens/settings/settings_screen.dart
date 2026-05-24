@@ -98,10 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           CircleAvatar(radius: 28, backgroundColor: Colors.indigo.shade100, child: Text(auth.user?['name']?[0] ?? '?', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo.shade700))),
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              if (auth.isPremium) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.workspace_premium, size: 16, color: Colors.amber)),
-            ]),
+            Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             Text('@${auth.user?['username'] ?? ''}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
             Text(auth.user?['email'] ?? '', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
           ])),

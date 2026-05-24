@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
+        if (Schema::hasTable('file_shares')) {
+            return;
+        }
+
         Schema::create('file_shares', function (Blueprint $table) {
             $table->id();
             $table->foreignId('file_id')->constrained('files')->onDelete('cascade');

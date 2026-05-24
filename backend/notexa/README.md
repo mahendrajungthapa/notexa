@@ -17,7 +17,6 @@ This is the Laravel API for Notexa. It powers the Next.js frontend and Flutter a
 
 ```powershell
 composer install
-npm install
 Copy-Item .env.example .env
 New-Item -ItemType File database/database.sqlite -Force
 php artisan key:generate

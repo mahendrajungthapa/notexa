@@ -86,12 +86,16 @@ class NoteController extends Controller
         ]);
 
         $data = $request->only(['title', 'content', 'color', 'is_pinned']);
-        if (isset($data['content'])) {
-            $data['plain_text'] = strip_tags($data['content']);
+        $contentChanged = false;
+        if (array_key_exists('content', $data)) {
+            $incomingContent = (string) ($data['content'] ?? '');
+            $contentChanged = $incomingContent !== (string) ($note->content ?? '');
+            $data['content'] = $incomingContent;
+            $data['plain_text'] = strip_tags($incomingContent);
         }
         $note->update($data);
 
-        if (isset($data['content'])) {
+        if ($contentChanged) {
             $lastV = $note->versions()->max('version_number') ?? 0;
             NoteVersion::create([
                 'note_id' => $note->id, 'user_id' => $request->user()->id,
@@ -142,7 +146,7 @@ class NoteController extends Controller
     public function versions(Request $request, Note $note)
     {
         if (!$note->canView($request->user())) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
-        return response()->json(['status' => 'success', 'data' => $note->versions()->with('user:id,name')->paginate(20)]);
+        return response()->json(['status' => 'success', 'data' => $note->versions()->with('user:id,name,username')->paginate(20)]);
     }
 
     // ── SHARE CODE: Generate / Get ──

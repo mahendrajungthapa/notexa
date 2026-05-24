@@ -12,7 +12,7 @@ Notexa is a collaborative note-taking system that allows users to create rich no
 
 - Provide secure user registration and login.
 - Support optional SMTP email verification.
-- Allow users to create, edit, archive, trash, and restore notes.
+- Allow users to create, edit, trash, restore, and permanently delete notes.
 - Allow note sharing with friends and share codes.
 - Support attached files, safe previews, and direct file sharing with friends.
 - Provide AI-assisted summaries, questions, flashcards, quizzes, and cleaned study notes.
@@ -39,7 +39,7 @@ Users can register, verify email when enabled, login, logout, update profile, an
 
 ### Notes
 
-Users can create rich notes, edit content, pin notes, archive notes, move notes to trash, restore notes, and permanently delete notes.
+Users can create rich notes, edit content, pin notes, move notes to trash, restore notes, and permanently delete notes.
 
 ### Sharing
 

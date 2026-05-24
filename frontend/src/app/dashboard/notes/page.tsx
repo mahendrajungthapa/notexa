@@ -170,7 +170,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
           src={c.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=${['6366f1', '3b82f6', '8b5cf6'][i % 3]}&color=fff&size=64`}
           alt={c.name}
           title={c.name}
-          className="w-6 h-6 rounded-full border-2 border-white object-cover shadow-sm"
+          className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover shadow-sm"
         />
       ))}
     </div>
@@ -186,7 +186,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
       {...attributes}
       {...listeners}
       onClick={() => { if (!showActivity) router.push(`/dashboard/notes/${note.id}`); }}
-      className={`bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] border ${note.is_pinned ? 'border-indigo-200 bg-indigo-50/10' : 'border-slate-100/60'} flex hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative group ${activeSortMode === 'custom' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${isDragging ? 'shadow-2xl cursor-grabbing scale-[1.04]' : ''} ${viewMode === 'grid' ? 'flex-col min-h-[260px] sm:h-[320px]' : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 h-auto sm:h-28'}`}
+      className={`bg-white/90 backdrop-blur-sm rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] border ${note.is_pinned ? 'border-indigo-200 bg-indigo-50/10' : 'border-slate-100/60'} flex hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative group ${activeSortMode === 'custom' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${isDragging ? 'shadow-2xl cursor-grabbing scale-[1.04]' : ''} ${viewMode === 'grid' ? 'flex-col min-h-[190px] sm:h-[320px] p-3 sm:p-6' : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 h-auto sm:h-28 p-4 sm:p-6'}`}
     >
       {note.is_pinned && (
         <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-md border-2 border-white z-20">
@@ -196,46 +196,46 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
 
       {viewMode === 'grid' ? (
         <>
-          <div className="flex justify-between items-start gap-3 mb-5">
-            <span className={`text-[10px] font-bold tracking-wider px-3 py-1 rounded-full border border-current/10 ${tag.bg} ${tag.text}`}>
+          <div className="flex justify-between items-start gap-2 sm:gap-3 mb-3 sm:mb-5">
+            <span className={`text-[9px] sm:text-[10px] font-bold tracking-wider px-2 sm:px-3 py-1 rounded-full border border-current/10 truncate max-w-[82px] sm:max-w-none ${tag.bg} ${tag.text}`}>
               {tag.label}
             </span>
-            <div className="flex items-center justify-end gap-1.5 sm:gap-3 flex-wrap">
+            <div className="flex items-center justify-end gap-1 sm:gap-3 flex-wrap">
               <button
                 onClick={e => { e.stopPropagation(); setShowActivity(v => !v); }}
-                className="text-slate-300 hover:text-indigo-500 transition-colors bg-white hover:bg-slate-50 p-1.5 rounded-md"
+                className="text-slate-300 hover:text-indigo-500 transition-colors bg-white hover:bg-slate-50 p-1 rounded-md"
                 title="Activity log"
               >
-                <Info size={16} />
+                <Info size={15} />
               </button>
               <button 
                 onClick={e => { e.stopPropagation(); onPin(note); }}
-                className={`p-1.5 rounded-md transition-colors ${note.is_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
+                className={`p-1 rounded-md transition-colors ${note.is_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
                 title={note.is_pinned ? "Unpin" : "Pin note"}
               >
-                 <Pin size={16} />
+                 <Pin size={15} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onTrash(note); }}
-                className="text-slate-300 hover:text-red-600 transition-colors bg-white hover:bg-red-50 p-1.5 rounded-md"
+                className="text-slate-300 hover:text-red-600 transition-colors bg-white hover:bg-red-50 p-1 rounded-md"
                 title="Move to trash"
               >
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             </div>
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <h3 className="text-xl leading-snug font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2.5 line-clamp-2">
+            <h3 className="text-sm sm:text-xl leading-snug font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 sm:mb-2.5 line-clamp-2">
               {note.title}
             </h3>
-            <p className="text-[13px] text-slate-500 line-clamp-4 leading-relaxed font-medium">
+            <p className="text-[11px] sm:text-[13px] text-slate-500 line-clamp-3 sm:line-clamp-4 leading-relaxed font-medium">
               {note.plain_text || 'No text content available...'}
             </p>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
-            <span className={`text-[11px] font-bold flex items-center gap-1.5 ${isRecent ? 'text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md' : 'text-slate-400 group-hover:text-slate-500 transition-colors'}`}>
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 flex items-center justify-between gap-2 sm:gap-3">
+            <span className={`text-[9px] sm:text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 truncate ${isRecent ? 'text-indigo-600 bg-indigo-50 px-1.5 sm:px-2 py-1 rounded-md' : 'text-slate-400 group-hover:text-slate-500 transition-colors'}`}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               {relativeTime}
             </span>
@@ -690,7 +690,7 @@ export default function NotesPage() {
               <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Pin size={16} /> Pinned
               </h2>
-              <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+              <div className={viewMode === 'grid' ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
                 <SortableContext items={pinnedNotes.map(n => n.id)} strategy={rectSortingStrategy}>
                   {pinnedNotes.map((note) => {
                     const mappedTagLabel = noteTagMap[note.id];
@@ -717,20 +717,20 @@ export default function NotesPage() {
              {pinnedNotes.length > 0 && (
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">All Notes</h2>
              )}
-            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+            <div className={viewMode === 'grid' ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
               
               {/* Only show 'Create New' card if not filtering heavily by search */}
               {!search && (
                  <button
                  onClick={() => setShowCreate(true)}
-                 className={`group rounded-2xl border-2 border-dashed border-slate-300 bg-white/40 hover:bg-indigo-50/50 hover:border-indigo-300 flex items-center justify-center transition-all duration-300 cursor-pointer ${viewMode === 'grid' ? "flex-col h-[320px]" : "flex-row h-24 sm:h-28 gap-4 px-6 justify-start"}`}
+                 className={`group rounded-2xl border-2 border-dashed border-slate-300 bg-white/40 hover:bg-indigo-50/50 hover:border-indigo-300 flex items-center justify-center transition-all duration-300 cursor-pointer ${viewMode === 'grid' ? "flex-col h-[190px] sm:h-[320px] px-3" : "flex-row h-24 sm:h-28 gap-4 px-6 justify-start"}`}
                >
-                 <div className={`rounded-full bg-white text-slate-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm ${viewMode === 'grid' ? "w-14 h-14 mb-4 group-hover:scale-110" : "w-12 h-12"}`}>
-                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                 <div className={`rounded-full bg-white text-slate-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm ${viewMode === 'grid' ? "w-11 h-11 sm:w-14 sm:h-14 mb-3 sm:mb-4 group-hover:scale-110" : "w-12 h-12"}`}>
+                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                  </div>
                  <div className={viewMode === 'grid' ? "text-center" : "text-left"}>
-                   <h3 className="font-bold text-slate-700 mb-1 group-hover:text-indigo-900 transition-colors">Create New Notebook</h3>
-                   <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Press N to start</p>
+                   <h3 className="font-bold text-sm sm:text-base text-slate-700 mb-1 group-hover:text-indigo-900 transition-colors">Create New Notebook</h3>
+                   <p className="text-[9px] sm:text-[10px] font-bold tracking-widest text-slate-400 uppercase">Press N to start</p>
                  </div>
                </button>
               )}
