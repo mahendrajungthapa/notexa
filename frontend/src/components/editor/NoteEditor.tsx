@@ -47,6 +47,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const lastTypingPresenceAtRef = useRef(0);
   const sendPresenceRef = useRef<(isTyping?: boolean) => void>(() => {});
   const typingClearTimerRef = useRef<number | null>(null);
+  const imageUploadInputRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
     extensions: [
@@ -260,6 +261,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   // AI Feature States
   const [aiFeature, setAiFeature] = useState<'ask' | 'summarize' | 'flashcards' | 'quiz' | 'ocr' | 'translate' | 'meaning' | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiResultApplied, setAiResultApplied] = useState(false);
@@ -752,6 +754,45 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editor) return;
+
+    const imageFile = event.target.files?.[0];
+    if (!imageFile) return;
+
+    if (!imageFile.type.startsWith('image/')) {
+      toast.error('Please choose an image file.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxImageBytes = 10 * 1024 * 1024;
+    if (imageFile.size > maxImageBytes) {
+      toast.error('Image is too large. Maximum size is 10MB.');
+      event.target.value = '';
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const response = await filesApi.upload(imageFile, noteId);
+      const uploaded = response.data?.data || {};
+      const imageUrl = uploaded.preview_url || uploaded.download_url || uploaded.r2_url;
+
+      if (!imageUrl) {
+        throw new Error('Image uploaded, but no preview URL was returned.');
+      }
+
+      editor.chain().focus().setImage({ src: imageUrl, alt: imageFile.name }).run();
+      toast.success('Image uploaded and inserted.');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to upload image.');
+    } finally {
+      setImageUploading(false);
+      event.target.value = '';
+    }
+  };
+
   const ToolButton = ({ onClick, active, children, title, className = '' }: any) => (
     <div className="relative group flex justify-center">
       <button
@@ -857,11 +898,23 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           <div className="w-px h-5 bg-slate-200/60 mx-1.5" />
 
           {/* Media */}
-          <ToolButton onClick={() => {
-            const url = window.prompt('Enter image URL:');
-            if (url) editor.chain().focus().setImage({ src: url }).run();
-          }} title="Insert Image" className="hover:bg-cyan-50 group">
-            <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
+          <input
+            ref={imageUploadInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+          <ToolButton
+            onClick={() => imageUploadInputRef.current?.click()}
+            title={imageUploading ? 'Uploading Image' : 'Upload Image'}
+            className="hover:bg-cyan-50 group"
+          >
+            {imageUploading ? (
+              <RotateCw size={16} className="text-cyan-500 animate-spin" />
+            ) : (
+              <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
+            )}
           </ToolButton>
           <ToolButton onClick={() => {
             const url = window.prompt('Enter link URL:');
