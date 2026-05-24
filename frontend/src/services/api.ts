@@ -1,8 +1,8 @@
 import axios from 'axios';
-import { API_PROXY_BASE_URL } from '@/lib/api-url';
+import { BACKEND_API_URL } from '@/lib/api-url';
 
 const api = axios.create({
-  baseURL: API_PROXY_BASE_URL,
+  baseURL: BACKEND_API_URL,
   headers: { Accept: 'application/json' },
   withCredentials: false,
   timeout: 30000,

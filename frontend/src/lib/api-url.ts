@@ -10,4 +10,3 @@ export function getBackendApiUrl() {
 }
 
 export const BACKEND_API_URL = getBackendApiUrl();
-export const API_PROXY_BASE_URL = '/api/backend';

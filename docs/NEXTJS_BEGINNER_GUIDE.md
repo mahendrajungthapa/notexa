@@ -25,6 +25,8 @@ It attaches the stored token to requests:
 Authorization: Bearer TOKEN
 ```
 
+The browser calls `NEXT_PUBLIC_API_URL` directly. Production should point this value at the Laravel API origin, for example `https://app.notexa.cloud/api`; it should not point at the frontend domain's `/api/backend` path.
+
 ## Environment
 
 Local frontend environment:
