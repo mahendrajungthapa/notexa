@@ -5,6 +5,8 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+require __DIR__.'/../bootstrap/notexa_temp.php';
+
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $isApiRequest = str_starts_with($requestPath, '/api/') || str_starts_with($requestPath, '/sanctum/');

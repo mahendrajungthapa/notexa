@@ -58,7 +58,7 @@ run:
 php artisan notexa:fix-temp
 ```
 
-Then copy the printed `upload_tmp_dir` and `sys_temp_dir` values into the server PHP.ini / hosting panel PHP options and restart PHP. The web frontend uploads with `PUT /api/files/upload` to avoid PHP POST buffering, but the server temp directory still needs to be writable for legacy multipart uploads and other PHP request handling.
+Notexa also sets `TMP`, `TEMP`, and `TMPDIR` to `storage/app/php-temp` before Laravel captures requests, which fixes local `PUT` JSON/base64 uploads when the machine temp folder is blocked. If the warning appears before Laravel starts, copy the printed `upload_tmp_dir` and `sys_temp_dir` values into the server PHP.ini / hosting panel PHP options and restart PHP. The web frontend uploads with `PUT /api/files/upload` to avoid PHP POST buffering, but the server temp directory still needs to be writable for legacy multipart uploads and other PHP request handling.
 
 ## Seeded Admin
 
