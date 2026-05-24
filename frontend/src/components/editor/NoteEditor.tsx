@@ -30,6 +30,135 @@ interface NoteEditorProps {
   collabToken?: string;
 }
 
+const normalizeImageWidth = (value: unknown) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return `${Math.max(96, Math.round(value))}px`;
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return `${Math.max(96, Number(trimmed))}px`;
+  if (/^\d+(\.\d+)?px$/.test(trimmed)) return trimmed;
+  if (/^\d+(\.\d+)?%$/.test(trimmed)) return trimmed;
+
+  return null;
+};
+
+const ResizableImage = ImageExt.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => normalizeImageWidth(element.getAttribute('data-width') || element.getAttribute('width') || element.style.width),
+        renderHTML: (attributes: { width?: string | null }) => {
+          const width = normalizeImageWidth(attributes.width);
+          if (!width) return {};
+
+          return {
+            'data-width': width,
+            width,
+            style: `width: ${width}; max-width: 100%; height: auto;`,
+          };
+        },
+      },
+    };
+  },
+
+  addNodeView() {
+    return ({ node, editor, getPos }) => {
+      let currentNode = node;
+      let startX = 0;
+      let startWidth = 0;
+      let cleanupResize: (() => void) | null = null;
+
+      const wrapper = document.createElement('span');
+      wrapper.className = 'notexa-resizable-image';
+      wrapper.contentEditable = 'false';
+
+      const image = document.createElement('img');
+      const handle = document.createElement('span');
+      handle.className = 'notexa-image-resize-handle';
+      handle.setAttribute('aria-hidden', 'true');
+
+      const render = (nextNode: typeof node) => {
+        currentNode = nextNode;
+        image.src = nextNode.attrs.src;
+        image.alt = nextNode.attrs.alt || '';
+        image.title = nextNode.attrs.title || '';
+
+        const width = normalizeImageWidth(nextNode.attrs.width);
+        wrapper.style.width = width || '';
+        image.style.width = width ? '100%' : '';
+      };
+
+      const commitWidth = () => {
+        const width = normalizeImageWidth(wrapper.style.width);
+        const position = getPos();
+        if (!width || typeof position !== 'number') return;
+
+        editor.view.dispatch(
+          editor.view.state.tr.setNodeMarkup(position, undefined, {
+            ...currentNode.attrs,
+            width,
+          })
+        );
+      };
+
+      const stopResize = () => {
+        wrapper.classList.remove('is-resizing');
+        commitWidth();
+        cleanupResize?.();
+        cleanupResize = null;
+      };
+
+      const startResize = (event: PointerEvent) => {
+        if (!editor.isEditable) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        startX = event.clientX;
+        startWidth = wrapper.getBoundingClientRect().width || image.getBoundingClientRect().width || 320;
+        wrapper.classList.add('is-resizing');
+        handle.setPointerCapture?.(event.pointerId);
+
+        const resize = (moveEvent: PointerEvent) => {
+          const editorWidth = editor.view.dom.getBoundingClientRect().width || startWidth;
+          const nextWidth = Math.min(Math.max(96, startWidth + moveEvent.clientX - startX), editorWidth);
+          wrapper.style.width = `${Math.round(nextWidth)}px`;
+          image.style.width = '100%';
+        };
+
+        const endResize = () => stopResize();
+
+        window.addEventListener('pointermove', resize);
+        window.addEventListener('pointerup', endResize, { once: true });
+        cleanupResize = () => {
+          window.removeEventListener('pointermove', resize);
+          window.removeEventListener('pointerup', endResize);
+        };
+      };
+
+      handle.addEventListener('pointerdown', startResize);
+      wrapper.append(image, handle);
+      render(node);
+
+      return {
+        dom: wrapper,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== currentNode.type.name) return false;
+          render(updatedNode);
+          return true;
+        },
+        selectNode: () => wrapper.classList.add('ProseMirror-selectednode'),
+        deselectNode: () => wrapper.classList.remove('ProseMirror-selectednode'),
+        destroy: () => {
+          handle.removeEventListener('pointerdown', startResize);
+          cleanupResize?.();
+        },
+      };
+    };
+  },
+});
+
 export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '' }: NoteEditorProps) {
   // Real-time collaboration state
   const [collabActive, setCollabActive] = useState(false);
@@ -56,7 +185,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       Highlight,
       TaskList,
       TaskItem.configure({ nested: true }),
-      ImageExt,
+      ResizableImage,
       LinkExt.configure({ openOnClick: false }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
