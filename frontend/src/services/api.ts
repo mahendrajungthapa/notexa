@@ -106,27 +106,15 @@ export const friendsApi = {
 export const filesApi = {
   list: (p?: any) => api.get('/files', { params: p }),
   upload: async (file: File, noteId?: number) => {
-    const fd = new FormData(); fd.append('file', file);
-    if (noteId) fd.append('note_id', String(noteId));
-    try {
-      return await api.post('/files/upload', fd);
-    } catch (error: any) {
-      const responseText = JSON.stringify(error.response?.data || {});
-      const uploadTempFailed = error.response?.status === 422
-        && /failed to upload|required|valid file/i.test(responseText);
+    const payload: any = {
+      file_base64: await fileToDataUrl(file),
+      original_name: file.name || 'upload.bin',
+      mime_type: file.type || 'application/octet-stream',
+      size: file.size,
+    };
+    if (noteId) payload.note_id = noteId;
 
-      if (!uploadTempFailed) throw error;
-
-      const payload: any = {
-        file_base64: await fileToDataUrl(file),
-        original_name: file.name || 'upload.bin',
-        mime_type: file.type || 'application/octet-stream',
-        size: file.size,
-      };
-      if (noteId) payload.note_id = noteId;
-
-      return api.post('/files/upload', payload);
-    }
+    return api.post('/files/upload', payload);
   },
   download: (id: number) => api.get(`/files/${id}/download`),
   preview: (id: number) => api.get(`/files/${id}/preview`),
