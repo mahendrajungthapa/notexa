@@ -43,7 +43,8 @@ class DatabaseSeeder extends Seeder
             ['key'=>'privacy_policy','value'=>'<h1>Privacy Policy</h1><p>Your privacy matters to us.</p>','type'=>'text','group'=>'legal'],
             ['key'=>'terms_conditions','value'=>'<h1>Terms and Conditions</h1><p>By using Notexa you agree to these terms.</p>','type'=>'text','group'=>'legal'],
 
-            // Cloudflare R2 (admin configurable)
+            // Storage
+            ['key'=>'storage_driver','value'=>'local','type'=>'string','group'=>'storage'],
             ['key'=>'r2_access_key','value'=>'','type'=>'string','group'=>'storage'],
             ['key'=>'r2_secret_key','value'=>'','type'=>'string','group'=>'storage'],
             ['key'=>'r2_bucket','value'=>'notexa-files','type'=>'string','group'=>'storage'],

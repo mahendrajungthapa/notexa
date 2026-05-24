@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { adminApi } from '@/services/api';
 import { SiteSetting } from '@/types';
 import toast from 'react-hot-toast';
-import { Save, Mail, Globe, Shield, Send, Sparkles, Upload, Image as ImageIcon } from 'lucide-react';
+import { Save, Mail, Globe, Shield, Send, Sparkles, Upload, Image as ImageIcon, HardDrive, Cloud } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SiteSetting[]>([]);
@@ -12,7 +12,7 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [testEmail, setTestEmail] = useState('');
-  const [tab, setTab] = useState<'general' | 'smtp' | 'email' | 'legal' | 'ai'>('general');
+  const [tab, setTab] = useState<'general' | 'smtp' | 'email' | 'storage' | 'legal' | 'ai'>('general');
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function AdminSettingsPage() {
       if (exists) {
         return prev.map((s) => s.key === key ? { ...s, value } : s);
       } else {
-        return [...prev, { id: 0, key, value, type: 'text', group }];
+        return [...prev, { id: 0, key, value, type: 'string', group }];
       }
     });
   };
@@ -92,6 +92,7 @@ export default function AdminSettingsPage() {
     { key: 'general' as const, label: 'General', icon: Globe },
     { key: 'smtp' as const, label: 'SMTP', icon: Mail },
     { key: 'email' as const, label: 'Email', icon: Mail },
+    { key: 'storage' as const, label: 'Storage', icon: HardDrive },
     { key: 'legal' as const, label: 'Legal Pages', icon: Shield },
     { key: 'ai' as const, label: 'AI Settings', icon: Sparkles },
   ];
@@ -217,6 +218,86 @@ export default function AdminSettingsPage() {
             <button onClick={() => handleSave('email')} disabled={saving}
               className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
               <Save size={16} /> Save
+            </button>
+          </div>
+        )}
+
+        {tab === 'storage' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 mb-1">File Storage</h3>
+              <p className="text-xs text-gray-500">Use local Laravel storage now, or switch to Cloudflare R2 after adding cloud credentials.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setValue('storage_driver', 'local', 'storage')}
+                className={`rounded-2xl border p-4 text-left transition ${((getValue('storage_driver') || 'local') === 'local') ? 'border-brand-500 bg-brand-50 shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-2 font-bold text-gray-900">
+                  <HardDrive size={18} className="text-brand-600" /> Local Storage
+                </div>
+                <p className="mt-2 text-xs font-medium text-gray-500">Store files on this server under Laravel public storage. Recommended for current testing.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setValue('storage_driver', 'r2', 'storage')}
+                className={`rounded-2xl border p-4 text-left transition ${getValue('storage_driver') === 'r2' ? 'border-brand-500 bg-brand-50 shadow-sm' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+              >
+                <div className="flex items-center gap-2 font-bold text-gray-900">
+                  <Cloud size={18} className="text-sky-600" /> Cloudflare R2
+                </div>
+                <p className="mt-2 text-xs font-medium text-gray-500">Store files in a Cloudflare R2 bucket after configuring the keys below.</p>
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Cloudflare R2 Credentials</h4>
+                  <p className="text-xs text-gray-500 mt-1">These are only used when storage is set to Cloudflare R2.</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${getValue('storage_driver') === 'r2' ? 'bg-sky-100 text-sky-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {(getValue('storage_driver') || 'local') === 'r2' ? 'R2 Active' : 'Local Active'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">R2 Access Key ID</label>
+                  <input type="password" value={getValue('r2_access_key')} onChange={(e) => setValue('r2_access_key', e.target.value, 'storage')}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 bg-white font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">R2 Secret Access Key</label>
+                  <input type="password" value={getValue('r2_secret_key')} onChange={(e) => setValue('r2_secret_key', e.target.value, 'storage')}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 bg-white font-mono text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Bucket Name</label>
+                  <input type="text" value={getValue('r2_bucket') || 'notexa-files'} onChange={(e) => setValue('r2_bucket', e.target.value, 'storage')}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 bg-white text-sm font-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">R2 Endpoint</label>
+                  <input type="text" value={getValue('r2_endpoint')} onChange={(e) => setValue('r2_endpoint', e.target.value, 'storage')}
+                    placeholder="https://ACCOUNT_ID.r2.cloudflarestorage.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 bg-white text-sm font-medium" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Public R2 URL (optional)</label>
+                <input type="text" value={getValue('r2_public_url')} onChange={(e) => setValue('r2_public_url', e.target.value, 'storage')}
+                  placeholder="https://files.example.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 bg-white text-sm font-medium" />
+              </div>
+            </div>
+
+            <button onClick={() => handleSave('storage')} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              <Save size={16} /> Save Storage Settings
             </button>
           </div>
         )}

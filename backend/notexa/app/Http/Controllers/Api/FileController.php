@@ -15,6 +15,8 @@ class FileController extends Controller
 {
     public function __construct(private R2StorageService $r2) {}
 
+    private const MAX_UPLOAD_BYTES = 52428800;
+
     // Owned files for the My Files page.
     public function index(Request $request)
     {
@@ -40,7 +42,6 @@ class FileController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:51200', // 50MB
             'note_id' => 'nullable|exists:notes,id',
         ]);
 
@@ -55,12 +56,38 @@ class FileController extends Controller
             }
         }
 
-        if (!$user->hasStorageSpace($uploaded->getSize())) {
+        $rawUpload = null;
+        $uploadSize = $uploaded?->isValid() ? (int) $uploaded->getSize() : 0;
+
+        if (!$uploaded?->isValid()) {
+            $rawUpload = $this->decodeRawUpload($request);
+            $uploadSize = $rawUpload['size'] ?? 0;
+        }
+
+        if ($uploadSize <= 0) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Choose a valid file to upload.',
+                'errors' => ['file' => ['Choose a valid file to upload.']],
+            ], 422);
+        }
+
+        if ($uploadSize > self::MAX_UPLOAD_BYTES) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File is too large. Maximum upload size is 50MB.',
+                'errors' => ['file' => ['File is too large. Maximum upload size is 50MB.']],
+            ], 422);
+        }
+
+        if (!$user->hasStorageSpace($uploadSize)) {
             return response()->json(['status' => 'error', 'message' => 'Storage limit reached. Delete unused files or ask an admin to increase your storage limit.'], 400);
         }
 
         try {
-            $fileData = $this->r2->upload($uploaded, "users/{$user->id}");
+            $fileData = $rawUpload
+                ? $this->r2->uploadRaw($rawUpload['contents'], $rawUpload['original_name'], $rawUpload['mime_type'], "users/{$user->id}")
+                : $this->r2->upload($uploaded, "users/{$user->id}");
 
             $file = File::create(array_merge($fileData, [
                 'user_id' => $user->id,
@@ -237,5 +264,32 @@ class FileController extends Controller
         }
 
         return null;
+    }
+
+    private function decodeRawUpload(Request $request): ?array
+    {
+        $base64 = (string) $request->input('file_base64', '');
+        if ($base64 === '') {
+            return null;
+        }
+
+        if (str_contains($base64, ',')) {
+            [, $base64] = explode(',', $base64, 2);
+        }
+
+        $contents = base64_decode($base64, true);
+        if ($contents === false) {
+            return null;
+        }
+
+        $originalName = (string) $request->input('original_name', 'upload.bin');
+        $mimeType = (string) $request->input('mime_type', 'application/octet-stream');
+
+        return [
+            'contents' => $contents,
+            'original_name' => $originalName,
+            'mime_type' => $mimeType !== '' ? $mimeType : 'application/octet-stream',
+            'size' => strlen($contents),
+        ];
     }
 }

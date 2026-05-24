@@ -11,9 +11,16 @@ const API_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+  headers: { Accept: 'application/json' },
   withCredentials: false,
   timeout: 30000,
+});
+
+const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error || new Error('Unable to read file'));
+  reader.readAsDataURL(file);
 });
 
 // Attach token to every request
@@ -22,7 +29,10 @@ api.interceptors.request.use((c) => {
     const t = localStorage.getItem('notexa_token');
     if (t) c.headers.Authorization = `Bearer ${t}`;
     if (c.data instanceof FormData) {
-      delete c.headers['Content-Type'];
+      const headers = c.headers as any;
+      if (typeof headers.delete === 'function') headers.delete('Content-Type');
+      delete headers['Content-Type'];
+      delete headers['content-type'];
     }
   }
   return c;
@@ -95,10 +105,28 @@ export const friendsApi = {
 
 export const filesApi = {
   list: (p?: any) => api.get('/files', { params: p }),
-  upload: (file: File, noteId?: number) => {
+  upload: async (file: File, noteId?: number) => {
     const fd = new FormData(); fd.append('file', file);
     if (noteId) fd.append('note_id', String(noteId));
-    return api.post('/files/upload', fd);
+    try {
+      return await api.post('/files/upload', fd);
+    } catch (error: any) {
+      const responseText = JSON.stringify(error.response?.data || {});
+      const uploadTempFailed = error.response?.status === 422
+        && /failed to upload|required|valid file/i.test(responseText);
+
+      if (!uploadTempFailed) throw error;
+
+      const payload: any = {
+        file_base64: await fileToDataUrl(file),
+        original_name: file.name || 'upload.bin',
+        mime_type: file.type || 'application/octet-stream',
+        size: file.size,
+      };
+      if (noteId) payload.note_id = noteId;
+
+      return api.post('/files/upload', payload);
+    }
   },
   download: (id: number) => api.get(`/files/${id}/download`),
   preview: (id: number) => api.get(`/files/${id}/preview`),
