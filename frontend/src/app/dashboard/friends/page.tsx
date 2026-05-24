@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { friendsApi, notesApi, filesApi } from '@/services/api';
+import { BACKEND_API_URL } from '@/lib/api-url';
 import { Friend, Friendship, Note, FileItem } from '@/types';
 import toast from 'react-hot-toast';
 import { UserPlus, Users, Search, Check, X, Trash2, Mail, MoreHorizontal, Share, MessageSquareText, FileText } from 'lucide-react';
@@ -119,7 +120,7 @@ export default function FriendsPage() {
               </div>
             </div>
             <div style="margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-              <a href="https://app.notexa.cloud/api/files/${file.id}/download" target="_blank" style="display: block; text-align: center; background-color: #4f46e5; color: #ffffff; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: bold; text-decoration: none; transition: background 0.2s;">
+              <a href="${BACKEND_API_URL}/files/${file.id}/download" target="_blank" style="display: block; text-align: center; background-color: #4f46e5; color: #ffffff; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: bold; text-decoration: none; transition: background 0.2s;">
                 Download File
               </a>
             </div>

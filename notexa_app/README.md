@@ -2,21 +2,15 @@
 
 Flutter client for the Notexa API. It supports login/register, email verification, notes, friends, files, settings, and local draft sync against the Laravel backend.
 
-## Local API
+## API URL
 
-Default API URL:
+Pass the backend API URL at runtime instead of editing source code:
 
-```text
-http://127.0.0.1:8000/api
+```powershell
+flutter run --dart-define=NOTEXA_API_URL=<backend-api-url>
 ```
 
-For Android emulator use:
-
-```text
-http://10.0.2.2:8000/api
-```
-
-Update `lib/services/api_service.dart` when testing on a device that cannot reach `127.0.0.1`.
+Use a URL that the selected simulator or physical device can reach.
 
 ## Current Feature Notes
 

@@ -4,8 +4,16 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://app.notexa.cloud/api';
+  static const String baseUrl = String.fromEnvironment('NOTEXA_API_URL');
   static const Duration _timeout = Duration(seconds: 30);
+
+  static Uri _apiUri(String path) {
+    if (baseUrl.trim().isEmpty) {
+      throw StateError('NOTEXA_API_URL is missing. Start Flutter with --dart-define=NOTEXA_API_URL=<backend-api-url>.');
+    }
+
+    return Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path');
+  }
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -39,14 +47,14 @@ class ApiService {
 
   static Future<Map<String, dynamic>> get(String path, {bool auth = true}) async {
     return _send(() async {
-      return http.get(Uri.parse('$baseUrl$path'), headers: await _headers(auth: auth));
+      return http.get(_apiUri(path), headers: await _headers(auth: auth));
     });
   }
 
   static Future<Map<String, dynamic>> post(String path, {Map<String, dynamic>? body, bool auth = true}) async {
     return _send(() async {
       return http.post(
-        Uri.parse('$baseUrl$path'),
+        _apiUri(path),
         headers: await _headers(auth: auth),
         body: body == null ? null : jsonEncode(body),
       );
@@ -56,7 +64,7 @@ class ApiService {
   static Future<Map<String, dynamic>> put(String path, {Map<String, dynamic>? body}) async {
     return _send(() async {
       return http.put(
-        Uri.parse('$baseUrl$path'),
+        _apiUri(path),
         headers: await _headers(),
         body: body == null ? null : jsonEncode(body),
       );
@@ -65,20 +73,20 @@ class ApiService {
 
   static Future<Map<String, dynamic>> delete(String path) async {
     return _send(() async {
-      return http.delete(Uri.parse('$baseUrl$path'), headers: await _headers());
+      return http.delete(_apiUri(path), headers: await _headers());
     });
   }
 
   static Future<Map<String, dynamic>> patch(String path) async {
     return _send(() async {
-      return http.patch(Uri.parse('$baseUrl$path'), headers: await _headers());
+      return http.patch(_apiUri(path), headers: await _headers());
     });
   }
 
   static Future<Map<String, dynamic>> uploadFile(String path, String filePath, {String? noteId}) async {
     try {
       final token = await getToken();
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$path'));
+      final request = http.MultipartRequest('POST', _apiUri(path));
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
       request.headers['Accept'] = 'application/json';
       request.files.add(await http.MultipartFile.fromPath('file', filePath));

@@ -29,6 +29,14 @@ function isPreviewable(file: FileItem) {
     || /\.(pdf|txt|md|csv|json|xml|html|css|js|jsx|ts|tsx|php|py|java|dart|go|rs|sql|log|yml|yaml)$/i.test(name);
 }
 
+function extractFiles(payload: any): FileItem[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.files)) return payload.files;
+  return [];
+}
+
 export default function FilesPage() {
   const user = useAuthStore((s) => s.user);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -60,8 +68,10 @@ export default function FilesPage() {
   const fetchFiles = async () => {
     try {
       const res = await filesApi.list();
-      setFiles(res.data.data?.data || []);
-    } catch { toast.error('Failed to load files'); }
+      setFiles(extractFiles(res.data));
+    } catch {
+      toast.error('Failed to load files');
+    }
     finally { setLoading(false); }
   };
 
@@ -72,9 +82,13 @@ export default function FilesPage() {
     if (!file) return;
     setUploading(true);
     try {
-      await filesApi.upload(file);
+      const res = await filesApi.upload(file);
+      const uploaded = res.data?.data;
+      if (uploaded?.id) {
+        setFiles((items) => [uploaded, ...items.filter((item) => item.id !== uploaded.id)]);
+      }
       toast.success('File uploaded!');
-      fetchFiles();
+      await fetchFiles();
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Upload failed');
     } finally {

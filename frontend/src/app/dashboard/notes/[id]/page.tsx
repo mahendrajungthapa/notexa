@@ -439,7 +439,11 @@ export default function NoteDetailPage() {
 
     setUploading(true);
     try {
-      await filesApi.upload(file, noteId);
+      const res = await filesApi.upload(file, noteId);
+      const uploaded = res.data?.data;
+      if (uploaded?.id) {
+        setFiles((items) => [uploaded, ...items.filter((item) => item.id !== uploaded.id)]);
+      }
       toast.success('File attached successfully');
       await fetchNote();
     } catch (error: any) {

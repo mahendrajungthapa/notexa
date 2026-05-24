@@ -1,16 +1,8 @@
 import axios from 'axios';
-
-const DEFAULT_API_URL = 'https://app.notexa.cloud/api';
-
-const normalizeApiUrl = (value?: string) => {
-  const base = (value || DEFAULT_API_URL).trim().replace(/\/+$/, '');
-  return base.endsWith('/api') ? base : `${base}/api`;
-};
-
-const API_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_URL);
+import { API_PROXY_BASE_URL } from '@/lib/api-url';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_PROXY_BASE_URL,
   headers: { Accept: 'application/json' },
   withCredentials: false,
   timeout: 30000,
@@ -114,7 +106,15 @@ export const filesApi = {
     };
     if (noteId) payload.note_id = noteId;
 
-    return api.post('/files/upload', payload);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('notexa_token') : '';
+
+    return api.post('/files/upload', payload, {
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      timeout: 60000,
+    });
   },
   download: (id: number) => api.get(`/files/${id}/download`),
   preview: (id: number) => api.get(`/files/${id}/preview`),
