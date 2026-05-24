@@ -1,17 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { adminApi } from '@/services/api';
 import { SiteSetting } from '@/types';
 import toast from 'react-hot-toast';
-import { Save, Mail, Globe, Shield, Send, Sparkles } from 'lucide-react';
+import { Save, Mail, Globe, Shield, Send, Sparkles, Upload, Image as ImageIcon } from 'lucide-react';
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<SiteSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [tab, setTab] = useState<'general' | 'smtp' | 'email' | 'legal' | 'ai'>('general');
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetch = async () => {
@@ -39,7 +41,8 @@ export default function AdminSettingsPage() {
       const aiKeys = [
         'ai_enabled', 'ai_provider',
         'openai_api_key', 'openai_base_url', 'openai_model',
-        'gemini_api_key', 'gemini_base_url', 'gemini_model'
+        'gemini_api_key', 'gemini_base_url', 'gemini_model',
+        'deepseek_api_key', 'deepseek_base_url', 'deepseek_model'
       ];
       const groupSettings = settings
         .filter((s) => s.group === group || (group === 'ai' && aiKeys.includes(s.key)))
@@ -47,7 +50,7 @@ export default function AdminSettingsPage() {
           key: s.key,
           value: s.value || '',
           type: s.type,
-          group: aiKeys.includes(s.key) ? 'general' : s.group
+          group: group === 'ai' && aiKeys.includes(s.key) ? 'ai' : s.group
         }));
       await adminApi.updateSettings(groupSettings);
       toast.success('Settings saved!');
@@ -59,6 +62,28 @@ export default function AdminSettingsPage() {
     if (!testEmail) return;
     try { await adminApi.testSmtp(testEmail); toast.success('Test email sent!'); }
     catch (err: any) { toast.error(err.response?.data?.message || 'SMTP test failed'); }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLogoUploading(true);
+    try {
+      const response = await adminApi.uploadLogo(file);
+      const logoUrl = response.data?.data?.site_logo || '';
+      if (response.data?.data?.settings) {
+        setSettings(response.data.data.settings);
+      } else if (logoUrl) {
+        setValue('site_logo', logoUrl, 'general');
+      }
+      toast.success('Site logo uploaded');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Logo upload failed');
+    } finally {
+      setLogoUploading(false);
+      if (event.target) event.target.value = '';
+    }
   };
 
   if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
@@ -94,9 +119,28 @@ export default function AdminSettingsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Site Logo URL</label>
-              <input type="text" value={getValue('site_logo')} onChange={(e) => setValue('site_logo', e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500"
-                placeholder="https://example.com/logo.png" />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input type="text" value={getValue('site_logo')} onChange={(e) => setValue('site_logo', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="https://example.com/logo.png" />
+                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
+                <button type="button" onClick={() => logoInputRef.current?.click()} disabled={logoUploading}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 shrink-0">
+                  {logoUploading ? <div className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-brand-600 animate-spin" /> : <Upload size={16} />}
+                  Upload
+                </button>
+              </div>
+              {getValue('site_logo') && (
+                <div className="mt-3 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <div className="h-12 w-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden">
+                    <img src={getValue('site_logo')} alt="Site logo preview" className="h-full w-full object-contain" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5"><ImageIcon size={13} /> Current logo</p>
+                    <p className="text-[11px] text-gray-500 truncate">{getValue('site_logo')}</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Site Description</label>
@@ -219,8 +263,9 @@ export default function AdminSettingsPage() {
 
              <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Default AI Provider</label>
-              <select value={getValue('ai_provider') || 'openai'} onChange={(e) => setValue('ai_provider', e.target.value, 'ai')}
+              <select value={getValue('ai_provider') || 'deepseek'} onChange={(e) => setValue('ai_provider', e.target.value, 'ai')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-semibold text-sm transition bg-white cursor-pointer">
+                <option value="deepseek">DeepSeek (V4 Flash / V4 Pro)</option>
                 <option value="openai">OpenAI (GPT-4o-mini)</option>
                 <option value="gemini">Google Gemini (Gemini 1.5 Flash)</option>
               </select>
@@ -248,6 +293,51 @@ export default function AdminSettingsPage() {
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
                 </div>
               </div>
+            </div>
+
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">DeepSeek Workspace</h4>
+                  <p className="text-xs text-gray-500 mt-1">Uses the OpenAI-compatible endpoint at https://api.deepseek.com.</p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full w-fit">V4 Ready</span>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">DeepSeek API Key</label>
+                <input type="password" value={getValue('deepseek_api_key')} onChange={(e) => setValue('deepseek_api_key', e.target.value, 'ai')}
+                  placeholder="sk-..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm bg-white" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">API Base URL</label>
+                  <input type="text" value={getValue('deepseek_base_url') || 'https://api.deepseek.com'} onChange={(e) => setValue('deepseek_base_url', e.target.value, 'ai')}
+                    placeholder="https://api.deepseek.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
+                  <input list="deepseek-models" type="text" value={getValue('deepseek_model') || 'deepseek-v4-flash'} onChange={(e) => setValue('deepseek_model', e.target.value, 'ai')}
+                    placeholder="deepseek-v4-flash"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                  <datalist id="deepseek-models">
+                    <option value="deepseek-v4-flash" />
+                    <option value="deepseek-v4-pro" />
+                  </datalist>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                <div className="rounded-xl border border-emerald-100 bg-white p-3">
+                  <p className="font-black text-gray-800 mb-1">deepseek-v4-flash</p>
+                  <p className="text-gray-500">Cache hit $0.0028, cache miss $0.14, output $0.28 per 1M tokens. Concurrency 2500.</p>
+                </div>
+                <div className="rounded-xl border border-indigo-100 bg-white p-3">
+                  <p className="font-black text-gray-800 mb-1">deepseek-v4-pro</p>
+                  <p className="text-gray-500">Promo pricing: cache hit $0.003625, cache miss $0.435, output $0.87 per 1M tokens. Concurrency 500.</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-500">Legacy deepseek-chat and deepseek-reasoner names are compatibility aliases for V4 Flash and should be replaced with the V4 model IDs.</p>
             </div>
 
             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">

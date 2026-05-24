@@ -20,11 +20,14 @@ class DeepSeekService
         }
 
         try {
+            $baseUrl = rtrim((string) SiteSetting::get('deepseek_base_url', 'https://api.deepseek.com'), '/');
+            $model = (string) SiteSetting::get('deepseek_model', 'deepseek-v4-flash');
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(30)->post('https://api.deepseek.com/chat/completions', [
-                'model' => 'deepseek-chat',
+            ])->timeout(30)->post($baseUrl . '/chat/completions', [
+                'model' => $model,
                 'messages' => [
                     [
                         'role' => 'system',

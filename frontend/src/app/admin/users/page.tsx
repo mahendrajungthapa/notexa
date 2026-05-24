@@ -25,11 +25,12 @@ export default function AdminUsersPage() {
   useEffect(() => { const t = setTimeout(fetchUsers, 300); return () => clearTimeout(t); }, [fetchUsers]);
 
   const handleToggleActive = async (user: any) => {
+    if (user.role === 'admin') return;
     try {
       await adminApi.updateUser(user.id, { is_active: !user.is_active });
       toast.success(user.is_active ? 'Deactivated' : 'Activated');
-      fetchUsers();
-    } catch { toast.error('Failed'); }
+      await fetchUsers();
+    } catch (error: any) { toast.error(error.response?.data?.message || 'Failed'); }
   };
 
   const handleDelete = async (id: number) => {
@@ -98,10 +99,14 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleToggleActive(u)} title="Toggle active"
-                            className={`p-2 rounded-xl transition-all duration-300 ${!u.is_active ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}>
-                            <Ban size={16} strokeWidth={2.5} />
-                          </button>
+                          {u.role !== 'admin' ? (
+                            <button onClick={() => handleToggleActive(u)} title={u.is_active ? 'Deactivate user' : 'Activate user'}
+                              className={`p-2 rounded-xl transition-all duration-300 ${!u.is_active ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}>
+                              <Ban size={16} strokeWidth={2.5} />
+                            </button>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full bg-rose-50 text-[10px] font-black uppercase tracking-widest text-rose-600 border border-rose-100">Protected</span>
+                          )}
                           {u.role !== 'admin' && (
                             <button onClick={() => handleDelete(u.id)} title="Delete user"
                               className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-300">

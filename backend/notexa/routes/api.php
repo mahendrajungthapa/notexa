@@ -55,6 +55,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notes/{note}', [NoteController::class, 'show']);
     Route::put('/notes/{note}', [NoteController::class, 'update']);
     Route::delete('/notes/{note}', [NoteController::class, 'destroy']);
+    Route::get('/notes/{note}/presence', [NoteController::class, 'collabPresence']);
+    Route::post('/notes/{note}/presence', [NoteController::class, 'collabHeartbeat'])
+        ->middleware('throttle:120,1');
     Route::post('/notes/{note}/restore', [NoteController::class, 'restore']);
     Route::delete('/notes/{note}/permanent', [NoteController::class, 'permanentDelete']);
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin']);
@@ -113,6 +116,7 @@ Route::middleware(['auth:sanctum', 'is_admin'])->prefix('admin')->group(function
 
     Route::get('/settings', [AdminController::class, 'getSettings']);
     Route::put('/settings', [AdminController::class, 'updateSettings']);
+    Route::post('/settings/logo', [AdminController::class, 'uploadLogo']);
     Route::post('/settings/smtp/test', [AdminController::class, 'testSmtp']);
 
     Route::get('/shared-notes', [AdminController::class, 'sharedNotes']);

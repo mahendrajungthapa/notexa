@@ -9,6 +9,7 @@ use App\Models\NoteVersion;
 use App\Models\SiteSetting;
 use App\Services\AiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 class NoteController extends Controller
@@ -57,19 +58,7 @@ class NoteController extends Controller
 
     public function show(Request $request, Note $note)
     {
-        $collabToken = $request->query('collab_token', $request->query('token'));
-        $collabTokenGrantsEdit = false;
-
-        if ($collabToken && $note->share_code && hash_equals((string) $note->share_code, strtoupper((string) $collabToken))) {
-            $collabTokenGrantsEdit = true;
-
-            if ($note->user_id !== $request->user()->id) {
-                NoteShare::updateOrCreate(
-                    ['note_id' => $note->id, 'shared_with' => $request->user()->id],
-                    ['shared_by' => $note->user_id, 'permission' => 'edit']
-                );
-            }
-        }
+        $collabTokenGrantsEdit = $this->collabTokenGrantsEdit($request, $note);
 
         if (!$collabTokenGrantsEdit && !$note->canView($request->user())) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
@@ -84,6 +73,62 @@ class NoteController extends Controller
         }
 
         return response()->json(['status' => 'success', 'data' => $note, 'permission' => $permission]);
+    }
+
+    public function collabPresence(Request $request, Note $note)
+    {
+        $collabTokenGrantsEdit = $this->collabTokenGrantsEdit($request, $note);
+
+        if (!$collabTokenGrantsEdit && !$note->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->presenceList($note),
+        ]);
+    }
+
+    public function collabHeartbeat(Request $request, Note $note)
+    {
+        $collabTokenGrantsEdit = $this->collabTokenGrantsEdit($request, $note);
+
+        if (!$collabTokenGrantsEdit && !$note->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'client_id' => 'required|string|max:80',
+            'is_typing' => 'sometimes|boolean',
+            'color' => 'nullable|string|max:20',
+        ]);
+
+        $user = $request->user();
+        $clientId = preg_replace('/[^a-zA-Z0-9_-]/', '', $validated['client_id']) ?: (string) $user->id;
+        $key = $this->presenceKey($note->id, $user->id, $clientId);
+        $indexKey = $this->presenceIndexKey($note->id);
+        $now = now();
+
+        Cache::put($key, [
+            'client_id' => $clientId,
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username,
+            'avatar' => $user->avatar,
+            'color' => $validated['color'] ?? '#6366f1',
+            'is_typing' => $request->boolean('is_typing'),
+            'updated_at' => $now->toISOString(),
+            'expires_at_unix' => $now->copy()->addSeconds(18)->timestamp,
+        ], now()->addSeconds(22));
+
+        $keys = Cache::get($indexKey, []);
+        $keys[] = $key;
+        Cache::put($indexKey, array_values(array_unique($keys)), now()->addHour());
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->presenceList($note),
+        ]);
     }
 
     public function update(Request $request, Note $note)
@@ -255,5 +300,68 @@ class NoteController extends Controller
             'status' => 'success',
             'data' => ['result' => $result],
         ]);
+    }
+
+    private function collabTokenGrantsEdit(Request $request, Note $note): bool
+    {
+        $collabToken = $request->input('collab_token')
+            ?: $request->input('token')
+            ?: $request->query('collab_token')
+            ?: $request->query('token');
+
+        if (!$collabToken || !$note->share_code || !hash_equals((string) $note->share_code, strtoupper(trim((string) $collabToken)))) {
+            return false;
+        }
+
+        if ($note->user_id !== $request->user()->id) {
+            NoteShare::updateOrCreate(
+                ['note_id' => $note->id, 'shared_with' => $request->user()->id],
+                ['shared_by' => $note->user_id, 'permission' => 'edit']
+            );
+        }
+
+        return true;
+    }
+
+    private function presenceList(Note $note): array
+    {
+        $indexKey = $this->presenceIndexKey($note->id);
+        $keys = Cache::get($indexKey, []);
+        $active = [];
+        $freshKeys = [];
+        $now = time();
+
+        foreach ($keys as $key) {
+            $entry = Cache::get($key);
+            if (!$entry || (int) ($entry['expires_at_unix'] ?? 0) < $now) {
+                continue;
+            }
+
+            $freshKeys[] = $key;
+            unset($entry['expires_at_unix']);
+            $active[] = $entry;
+        }
+
+        Cache::put($indexKey, $freshKeys, now()->addHour());
+
+        usort($active, function ($a, $b) {
+            if (($a['is_typing'] ?? false) !== ($b['is_typing'] ?? false)) {
+                return ($a['is_typing'] ?? false) ? -1 : 1;
+            }
+
+            return strcmp((string) ($b['updated_at'] ?? ''), (string) ($a['updated_at'] ?? ''));
+        });
+
+        return $active;
+    }
+
+    private function presenceKey(int $noteId, int $userId, string $clientId): string
+    {
+        return "note_presence:{$noteId}:{$userId}:{$clientId}";
+    }
+
+    private function presenceIndexKey(int $noteId): string
+    {
+        return "note_presence_index:{$noteId}";
     }
 }

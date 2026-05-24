@@ -84,7 +84,7 @@ npm run start
 
 ## Realtime Collaboration
 
-The note editor uses `@tiptap/extension-collaboration`, Yjs, and `y-webrtc` for realtime multi-collaborator editing. Open a note, click the collaboration button in the editor toolbar, and share the generated realtime link with users who already have access to that note.
+The note editor uses Yjs and `y-webrtc` for realtime multi-collaborator editing, plus backend presence heartbeats for joined/writing status. Open a note, click the collaboration button in the editor toolbar, and share the generated realtime link. A valid `collab_token` grants edit access to signed-in users even when they are not already friends with the owner.
 
 ## Local Login Flow
 

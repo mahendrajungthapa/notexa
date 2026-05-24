@@ -51,13 +51,16 @@ class DatabaseSeeder extends Seeder
             ['key'=>'r2_public_url','value'=>'','type'=>'string','group'=>'storage'],
 
             // AI
-            ['key'=>'ai_provider','value'=>'openai','type'=>'string','group'=>'ai'],
+            ['key'=>'ai_provider','value'=>'deepseek','type'=>'string','group'=>'ai'],
             ['key'=>'openai_api_key','value'=>'','type'=>'string','group'=>'ai'],
             ['key'=>'openai_base_url','value'=>'https://api.openai.com/v1','type'=>'string','group'=>'ai'],
             ['key'=>'openai_model','value'=>'gpt-4o-mini','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_api_key','value'=>'','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_base_url','value'=>'https://generativelanguage.googleapis.com/v1beta','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_model','value'=>'gemini-1.5-flash','type'=>'string','group'=>'ai'],
+            ['key'=>'deepseek_api_key','value'=>'','type'=>'string','group'=>'ai'],
+            ['key'=>'deepseek_base_url','value'=>'https://api.deepseek.com','type'=>'string','group'=>'ai'],
+            ['key'=>'deepseek_model','value'=>'deepseek-v4-flash','type'=>'string','group'=>'ai'],
             ['key'=>'ai_enabled','value'=>'true','type'=>'boolean','group'=>'ai'],
         ];
 

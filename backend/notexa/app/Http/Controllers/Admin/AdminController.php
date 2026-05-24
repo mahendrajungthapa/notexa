@@ -14,6 +14,8 @@ use App\Services\MailSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminController extends Controller
 {
@@ -93,6 +95,11 @@ class AdminController extends Controller
             'is_active' => 'sometimes|boolean',
             'storage_limit' => 'sometimes|integer',
         ]);
+
+        if ($user->role === 'admin' && $request->has('is_active') && !$request->boolean('is_active')) {
+            return response()->json(['status' => 'error', 'message' => 'Admin accounts cannot be deactivated.'], 422);
+        }
+
         $user->update($request->only(['name','username','email','role','is_active','storage_limit']));
         return response()->json(['status' => 'success', 'data' => $user->fresh()]);
     }
@@ -139,6 +146,29 @@ class AdminController extends Controller
         }
 
         return response()->json(['status' => 'success', 'message' => 'Settings updated successfully.', 'data' => SiteSetting::all()]);
+    }
+
+    public function uploadLogo(Request $request)
+    {
+        $request->validate([
+            'logo' => 'required|file|mimes:png,jpg,jpeg,webp|max:2048',
+        ]);
+
+        $file = $request->file('logo');
+        $name = 'site-logo-' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('site', $name, 'public');
+        $url = Storage::disk('public')->url($path);
+
+        SiteSetting::set('site_logo', $url, 'string', 'general');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Site logo uploaded successfully.',
+            'data' => [
+                'site_logo' => $url,
+                'settings' => SiteSetting::all(),
+            ],
+        ]);
     }
 
     public function testSmtp(Request $request)

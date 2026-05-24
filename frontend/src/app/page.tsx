@@ -29,7 +29,7 @@ const features = [
   {
     icon: Zap,
     title: 'Real-time Collaboration',
-    desc: 'Invite peers to edit your note simultaneously using Yjs WebRTC. See live cursors, live text changes, and presence indicators as you co-author together.',
+    desc: 'Invite peers to edit your note simultaneously using Yjs WebRTC plus backend presence. See live text changes and joined/writing indicators as you co-author together.',
     color: 'text-rose-600',
     bg: 'bg-rose-50',
     border: 'border-rose-100',
@@ -528,7 +528,7 @@ export default function HomePage() {
             </div>
             <h3 className="text-[20px] font-black text-slate-900 mb-3">Real-time peer collaboration</h3>
             <p className="text-[14.5px] text-slate-500 leading-relaxed font-medium">
-              Share a collaboration link with your study partner. Using Yjs WebRTC, both of you can edit the same note in real time — no accounts needed for guests, no servers in between.
+              Share a collaboration link with your study partner. Signed-in collaborators can edit immediately through the link, while backend presence keeps joined and writing indicators visible.
             </p>
           </div>
         </div>

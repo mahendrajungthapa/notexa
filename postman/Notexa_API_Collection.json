@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "notexa-api-v2",
     "name": "Notexa API - Complete Collection",
-    "description": "Notexa API collection for the current Laravel backend.\n\nBase URL: http://127.0.0.1:8000/api\n\nAuth: Bearer Token from /login or /register.\n\nEmail verification: when enabled in Admin Settings, registration sends a 6-digit SMTP code and users verify with /email/verify-code.\n\nPassword reset: /forgot-password sends a 6-digit SMTP code and /reset-password applies it with a new password.\n\nNotes: archive is removed; use trash, restore, permanent delete, pin, share codes, collaborators, and version history restore.\n\nRealtime collaboration: the Next.js editor uses Yjs WebRTC rooms for authorized note editors; REST endpoints manage note sharing permissions and share codes.\n\nAI: /notes/{note}/ai-summary and /notes/{note}/ai-query use admin-configured backend API keys only. Public settings expose ai_enabled, not private keys or personal workspace keys.\n\nFiles: supported previews use signed URLs for PDFs, text/code, and images; unsafe executable preview is blocked.\n\nAdmin: admin@notexa.com / password123",
+    "description": "Notexa API collection for the current Laravel backend.\n\nBase URL: http://127.0.0.1:8000/api\n\nAuth: Bearer Token from /login or /register.\n\nEmail verification: when enabled in Admin Settings, registration sends a 6-digit SMTP code and users verify with /email/verify-code.\n\nPassword reset: /forgot-password sends a 6-digit SMTP code and /reset-password applies it with a new password.\n\nNotes: archive is removed; use trash, restore, permanent delete, pin, share codes, collaborators, and version history restore.\n\nRealtime collaboration: the Next.js editor uses Yjs WebRTC plus backend presence heartbeat endpoints so joined/writing status works even when peer discovery is unavailable.\n\nAI: /notes/{note}/ai-summary and /notes/{note}/ai-query use admin-configured backend API keys only. DeepSeek V4 Flash/Pro, OpenAI-compatible endpoints, and Gemini are configured in Admin Settings.\n\nFiles: supported previews use signed URLs for PDFs, text/code, and images; unsafe executable preview is blocked.\n\nAdmin: admin@notexa.com / NotexaAdmin@2026",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -779,6 +779,70 @@
               "name": "Fail - Already shared",
               "code": 400,
               "body": "{\n  \"status\": \"error\",\n  \"message\": \"Already shared with you.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Collaboration Presence",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/presence?collab_token={{share_code}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "presence"
+              ],
+              "query": [
+                {
+                  "key": "collab_token",
+                  "value": "{{share_code}}"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"client_id\": \"browser-client\", \"name\": \"Ram Sharma\", \"is_typing\": true }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Collaboration Heartbeat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"postman-client\",\n  \"collab_token\": \"{{share_code}}\",\n  \"is_typing\": true,\n  \"color\": \"#6366f1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/presence",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "presence"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"client_id\": \"postman-client\", \"name\": \"Ram Sharma\", \"is_typing\": true }\n  ]\n}"
             }
           ]
         },
@@ -1749,7 +1813,7 @@
             {
               "name": "Success",
               "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"openai_api_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"site_logo\", \"value\": \"/storage/site/site-logo.png\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_model\", \"value\": \"deepseek-v4-flash\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
             }
           ]
         },
@@ -1798,7 +1862,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"settings\": [\n    { \"key\": \"openai_api_key\", \"value\": \"sk-your-admin-provider-key\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
+              "raw": "{\n  \"settings\": [\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_api_key\", \"value\": \"sk-your-deepseek-key\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_base_url\", \"value\": \"https://api.deepseek.com\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_model\", \"value\": \"deepseek-v4-flash\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/admin/settings",
@@ -1816,6 +1880,41 @@
               "name": "Success",
               "code": 200,
               "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }"
+            }
+          ]
+        },
+        {
+          "name": "Upload Site Logo",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "logo",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings/logo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "settings",
+                "logo"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Success",
+              "code": 200,
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Site logo uploaded successfully.\",\n  \"data\": { \"site_logo\": \"/storage/site/site-logo-example.png\" }\n}"
             }
           ]
         },

@@ -7,11 +7,11 @@ This is the Laravel API for Notexa. It powers the Next.js frontend and Flutter a
 - Authentication with Laravel Sanctum tokens.
 - User profiles, password changes, and SMTP password reset codes.
 - Notes, trash, restore, pinning, and note versions.
-- Share codes, friend-based note sharing, collaborators, and permissions.
+- Share codes, friend-based note sharing, collaborators, permissions, and collaboration presence heartbeats.
 - Friend requests and friend management.
 - File upload, signed download URLs, direct friend sharing, and safe previews for PDF, text/code, and image files.
-- Admin management for users, notes, settings, sharing, friendships, and activity logs.
-- Service classes for 6-digit SMTP email verification, SMTP password reset, AI endpoints, and R2-compatible storage.
+- Admin management for users, notes, settings, site logo upload, sharing, friendships, and activity logs.
+- Service classes for 6-digit SMTP email verification, SMTP password reset, DeepSeek/OpenAI-compatible/Gemini AI endpoints, and R2-compatible storage.
 
 ## Setup
 

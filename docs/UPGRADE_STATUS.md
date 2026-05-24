@@ -15,7 +15,7 @@
 | Payments/subscriptions | Removed from the product and API surface |
 | Notes | Archive was removed; trash, restore, and permanent delete remain |
 | AI | Browser-side personal AI keys were removed; all AI keys are admin/backend settings only |
-| Realtime collaboration | Next.js editor uses Tiptap Collaboration with Yjs WebRTC rooms per shared note |
+| Realtime collaboration | Next.js editor uses Yjs WebRTC rooms plus backend presence heartbeats per shared note |
 
 ## Files Changed
 

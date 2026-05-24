@@ -139,11 +139,20 @@ class AiService
 
     private function model(string $provider): string
     {
-        return (string) match ($provider) {
+        $model = (string) match ($provider) {
             'openai' => $this->setting('openai_model', 'OPENAI_MODEL', 'gpt-4o-mini'),
             'gemini' => $this->setting('gemini_model', 'GEMINI_MODEL', 'gemini-1.5-flash'),
-            default => $this->setting('deepseek_model', 'DEEPSEEK_MODEL', 'deepseek-chat'),
+            default => $this->setting('deepseek_model', 'DEEPSEEK_MODEL', 'deepseek-v4-flash'),
         };
+
+        if ($provider === 'deepseek') {
+            return match ($model) {
+                'deepseek-chat', 'deepseek-reasoner' => 'deepseek-v4-flash',
+                default => $model,
+            };
+        }
+
+        return $model;
     }
 
     private function setting(string $key, string $envKey, mixed $default): mixed

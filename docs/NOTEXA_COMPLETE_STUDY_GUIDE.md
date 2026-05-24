@@ -16,7 +16,7 @@ Admin panel       -> Laravel API -> Site settings
 - Optional SMTP email verification.
 - Notes, trash, restore, pinning, version history restore, and AI summaries.
 - Friends and friend requests.
-- Note sharing with view/edit permissions.
+- Note sharing with view/edit permissions and backend collaboration presence.
 - Share code redemption.
 - File upload, signed download URLs, direct friend sharing, and safe previews for PDF, text/code, and common image files.
 - Admin dashboard and settings.
@@ -89,7 +89,7 @@ Important files:
 2. User clicks Summary, Ask AI, Flashcards, Quiz, or Clean Notes.
 3. Frontend saves dirty content first.
 4. Backend checks permission and `ai_enabled`.
-5. Backend calls the configured OpenAI-compatible or Gemini provider.
+5. Backend calls the configured DeepSeek, OpenAI-compatible, or Gemini provider.
 6. Summary responses are saved on the note and returned to the client; prompt responses are returned without exposing provider API keys.
 
 ## File Preview and Sharing Flow
@@ -112,6 +112,8 @@ Admin settings are stored in `site_settings` and grouped by:
 - `ai`
 
 The admin settings UI saves typed values so booleans, integers, and text are handled consistently.
+
+Admin settings also include site logo upload and AI provider controls for DeepSeek V4 Flash/Pro, OpenAI-compatible endpoints, and Gemini.
 
 ## Demonstration Checklist
 

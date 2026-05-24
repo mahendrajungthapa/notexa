@@ -55,7 +55,7 @@ Forgot password uses the same SMTP settings as email verification:
 
 ## AI Tools
 
-The backend reads `ai_enabled`, `ai_provider`, and provider credentials from `site_settings`. It can call OpenAI-compatible providers or Gemini for summaries and prompt-based note tools. Provider keys stay on the backend and are never returned in public settings.
+The backend reads `ai_enabled`, `ai_provider`, and provider credentials from `site_settings`. It can call DeepSeek V4, OpenAI-compatible providers, or Gemini for summaries and prompt-based note tools. Provider keys stay on the backend and are never returned in public settings.
 
 ## Safe File Preview
 

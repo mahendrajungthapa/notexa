@@ -35,6 +35,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [collabActive, setCollabActive] = useState(false);
   const [collabStatus, setCollabStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
   const [collabPeers, setCollabPeers] = useState<any[]>([]);
+  const [serverPeers, setServerPeers] = useState<any[]>([]);
   const [collabSharedLink, setCollabSharedLink] = useState('');
   const ydocRef = useRef<any>(null);
   const providerRef = useRef<any>(null);
@@ -42,6 +43,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const applyingRemoteRef = useRef(false);
   const collabActiveRef = useRef(false);
   const localClientIdRef = useRef(`notexa-${Math.random().toString(36).slice(2)}`);
+  const localColorRef = useRef('#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'));
+  const lastTypingPresenceAtRef = useRef(0);
+  const sendPresenceRef = useRef<(isTyping?: boolean) => void>(() => {});
   const typingClearTimerRef = useRef<number | null>(null);
 
   const editor = useEditor({
@@ -68,11 +72,13 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         sharedContentRef.current.set('updatedAt', Date.now());
       }
 
-      if (collabActiveRef.current && providerRef.current?.awareness) {
-        providerRef.current.awareness.setLocalStateField('editing', { at: Date.now() });
+      if (collabActiveRef.current) {
+        sendPresenceRef.current(true);
+        providerRef.current?.awareness?.setLocalStateField('editing', { at: Date.now() });
         if (typingClearTimerRef.current) window.clearTimeout(typingClearTimerRef.current);
         typingClearTimerRef.current = window.setTimeout(() => {
           providerRef.current?.awareness?.setLocalStateField('editing', null);
+          sendPresenceRef.current(false);
           typingClearTimerRef.current = null;
         }, 1600);
       }
@@ -317,7 +323,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     provider.awareness.setLocalStateField('user', {
       id: localClientIdRef.current,
       name: userName,
-      color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+      color: localColorRef.current,
     });
     const readyTimer = window.setTimeout(() => setCollabStatus('connected'), 800);
 
@@ -392,6 +398,83 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       setCollabStatus('offline');
     };
   }, [collabActive, editor, noteId, onChange]);
+
+  useEffect(() => {
+    if (!collabActive || !noteId || typeof window === 'undefined') {
+      setServerPeers([]);
+      sendPresenceRef.current = () => {};
+      return;
+    }
+
+    let stopped = false;
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = collabToken || params.get('collab_token') || params.get('token') || '';
+
+    const normalizePresence = (items: any[]) => {
+      const mapped = (items || [])
+        .filter((p: any) => p.client_id !== localClientIdRef.current)
+        .map((p: any) => ({
+          id: p.client_id || `user-${p.user_id}`,
+          userId: p.user_id,
+          name: p.name || p.username || 'Collaborator',
+          color: p.color || '#6366f1',
+          isEditing: !!p.is_typing,
+          source: 'server',
+        }));
+      setServerPeers(mapped);
+    };
+
+    const heartbeat = async (isTyping = false) => {
+      try {
+        const response = await notesApi.heartbeat(noteId, {
+          client_id: localClientIdRef.current,
+          collab_token: urlToken || undefined,
+          color: localColorRef.current,
+          is_typing: isTyping,
+        });
+
+        if (!stopped) {
+          normalizePresence(response.data?.data || []);
+          setCollabStatus('connected');
+        }
+      } catch (error) {
+        console.warn('Collaboration presence heartbeat failed', error);
+      }
+    };
+
+    sendPresenceRef.current = (isTyping = false) => {
+      const now = Date.now();
+      if (isTyping && now - lastTypingPresenceAtRef.current < 850) return;
+      if (isTyping) lastTypingPresenceAtRef.current = now;
+      void heartbeat(isTyping);
+    };
+
+    const pollPresence = async () => {
+      try {
+        const response = await notesApi.presence(noteId, urlToken ? { collab_token: urlToken } : undefined);
+        if (!stopped) normalizePresence(response.data?.data || []);
+      } catch (error) {
+        console.warn('Collaboration presence poll failed', error);
+      }
+    };
+
+    void heartbeat(false);
+    const heartbeatTimer = window.setInterval(() => void heartbeat(false), 4500);
+    const pollTimer = window.setInterval(pollPresence, 2000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void heartbeat(false);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(heartbeatTimer);
+      window.clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', onVisible);
+      sendPresenceRef.current = () => {};
+      setServerPeers([]);
+    };
+  }, [collabActive, noteId, collabToken]);
 
   // Overlay Sub-states
   const [activeFlashcard, setActiveFlashcard] = useState(0);
@@ -640,6 +723,20 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   if (!editor) return null;
 
+  const activeCollabPeers = [...collabPeers, ...serverPeers].reduce((items: any[], peer: any) => {
+    const key = peer.id || peer.client_id || `user-${peer.userId || peer.user_id || peer.name}`;
+    const existing = items.find((item) => item._key === key);
+    if (existing) {
+      existing.isEditing = existing.isEditing || peer.isEditing;
+      existing.name = existing.name || peer.name;
+      existing.color = existing.color || peer.color;
+      return items;
+    }
+
+    items.push({ ...peer, _key: key });
+    return items;
+  }, []);
+
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
       {/* Toolbar */}
@@ -823,14 +920,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${collabStatus === 'connected' ? 'bg-emerald-100 text-emerald-700' : collabStatus === 'connecting' ? 'bg-amber-100 text-amber-700 animate-pulse' : 'bg-slate-100 text-slate-600'}`}>
               <Users size={10} /> {collabStatus === 'connected' ? 'Realtime Ready' : collabStatus === 'connecting' ? 'Starting Realtime' : 'Realtime Fallback'}
             </span>
-            {collabPeers.length === 0 ? (
+            {activeCollabPeers.length === 0 ? (
               <span className="text-[10px] font-bold text-slate-500">Share the link to co-edit. Live edits appear instantly when collaborators join.</span>
             ) : (
               <div className="flex items-center gap-1 flex-wrap">
                 <span className="text-[10px] font-bold text-slate-500 mr-1">Co-authors online:</span>
-                {collabPeers.map((p, i) => (
-                  <span 
-                    key={i} 
+                {activeCollabPeers.map((p, i) => (
+                  <span
+                    key={p._key || i}
                     className="px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0 shadow-sm flex items-center gap-1"
                     style={{ backgroundColor: p.color || '#6366f1' }}
                   >

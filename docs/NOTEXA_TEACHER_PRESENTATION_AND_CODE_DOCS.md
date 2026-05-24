@@ -28,7 +28,7 @@ Flutter App
 | `FileController.php` | Upload, preview, share, and download files |
 | `AdminController.php` | Admin dashboard, users, notes, settings, logs |
 | `MailSettingsService.php` | Applies SMTP settings from database |
-| `AiService.php` | Calls backend-managed OpenAI-compatible or Gemini providers |
+| `AiService.php` | Calls backend-managed DeepSeek, OpenAI-compatible, or Gemini providers |
 | `R2StorageService.php` | Stores and serves files |
 
 ## Frontend Code Map
@@ -89,7 +89,7 @@ Flutter App
 ### Realtime Collaboration
 
 1. Authorized editors open the same shared note.
-2. The editor joins a Yjs WebRTC room based on the note and share token.
+2. The editor joins a Yjs WebRTC room and sends backend presence heartbeats based on the note and share token.
 3. Tiptap Collaboration syncs text changes between active collaborators.
 4. The server still autosaves the current HTML content to the note record.
 

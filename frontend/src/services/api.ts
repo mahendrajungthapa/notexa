@@ -69,6 +69,8 @@ export const notesApi = {
   redeemCode: (code: string) => api.post('/notes/redeem-code', { code }),
   aiSummary: (id: number) => api.post(`/notes/${id}/ai-summary`),
   aiQuery: (id: number, data: { systemPrompt: string; userPrompt: string }) => api.post(`/notes/${id}/ai-query`, data),
+  presence: (noteId: number, p?: any) => api.get(`/notes/${noteId}/presence`, { params: p }),
+  heartbeat: (noteId: number, d: any) => api.post(`/notes/${noteId}/presence`, d),
   share: (noteId: number, d: any) => api.post(`/notes/${noteId}/share`, d),
   updatePermission: (noteId: number, userId: number, d: any) => api.put(`/notes/${noteId}/share/${userId}`, d),
   unshare: (noteId: number, userId: number) => api.delete(`/notes/${noteId}/share/${userId}`),
@@ -107,6 +109,11 @@ export const adminApi = {
   deleteNote: (id: number) => api.delete(`/admin/notes/${id}`),
   getSettings: (g?: string) => api.get('/admin/settings', { params: { group: g } }),
   updateSettings: (s: any[]) => api.put('/admin/settings', { settings: s }),
+  uploadLogo: (file: File) => {
+    const fd = new FormData();
+    fd.append('logo', file);
+    return api.post('/admin/settings/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   testSmtp: (email: string) => api.post('/admin/settings/smtp/test', { email }),
   sharedNotes: (p?: any) => api.get('/admin/shared-notes', { params: p }),
   friendships: (p?: any) => api.get('/admin/friendships', { params: p }),
