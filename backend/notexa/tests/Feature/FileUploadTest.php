@@ -25,7 +25,7 @@ class FileUploadTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $response = $this->postJson('/api/files/upload', [
+        $response = $this->putJson('/api/files/upload', [
             'file_base64' => base64_encode('hello world'),
             'original_name' => 'hello.txt',
             'mime_type' => 'text/plain',
@@ -41,5 +41,29 @@ class FileUploadTest extends TestCase
 
         Storage::disk('public')->assertExists($file->path);
         $this->assertSame(11, (int) $user->fresh()->storage_used);
+    }
+
+    public function test_legacy_post_raw_upload_still_works(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create([
+            'username' => 'postuploadtest',
+            'storage_limit' => 1024 * 1024,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->postJson('/api/files/upload', [
+            'file_base64' => base64_encode('legacy post'),
+            'original_name' => 'legacy.txt',
+            'mime_type' => 'text/plain',
+            'size' => 11,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.original_name', 'legacy.txt');
     }
 }

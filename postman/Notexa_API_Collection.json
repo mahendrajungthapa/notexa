@@ -1378,21 +1378,15 @@
         {
           "name": "Upload File",
           "request": {
-            "method": "POST",
+            "method": "PUT",
             "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": ""
-                },
-                {
-                  "key": "note_id",
-                  "value": "1",
-                  "type": "text"
+              "mode": "raw",
+              "raw": "{\n  \"file_base64\": \"data:text/plain;base64,SGVsbG8gTm90ZXhh\",\n  \"original_name\": \"hello.txt\",\n  \"mime_type\": \"text/plain\",\n  \"size\": 12,\n  \"note_id\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
                 }
-              ]
+              }
             },
             "url": {
               "raw": "{{base_url}}/files/upload",

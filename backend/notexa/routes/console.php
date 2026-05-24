@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -53,3 +54,20 @@ Artisan::command('notexa:create-admin {email : Admin email address} {password? :
 
     return 0;
 })->purpose('Create or reset a Notexa admin account');
+
+Artisan::command('notexa:fix-temp', function () {
+    $tempDir = storage_path('app/php-temp');
+
+    File::ensureDirectoryExists($tempDir, 0775, true);
+
+    $this->info('Notexa PHP temp directory is ready:');
+    $this->line($tempDir);
+    $this->newLine();
+    $this->line('If PHP still prints "Unable to create temporary file" before Laravel starts, set these PHP.ini values on the server:');
+    $this->line("upload_tmp_dir={$tempDir}");
+    $this->line("sys_temp_dir={$tempDir}");
+    $this->newLine();
+    $this->line('Then restart PHP-FPM/LiteSpeed/Apache from your hosting panel.');
+
+    return 0;
+})->purpose('Create the Notexa PHP temp directory and print the required PHP.ini values');

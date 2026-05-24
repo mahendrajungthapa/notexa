@@ -6,7 +6,7 @@ Updated on 2026-05-24.
 
 - Auth: register, login, logout, profile, change password, email verification code, forgot/reset password code.
 - Notes: list, create, view, update, trash, restore, permanent delete, pin, share code, collaborators, shared-with-me, version history, AI summary, AI query, and collaboration presence heartbeat.
-- Files: upload, list, preview, download, share with friends, list shares, unshare, delete, and shared-with-me.
+- Files: upload, list, preview, download, share with friends, list shares, unshare, delete, and shared-with-me. Web uploads use `PUT /files/upload` with JSON/base64 payloads to avoid PHP POST temp-buffer failures on restrictive hosts; legacy `POST` is still accepted by the backend.
 - Friends: list, search, send request, accept/reject/cancel requests, and remove friend.
 - Admin: dashboard, users, notes, settings, site logo upload, SMTP test, shared notes, friendships, and activity logs.
 
@@ -38,3 +38,17 @@ Default variables:
 - `note_id`, `file_id`, `user_id`, `friendship_id`: IDs from create/list requests
 
 The collection has been refreshed to include collaboration presence, site logo upload, and DeepSeek V4 settings while keeping archive, billing, subscription, and premium endpoints removed.
+
+The Upload File request now uses a raw JSON/base64 body:
+
+```json
+{
+  "file_base64": "data:text/plain;base64,SGVsbG8gTm90ZXhh",
+  "original_name": "hello.txt",
+  "mime_type": "text/plain",
+  "size": 12,
+  "note_id": 1
+}
+```
+
+If the server prints `Unable to create temporary file` before Laravel starts, run `php artisan notexa:fix-temp` on the backend and apply the printed `upload_tmp_dir` / `sys_temp_dir` values in PHP.ini or the hosting panel.

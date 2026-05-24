@@ -108,7 +108,7 @@ export const filesApi = {
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('notexa_token') : '';
 
-    return api.post('/files/upload', payload, {
+    return api.put('/files/upload', payload, {
       headers: {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

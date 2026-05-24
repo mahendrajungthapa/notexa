@@ -92,7 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Files
     Route::get('/files', [FileController::class, 'index']);
     Route::get('/files/shared-with-me', [FileController::class, 'sharedWithMe']);
-    Route::post('/files/upload', [FileController::class, 'upload']);
+    Route::match(['POST', 'PUT'], '/files/upload', [FileController::class, 'upload']);
     Route::get('/files/{file}/download', [FileController::class, 'download']);
     Route::get('/files/{file}/preview', [FileController::class, 'preview']);
     Route::get('/files/{file}/shares', [FileController::class, 'shares']);

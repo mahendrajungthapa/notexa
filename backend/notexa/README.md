@@ -22,6 +22,7 @@ New-Item -ItemType File database/database.sqlite -Force
 php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
+php artisan notexa:fix-temp
 ```
 
 ## Run
@@ -41,6 +42,23 @@ http://127.0.0.1:8000/api
 ```powershell
 php artisan test
 ```
+
+## Upload Temp Directory
+
+If uploads return this PHP startup warning:
+
+```text
+Unable to create temporary file
+POST data can't be buffered; all data discarded
+```
+
+run:
+
+```powershell
+php artisan notexa:fix-temp
+```
+
+Then copy the printed `upload_tmp_dir` and `sys_temp_dir` values into the server PHP.ini / hosting panel PHP options and restart PHP. The web frontend uploads with `PUT /api/files/upload` to avoid PHP POST buffering, but the server temp directory still needs to be writable for legacy multipart uploads and other PHP request handling.
 
 ## Seeded Admin
 
