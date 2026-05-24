@@ -7,8 +7,9 @@ use App\Models\Note;
 use App\Models\NoteShare;
 use App\Models\NoteVersion;
 use App\Models\SiteSetting;
-use App\Services\DeepSeekService;
+use App\Services\AiService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class NoteController extends Controller
 {
@@ -205,7 +206,7 @@ class NoteController extends Controller
     }
 
     // ── AI SUMMARY ──
-    public function aiSummary(Request $request, Note $note)
+    public function aiSummary(Request $request, Note $note, AiService $ai)
     {
         if (!$note->canView($request->user())) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
 
@@ -216,13 +217,42 @@ class NoteController extends Controller
         $text = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($note->plain_text ?: $note->content ?: ''))));
         if (strlen($text) < 20) return response()->json(['status' => 'error', 'message' => 'Note is too short to summarize.'], 400);
 
-        $service = new DeepSeekService();
-        $summary = $service->summarize($text);
+        $summary = $ai->summarize($text);
 
         if (!$summary) return response()->json(['status' => 'error', 'message' => 'Could not generate a summary for this note.'], 500);
 
         $note->update(['ai_summary' => $summary]);
 
         return response()->json(['status' => 'success', 'summary' => $summary]);
+    }
+
+    public function aiQuery(Request $request, Note $note, AiService $ai)
+    {
+        if (!$note->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        if (!SiteSetting::get('ai_enabled', true)) {
+            return response()->json(['status' => 'error', 'message' => 'AI tools are disabled in admin settings.'], 403);
+        }
+
+        $validated = $request->validate([
+            'systemPrompt' => 'required|string|max:4000',
+            'userPrompt' => 'required|string|max:20000',
+        ]);
+
+        try {
+            $result = $ai->chat($validated['systemPrompt'], $validated['userPrompt']);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 503);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => ['result' => $result],
+        ]);
     }
 }

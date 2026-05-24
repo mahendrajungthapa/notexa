@@ -1,321 +1,357 @@
 'use client';
 
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { filesApi, friendsApi } from '@/services/api';
+import { useEffect, useRef, useState } from 'react';
+import { filesApi, friendsApi, resolveApiAssetUrl } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
+import { FileItem, FileShare, Friend } from '@/types';
 import toast from 'react-hot-toast';
-import {
-  Download,
-  Eye,
-  File as FileIcon,
-  FileText,
-  FolderOpen,
-  Image,
-  Share2,
-  Trash2,
-  Upload,
-  X,
-} from 'lucide-react';
+import { Download, Eye, File, FileCode2, FileText, FolderOpen, Image, Share2, Trash2, Upload, Users, X } from 'lucide-react';
 
-function fmtSize(bytes: number) {
-  if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
-  if (bytes >= 1048576) return `${(bytes / 1048576).toFixed(1)} MB`;
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${bytes} B`;
+type ViewerState =
+  | { type: 'pdf' | 'image'; name: string; url: string }
+  | { type: 'text'; name: string; text: string }
+  | null;
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + ' MB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return bytes + ' B';
 }
 
-function fileIcon(mime = '') {
-  if (mime.startsWith('image/')) return <Image size={18} className="text-pink-500" />;
-  if (mime.includes('pdf')) return <FileText size={18} className="text-red-500" />;
-  return <FileIcon size={18} className="text-gray-400" />;
+function extensionOf(name = '') {
+  return name.toLowerCase().split('.').pop() || '';
 }
 
-const apiMessage = (error: any, fallback: string) => error?.response?.data?.message || fallback;
+function previewKind(file: FileItem): 'pdf' | 'image' | 'text' | null {
+  const mime = (file.mime_type || '').toLowerCase();
+  const ext = extensionOf(file.original_name);
+  const textExts = new Set([
+    'txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'json', 'xml', 'yaml', 'yml',
+    'html', 'htm', 'css', 'scss', 'sass', 'less', 'js', 'jsx', 'ts', 'tsx',
+    'php', 'py', 'rb', 'java', 'kt', 'kts', 'swift', 'dart', 'go', 'rs',
+    'c', 'h', 'cpp', 'hpp', 'cs', 'sql', 'sh', 'bash', 'zsh', 'ps1',
+    'bat', 'cmd', 'env', 'ini', 'conf', 'config', 'toml', 'lock',
+  ]);
+
+  if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
+  if (['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'].includes(mime) || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+  if (mime.startsWith('text/') || textExts.has(ext)) return 'text';
+  return null;
+}
+
+function getFileIcon(file: FileItem) {
+  const kind = previewKind(file);
+  if (kind === 'image') return <Image size={20} className="text-pink-500" />;
+  if (kind === 'pdf') return <FileText size={20} className="text-red-500" />;
+  if (kind === 'text') return <FileCode2 size={20} className="text-emerald-500" />;
+  return <File size={20} className="text-gray-400" />;
+}
+
+function extractItems<T>(payload: any): T[] {
+  const data = payload?.data?.data ?? payload?.data;
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+}
 
 export default function FilesPage() {
-  const user = useAuthStore((state) => state.user);
-  const uploadRef = useRef<HTMLInputElement>(null);
-
-  const [tab, setTab] = useState<'mine' | 'shared'>('mine');
-  const [files, setFiles] = useState<any[]>([]);
-  const [sharedFiles, setSharedFiles] = useState<any[]>([]);
-  const [friends, setFriends] = useState<any[]>([]);
-  const [shares, setShares] = useState<any[]>([]);
-  const [selectedFile, setSelectedFile] = useState<any | null>(null);
-  const [preview, setPreview] = useState<{ file: any; url: string } | null>(null);
+  const user = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<'mine' | 'shared'>('mine');
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [sharedFiles, setSharedFiles] = useState<FileItem[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [shares, setShares] = useState<FileShare[]>([]);
+  const [shareFile, setShareFile] = useState<FileItem | null>(null);
   const [selectedFriend, setSelectedFriend] = useState('');
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [viewer, setViewer] = useState<ViewerState>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const loadFiles = async () => {
+  const fetchFiles = async () => {
+    setLoading(true);
+
     try {
-      const [ownedResponse, sharedResponse] = await Promise.all([
-        filesApi.list(),
-        filesApi.sharedWithMe(),
-      ]);
-      setFiles(ownedResponse.data.data?.data || []);
-      setSharedFiles(sharedResponse.data.data?.data || []);
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Could not load files.'));
+      const ownedRes = await filesApi.list();
+      setFiles(extractItems<FileItem>(ownedRes.data));
+    } catch (err: any) {
+      toast.error('Failed to load files');
+      setFiles([]);
+    }
+
+    try {
+      const sharedRes = await filesApi.sharedWithMe();
+      setSharedFiles(extractItems<FileItem>(sharedRes.data));
+    } catch {
+      setSharedFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadFiles();
-  }, []);
+  useEffect(() => { fetchFiles(); }, []);
 
-  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     try {
       await filesApi.upload(file);
-      toast.success('Uploaded.');
-      await loadFiles();
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Upload failed.'));
+      toast.success('File uploaded');
+      fetchFiles();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Upload failed');
     } finally {
       setUploading(false);
-      if (uploadRef.current) uploadRef.current.value = '';
+      if (inputRef.current) inputRef.current.value = '';
     }
   };
 
-  const openPreview = async (file: any) => {
-    const mime = String(file.mime_type || '');
-    if (!mime.startsWith('image/') && !mime.includes('pdf')) {
-      toast.error('Preview is available for images and PDFs.');
+  const handleViewFile = async (file: FileItem) => {
+    const localKind = previewKind(file);
+    if (!localKind) {
+      toast.error('Preview is available only for PDF, text/code, and safe image files');
       return;
     }
 
     try {
-      const response = await filesApi.preview(file.id);
-      setPreview({ file, url: response.data.preview_url });
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Preview failed.'));
+      const res = await filesApi.preview(file.id);
+      const kind = (res.data.preview_type || localKind) as 'pdf' | 'image' | 'text';
+      const url = resolveApiAssetUrl(res.data.preview_url);
+
+      if (kind === 'text') {
+        const textRes = await fetch(url, { credentials: 'omit' });
+        if (!textRes.ok) throw new Error('Could not load text preview');
+        setViewer({ type: 'text', name: file.original_name, text: await textRes.text() });
+      } else {
+        setViewer({ type: kind, name: file.original_name, url });
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Preview failed');
     }
   };
 
-  const downloadFile = async (file: any) => {
+  const handleDownload = async (fileId: number) => {
     try {
-      const response = await filesApi.download(file.id);
-      window.open(response.data.download_url, '_blank');
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Download failed.'));
+      const res = await filesApi.download(fileId);
+      window.open(resolveApiAssetUrl(res.data.download_url), '_blank', 'noopener,noreferrer');
+    } catch {
+      toast.error('Download failed');
     }
   };
 
-  const openShare = async (file: any) => {
-    setSelectedFile(file);
+  const handleDelete = async (fileId: number) => {
+    if (!confirm('Delete this file?')) return;
+    try {
+      await filesApi.delete(fileId);
+      toast.success('Deleted');
+      fetchFiles();
+    } catch {
+      toast.error('Failed');
+    }
+  };
+
+  const openShareModal = async (file: FileItem) => {
+    setShareFile(file);
     setSelectedFriend('');
-    setShares(file.shares || []);
-
+    setSharing(true);
     try {
-      const [friendsResponse, sharesResponse] = await Promise.all([
+      const [friendsRes, sharesRes] = await Promise.all([
         friendsApi.list(),
         filesApi.shares(file.id),
       ]);
-      setFriends(friendsResponse.data.data || []);
-      setShares(sharesResponse.data.data || []);
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Could not load sharing options.'));
+      setFriends(extractItems<Friend>(friendsRes.data));
+      setShares(extractItems<FileShare>(sharesRes.data));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not load sharing data');
+    } finally {
+      setSharing(false);
     }
   };
 
-  const shareFile = async () => {
-    if (!selectedFile || !selectedFriend) return;
-
+  const shareWithFriend = async () => {
+    if (!shareFile || !selectedFriend) return;
     setSharing(true);
     try {
-      await filesApi.share(selectedFile.id, Number(selectedFriend));
-      const response = await filesApi.shares(selectedFile.id);
-      setShares(response.data.data || []);
+      await filesApi.share(shareFile.id, { user_id: Number(selectedFriend) });
+      toast.success('File shared');
+      const sharesRes = await filesApi.shares(shareFile.id);
+      setShares(extractItems<FileShare>(sharesRes.data));
       setSelectedFriend('');
-      toast.success('File shared.');
-      await loadFiles();
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Could not share file.'));
+      fetchFiles();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Share failed');
     } finally {
       setSharing(false);
     }
   };
 
   const unshareFile = async (userId: number) => {
-    if (!selectedFile) return;
-
+    if (!shareFile) return;
+    setSharing(true);
     try {
-      await filesApi.unshare(selectedFile.id, userId);
-      setShares((items) => items.filter((item) => item.shared_with !== userId));
-      toast.success('Access removed.');
-      await loadFiles();
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Could not remove access.'));
+      await filesApi.unshare(shareFile.id, userId);
+      toast.success('Access removed');
+      const sharesRes = await filesApi.shares(shareFile.id);
+      setShares(extractItems<FileShare>(sharesRes.data));
+      fetchFiles();
+    } catch {
+      toast.error('Could not remove access');
+    } finally {
+      setSharing(false);
     }
   };
 
-  const deleteFile = async (file: any) => {
-    if (!confirm('Delete this file?')) return;
-
-    try {
-      await filesApi.delete(file.id);
-      toast.success('Deleted.');
-      await loadFiles();
-    } catch (error: any) {
-      toast.error(apiMessage(error, 'Delete failed.'));
-    }
-  };
-
-  const pct = user ? Math.min((user.storage_used / user.storage_limit) * 100, 100) : 0;
-  const activeFiles = tab === 'mine' ? files : sharedFiles;
-  const availableFriends = useMemo(() => {
-    const sharedIds = new Set(shares.map((share) => share.shared_with));
-    return friends.filter((friend) => !sharedIds.has(friend.id));
-  }, [friends, shares]);
-
-  const renderFileRow = (file: any, isShared = false) => (
-    <div key={`${isShared ? 'shared' : 'owned'}-${file.id}`} className="flex items-center justify-between gap-3 bg-white rounded-xl border border-gray-200 p-4">
-      <div className="flex items-center gap-3 min-w-0">
-        {fileIcon(file.mime_type)}
-        <div className="min-w-0">
-          <p className="font-medium text-sm truncate">{file.original_name}</p>
-          <p className="text-xs text-gray-400">
-            {fmtSize(file.size)} · {new Date(file.created_at).toLocaleDateString()}
-            {isShared && file.user ? ` · shared by @${file.user.username}` : ''}
-          </p>
-        </div>
-      </div>
-      <div className="flex gap-1 shrink-0">
-        <button onClick={() => openPreview(file)} className="p-2 text-gray-400 hover:text-indigo-600" title="Preview">
-          <Eye size={16} />
-        </button>
-        <button onClick={() => downloadFile(file)} className="p-2 text-gray-400 hover:text-indigo-600" title="Download">
-          <Download size={16} />
-        </button>
-        {!isShared && (
-          <>
-            <button onClick={() => openShare(file)} className="p-2 text-gray-400 hover:text-indigo-600" title="Share">
-              <Share2 size={16} />
-            </button>
-            <button onClick={() => deleteFile(file)} className="p-2 text-gray-400 hover:text-red-500" title="Delete">
-              <Trash2 size={16} />
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  const usedMB = user ? (user.storage_used / 1048576).toFixed(1) : '0';
+  const limitMB = user ? (user.storage_limit / 1048576).toFixed(0) : '50';
+  const usagePercent = user ? Math.min((user.storage_used / user.storage_limit) * 100, 100) : 0;
+  const visibleFiles = activeTab === 'mine' ? files : sharedFiles;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div className="w-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">My Files</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {(user?.storage_used / 1048576 || 0).toFixed(1)} MB / {(user?.storage_limit / 1048576 || 50).toFixed(0)} MB
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">My Files</h1>
+          <p className="text-sm text-gray-500 mt-1">{usedMB} MB / {limitMB} MB used</p>
         </div>
         <div>
-          <input ref={uploadRef} type="file" className="hidden" onChange={handleUpload} />
-          <button onClick={() => uploadRef.current?.click()} disabled={uploading} className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50">
-            {uploading ? <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Upload size={16} />}
-            Upload
+          <input ref={inputRef} type="file" className="hidden" onChange={handleUpload} />
+          <button onClick={() => inputRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
+            {uploading ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Upload size={16} />}
+            Upload File
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
-        <div className="flex justify-between text-sm mb-2">
-          <span className="text-gray-500">Storage</span>
-          <span className="font-medium">{pct.toFixed(1)}%</span>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="text-gray-600">Storage</span>
+          <span className="text-gray-900 font-medium">{usagePercent.toFixed(1)}%</span>
         </div>
         <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${pct}%` }} />
+          <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${usagePercent}%` }} />
         </div>
-        <p className="text-xs text-gray-400 mt-2">Delete unused files or ask an admin to increase your storage limit.</p>
       </div>
 
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
-        <button onClick={() => setTab('mine')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition ${tab === 'mine' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
-          Owned ({files.length})
+      <div className="flex bg-gray-100 rounded-xl p-1 mb-6 max-w-sm">
+        <button onClick={() => setActiveTab('mine')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition ${activeTab === 'mine' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          My Files ({files.length})
         </button>
-        <button onClick={() => setTab('shared')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition ${tab === 'shared' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
-          Shared with Me ({sharedFiles.length})
+        <button onClick={() => setActiveTab('shared')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition ${activeTab === 'shared' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+          Shared ({sharedFiles.length})
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div>
-      ) : activeFiles.length === 0 ? (
+        <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
+      ) : visibleFiles.length === 0 ? (
         <div className="text-center py-16">
           <FolderOpen size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{tab === 'mine' ? 'No files yet' : 'No shared files yet'}</p>
+          <p className="text-gray-500">{activeTab === 'mine' ? 'No files uploaded yet' : 'No files shared with you yet'}</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {activeFiles.map((file) => renderFileRow(file, tab === 'shared'))}
+          {visibleFiles.map((file) => (
+            <div key={file.id} className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-3 min-w-0">
+                {getFileIcon(file)}
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 text-sm truncate">{file.original_name}</p>
+                  <p className="text-xs text-gray-400">
+                    {formatSize(file.size)} &middot; {new Date(file.created_at).toLocaleDateString()}
+                    {activeTab === 'shared' && file.user?.username ? ` · Shared by @${file.user.username}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {previewKind(file) && (
+                  <button onClick={() => handleViewFile(file)} title="Preview safely" className="p-2 text-gray-400 hover:text-emerald-600 transition">
+                    <Eye size={16} />
+                  </button>
+                )}
+                <button onClick={() => handleDownload(file.id)} title="Download" className="p-2 text-gray-400 hover:text-brand-600 transition"><Download size={16} /></button>
+                {activeTab === 'mine' && (
+                  <>
+                    <button onClick={() => openShareModal(file)} title="Share file" className="p-2 text-gray-400 hover:text-indigo-600 transition"><Share2 size={16} /></button>
+                    <button onClick={() => handleDelete(file.id)} title="Delete" className="p-2 text-gray-400 hover:text-red-500 transition"><Trash2 size={16} /></button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {selectedFile && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg p-5">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div className="min-w-0">
-                <h2 className="font-bold text-lg">Share File</h2>
-                <p className="text-sm text-gray-500 truncate">{selectedFile.original_name}</p>
-              </div>
-              <button onClick={() => setSelectedFile(null)} className="p-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
-            </div>
-
-            <div className="flex gap-2 mb-5">
-              <select value={selectedFriend} onChange={(event) => setSelectedFriend(event.target.value)} className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Choose a friend</option>
-                {availableFriends.map((friend) => (
-                  <option key={friend.id} value={friend.id}>{friend.name} (@{friend.username})</option>
-                ))}
-              </select>
-              <button onClick={shareFile} disabled={!selectedFriend || sharing} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50">
-                Share
+      {viewer && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col justify-between z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col h-[90vh] overflow-hidden border border-gray-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+              <h2 className="text-base font-extrabold text-gray-800 flex items-center gap-2 truncate">
+                <FileText size={18} className="text-indigo-500" /> {viewer.name}
+              </h2>
+              <button onClick={() => setViewer(null)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition">
+                <X size={18} />
               </button>
             </div>
-
-            <div className="space-y-2">
-              {shares.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">This file is not shared yet.</p>
-              ) : shares.map((share) => (
-                <div key={share.id} className="flex items-center justify-between rounded-xl border border-gray-200 p-3">
-                  <div>
-                    <p className="text-sm font-semibold">{share.recipient?.name || 'User'}</p>
-                    <p className="text-xs text-gray-400">@{share.recipient?.username}</p>
-                  </div>
-                  <button onClick={() => unshareFile(share.shared_with)} className="text-sm font-semibold text-red-600 hover:text-red-700">
-                    Remove
-                  </button>
-                </div>
-              ))}
+            <div className="flex-1 min-h-0 bg-gray-50 flex items-center justify-center p-2">
+              {viewer.type === 'image' ? (
+                <img src={viewer.url} alt={viewer.name} className="max-w-full max-h-full object-contain rounded-lg shadow-md border border-gray-200" />
+              ) : viewer.type === 'text' ? (
+                <pre className="w-full h-full overflow-auto rounded-lg bg-slate-950 text-slate-100 p-5 text-xs leading-relaxed whitespace-pre-wrap">{viewer.text}</pre>
+              ) : (
+                <iframe sandbox="allow-downloads allow-same-origin" referrerPolicy="no-referrer" src={viewer.url} className="w-full h-full border-none rounded-lg bg-white" title="Sandboxed PDF preview" />
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {preview && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between gap-3 border-b border-gray-200 p-4">
-              <p className="font-semibold text-sm truncate">{preview.file.original_name}</p>
-              <button onClick={() => setPreview(null)} className="p-2 text-gray-400 hover:text-gray-700"><X size={18} /></button>
+      {shareFile && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Share2 size={20} className="text-indigo-600" /> Share File
+              </h3>
+              <button onClick={() => setShareFile(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition">
+                <X size={18} />
+              </button>
             </div>
-            <div className="flex-1 bg-gray-50 overflow-auto">
-              {String(preview.file.mime_type || '').startsWith('image/') ? (
-                <div className="h-full flex items-center justify-center p-4">
-                  <img src={preview.url} alt={preview.file.original_name} className="max-h-full max-w-full object-contain" />
+
+            <p className="text-sm font-bold text-slate-800 truncate mb-4">{shareFile.original_name}</p>
+
+            <div className="flex gap-2 mb-5">
+              <select value={selectedFriend} onChange={(e) => setSelectedFriend(e.target.value)} className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10">
+                <option value="">Choose friend</option>
+                {friends
+                  .filter((friend) => !shares.some((share) => share.shared_with === friend.id))
+                  .map((friend) => <option key={friend.id} value={friend.id}>{friend.name} @{friend.username}</option>)}
+              </select>
+              <button onClick={shareWithFriend} disabled={!selectedFriend || sharing} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition">
+                Share
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <Users size={14} /> Shared With
+              </div>
+              {shares.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-6">No friends have direct access yet.</p>
+              ) : shares.map((share) => (
+                <div key={share.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800 truncate">{share.recipient?.name || 'Friend'}</p>
+                    <p className="text-xs text-slate-400">@{share.recipient?.username || 'user'}</p>
+                  </div>
+                  <button onClick={() => unshareFile(share.shared_with)} disabled={sharing} className="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition disabled:opacity-50">
+                    Remove
+                  </button>
                 </div>
-              ) : (
-                <iframe src={preview.url} title={preview.file.original_name} className="w-full h-full" />
-              )}
+              ))}
             </div>
           </div>
         </div>

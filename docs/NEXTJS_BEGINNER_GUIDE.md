@@ -7,8 +7,8 @@ The Next.js frontend is the browser interface for Notexa. It calls the Laravel A
 | Area | Purpose |
 | --- | --- |
 | Public pages | Home, about, privacy, terms |
-| Auth pages | Login and registration |
-| Dashboard | Notes, shared notes, friends, files, and settings |
+| Auth pages | Login, registration, email verification, and forgot password |
+| Dashboard | Notes, shared notes, friends, files, trash, redeem codes, and settings |
 | Admin | Dashboard, users, notes, settings, sharing, friendships, and activity logs |
 
 ## API Client
@@ -37,13 +37,31 @@ Restart the dev server after changing `.env.local`.
 
 ## Email Verification UI
 
-If the backend says an account needs verification, the login page shows a resend verification action. When a user clicks the email link, Laravel redirects back to:
+If email verification is enabled in the admin settings, registration opens a verification popup. The user enters the 6-digit SMTP code sent by the backend through:
 
 ```text
-/auth/login?verified=1
+POST /api/email/verify-code
 ```
 
-The frontend then shows a success message.
+The resend action calls:
+
+```text
+POST /api/email/verification-notification
+```
+
+## Forgot Password UI
+
+The forgot password screen is available at:
+
+```text
+/auth/forgot-password
+```
+
+It first calls `POST /api/forgot-password` to send a 6-digit SMTP code, then calls `POST /api/reset-password` with the code and new password.
+
+## Notes, Trash, and Files
+
+Deleted notes move to `/dashboard/trash`, where users can restore them or permanently delete them. The files page supports owned files, files shared by friends, direct file sharing with accepted friends, and safe previews. Preview is intentionally limited to PDF, text/code, and common image formats; unsupported files remain download-only.
 
 ## Admin Settings UI
 

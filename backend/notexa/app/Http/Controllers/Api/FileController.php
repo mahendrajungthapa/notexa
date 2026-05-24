@@ -88,9 +88,21 @@ class FileController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
 
+        $preview = $this->previewProfile($file);
+        if (!$preview) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Preview is available only for PDF, text/code, and safe image files.',
+            ], 415);
+        }
+
         $url = $this->r2->getTemporaryPreviewUrl($file->r2_key, 30, $file->id);
 
-        return response()->json(['status' => 'success', 'preview_url' => $url]);
+        return response()->json([
+            'status' => 'success',
+            'preview_url' => $url,
+            'preview_type' => $preview['type'],
+        ]);
     }
 
     // Signed local-file response used when R2 is not configured.
@@ -102,7 +114,10 @@ class FileController extends Controller
     // Signed local-file response with inline disposition for previews.
     public function previewContent(Request $request, File $file)
     {
-        return $this->r2->inlineResponse($file->r2_key, $file->original_name, $file->mime_type);
+        $preview = $this->previewProfile($file);
+        abort_unless($preview, 415, 'Preview is available only for PDF, text/code, and safe image files.');
+
+        return $this->r2->inlineResponse($file->r2_key, $file->original_name, $preview['content_type']);
     }
 
     // Share an owned file with an accepted friend.
@@ -167,5 +182,43 @@ class FileController extends Controller
         $request->user()->decrement('storage_used', $file->size);
         $file->delete();
         return response()->json(['status' => 'success']);
+    }
+
+    private function previewProfile(File $file): ?array
+    {
+        $name = strtolower((string) $file->original_name);
+        $mime = strtolower((string) $file->mime_type);
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+
+        if ($mime === 'application/pdf' || $extension === 'pdf') {
+            return ['type' => 'pdf', 'content_type' => 'application/pdf'];
+        }
+
+        $safeImageMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'];
+        $safeImageExtensions = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp' => 'image/bmp',
+        ];
+        if (in_array($mime, $safeImageMimes, true) || array_key_exists($extension, $safeImageExtensions)) {
+            return ['type' => 'image', 'content_type' => in_array($mime, $safeImageMimes, true) ? $mime : $safeImageExtensions[$extension]];
+        }
+
+        $textExtensions = [
+            'txt', 'md', 'markdown', 'csv', 'tsv', 'log', 'json', 'xml', 'yaml', 'yml',
+            'html', 'htm', 'css', 'scss', 'sass', 'less', 'js', 'jsx', 'ts', 'tsx',
+            'php', 'py', 'rb', 'java', 'kt', 'kts', 'swift', 'dart', 'go', 'rs',
+            'c', 'h', 'cpp', 'hpp', 'cs', 'sql', 'sh', 'bash', 'zsh', 'ps1',
+            'bat', 'cmd', 'env', 'ini', 'conf', 'config', 'toml', 'lock',
+        ];
+
+        if (str_starts_with($mime, 'text/') || in_array($extension, $textExtensions, true)) {
+            return ['type' => 'text', 'content_type' => 'text/plain; charset=UTF-8'];
+        }
+
+        return null;
     }
 }

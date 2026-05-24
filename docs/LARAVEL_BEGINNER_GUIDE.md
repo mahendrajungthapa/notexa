@@ -5,10 +5,11 @@ The Laravel backend is the API server for Notexa. It receives requests from the 
 ## Main Backend Responsibilities
 
 - Register and log in users with Laravel Sanctum tokens.
-- Send signed email verification links when verification is enabled.
-- Manage notes, versions, archive, trash, pinning, share codes, and AI summaries.
+- Send 6-digit SMTP email verification codes when verification is enabled.
+- Send 6-digit SMTP password reset codes and reset passwords after code verification.
+- Manage notes, versions, archive, trash, pinning, share codes, and AI tools.
 - Manage friends and note sharing permissions.
-- Upload, download, and serve attached files.
+- Upload, download, directly share, and safely preview attached files.
 - Provide admin dashboards for users, notes, settings, sharing, friendships, and activity logs.
 - Store configurable settings for SMTP, R2 storage, legal content, and AI.
 
@@ -20,7 +21,7 @@ The Laravel backend is the API server for Notexa. It receives requests from the 
 | `app/Http/Controllers/Api` | User-facing API controllers |
 | `app/Http/Controllers/Admin` | Admin API controller |
 | `app/Models` | Eloquent models |
-| `app/Services` | Mail settings, R2 storage, and AI summary services |
+| `app/Services` | Mail settings, R2 storage, and AI provider services |
 | `database/migrations` | Database schema files |
 | `database/seeders` | Default admin account and site settings |
 
@@ -37,16 +38,28 @@ Authorization: Bearer TOKEN
 The admin can enable email verification from the settings panel. When enabled:
 
 1. A new user registers.
-2. Laravel sends a signed verification link using the SMTP settings.
-3. The user clicks the link.
-4. The backend marks `email_verified_at`.
-5. The user can sign in.
+2. Laravel sends a 6-digit verification code using the SMTP settings.
+3. The frontend opens a verification popup.
+4. The user submits the code to `/api/email/verify-code`.
+5. The backend marks `email_verified_at` and returns a Sanctum token.
 
 If SMTP is not configured, admins can save and test SMTP settings before enabling verification.
 
-## AI Summary
+## Password Reset
 
-The backend reads `ai_enabled` and `deepseek_api_key` from `site_settings`. If a DeepSeek key exists, the backend asks DeepSeek to summarize the note. If the key is missing or the external service fails, Notexa creates a short local fallback summary so the feature still works.
+Forgot password uses the same SMTP settings as email verification:
+
+1. `POST /api/forgot-password` accepts an email address and sends a 6-digit reset code.
+2. `POST /api/reset-password` accepts the email, code, new password, and confirmation.
+3. The backend hashes the new password, clears the reset code, and revokes existing Sanctum tokens.
+
+## AI Tools
+
+The backend reads `ai_enabled`, `ai_provider`, and provider credentials from `site_settings`. It can call OpenAI-compatible providers, Gemini, or DeepSeek for summaries and prompt-based note tools. Provider keys stay on the backend and are never returned in public settings.
+
+## Safe File Preview
+
+File preview returns short-lived signed URLs. The backend allows inline preview only for PDF, text/code, and common image files, and sets `X-Content-Type-Options: nosniff` before serving preview content.
 
 ## Useful Commands
 

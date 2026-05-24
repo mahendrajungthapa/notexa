@@ -4,16 +4,17 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 
 ## Features
 
-- User registration, login, profile updates, and Laravel Sanctum token authentication.
+- User registration, login, SMTP password reset codes, profile updates, and Laravel Sanctum token authentication.
 - Rich note editor with headings, formatting, task lists, links, images, highlights, and code-friendly content.
 - Notes dashboard with create, edit, pin, archive, trash, restore, and permanent delete flows.
 - Version history for notes so important changes can be reviewed later.
 - Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
 - Note sharing through friends, permissions, collaborators, and share codes.
-- File upload, preview, download, note attachments, and direct file sharing with friends.
+- File upload, safe PDF/text/image previews, download, note attachments, and direct file sharing with friends.
 - Admin area for users, notes, site settings, shared notes, friendships, and activity logs.
-- AI summary service integration through the backend service layer.
-- Flutter app for mobile/desktop access to the same API.
+- AI summary and prompt endpoints through the backend service layer.
+- Optional 6-digit SMTP email verification during registration.
+- Flutter app for mobile/desktop access to the same API, with local drafts and resilient offline note sync.
 
 ## Project Structure
 
@@ -31,7 +32,7 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 - Backend: PHP 8.3, Laravel 13, Laravel Sanctum, SQLite/MySQL/PostgreSQL-ready migrations.
 - Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS, TipTap editor, Zustand, Axios.
 - App: Flutter 3, Dart, Provider, Shared Preferences, HTTP client, File Picker, PDF viewer.
-- Storage and services: local filesystem by default, Cloudflare R2-compatible configuration, SMTP mail configuration, and DeepSeek AI key setting.
+- Storage and services: local filesystem by default, Cloudflare R2-compatible configuration, SMTP mail configuration, and OpenAI/Gemini/DeepSeek AI settings.
 
 ## Requirements
 
@@ -127,7 +128,7 @@ Important values:
 - `DB_CONNECTION`: `sqlite` locally, or change to `mysql`/`pgsql` with matching credentials.
 - `NEXT_PUBLIC_API_URL`: Frontend API URL, usually `http://127.0.0.1:8000/api` locally.
 - `CLOUDFLARE_R2_*`: Cloud storage credentials.
-- `MAIL_*`: SMTP settings for email.
+- `MAIL_*`: SMTP settings for email verification and password reset codes.
 
 ## Documentation
 

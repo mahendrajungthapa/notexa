@@ -74,7 +74,7 @@ class R2StorageService
 
     public function getTemporaryPreviewUrl(string $path, int $minutes = 60, ?int $fileId = null): string
     {
-        if ($this->isLocalKey($path) && $fileId) {
+        if ($fileId) {
             return URL::temporarySignedRoute('api.files.preview', now()->addMinutes($minutes), ['file' => $fileId]);
         }
 
@@ -101,6 +101,7 @@ class R2StorageService
         return Storage::disk($disk)->response($key, $name, [
             'Content-Type' => $mimeType,
             'Content-Disposition' => 'inline; filename="' . addslashes($name) . '"',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 

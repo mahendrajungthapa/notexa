@@ -22,6 +22,8 @@ class AdminController extends Controller
     {
         $today = now()->toDateString();
         $thisMonth = now()->startOfMonth();
+        $last30Days = now()->subDays(30);
+        $storageUsed = (int) User::sum('storage_used');
 
         return response()->json(['status' => 'success', 'data' => [
             'total_users' => User::count(),
@@ -30,9 +32,11 @@ class AdminController extends Controller
             'total_shared_notes' => NoteShare::count(),
             'total_friendships' => Friendship::where('status', 'accepted')->count(),
             'total_files' => File::count(),
-            'total_storage_gb' => round(User::sum('storage_used') / 1073741824, 2),
+            'total_storage_gb' => round($storageUsed / 1073741824, 2),
+            'total_storage_used' => $this->formatBytes($storageUsed),
             'new_users_today' => User::whereDate('created_at', $today)->count(),
             'new_users_month' => User::where('created_at', '>=', $thisMonth)->count(),
+            'recent_signups' => User::where('created_at', '>=', $last30Days)->count(),
             'notes_today' => Note::whereDate('created_at', $today)->count(),
             'users_chart' => User::where('created_at', '>=', now()->subDays(30))
                 ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))
@@ -176,5 +180,18 @@ class AdminController extends Controller
         return response()->json(['status' => 'success', 'data' =>
             ActivityLog::with('user:id,name,username')->orderByDesc('created_at')->paginate(50)
         ]);
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1073741824) {
+            return round($bytes / 1073741824, 2) . ' GB';
+        }
+
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 2) . ' MB';
+        }
+
+        return round($bytes / 1024, 2) . ' KB';
     }
 }

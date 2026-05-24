@@ -6,7 +6,7 @@ Stacks covered: Laravel backend, Next.js frontend, Flutter app
 
 ## Abstract
 
-Notexa is a collaborative note-taking system that allows users to create rich notes, share notes with friends, redeem share codes, upload files, generate note summaries, and use the same backend from both web and Flutter clients. The admin panel provides user management, note monitoring, settings management, SMTP testing, storage configuration, AI configuration, and activity visibility.
+Notexa is a collaborative note-taking system that allows users to create rich notes, share notes with friends, redeem share codes, upload and safely preview files, use backend AI tools, and use the same backend from both web and Flutter clients. The admin panel provides user management, note monitoring, settings management, SMTP testing, storage configuration, AI configuration, and activity visibility.
 
 ## Objectives
 
@@ -14,8 +14,8 @@ Notexa is a collaborative note-taking system that allows users to create rich no
 - Support optional SMTP email verification.
 - Allow users to create, edit, archive, trash, and restore notes.
 - Allow note sharing with friends and share codes.
-- Support attached files.
-- Provide AI-assisted note summaries.
+- Support attached files, safe previews, and direct file sharing with friends.
+- Provide AI-assisted summaries, questions, flashcards, quizzes, and cleaned study notes.
 - Provide a browser frontend and Flutter app using the same API.
 - Provide an admin panel for operational control.
 
@@ -29,7 +29,7 @@ Notexa is a collaborative note-taking system that allows users to create rich no
 | Database | SQLite locally, MySQL/PostgreSQL-ready migrations |
 | Files | Local storage or R2-compatible configuration |
 | Mail | SMTP settings stored in admin settings |
-| AI | DeepSeek key with local fallback summary |
+| AI | Admin-configured OpenAI, Gemini, or DeepSeek provider |
 
 ## Functional Modules
 
@@ -47,11 +47,11 @@ Users can add friends by username, accept or reject friend requests, share notes
 
 ### Files
 
-Users can upload files and attach files to notes. Storage usage is tracked per user.
+Users can upload files, attach files to notes, preview PDFs/text/code/images safely, download files, and share files directly with accepted friends. Storage usage is tracked per user.
 
-### AI Summaries
+### AI Tools
 
-Users can generate summaries from note content. The backend uses DeepSeek if configured and falls back to a local summary when needed.
+Users can generate summaries and run prompt-based tools from note content. The backend uses the configured OpenAI, Gemini, or DeepSeek provider without exposing provider API keys to clients.
 
 ### Admin
 
@@ -80,12 +80,16 @@ Admins can view dashboard stats, manage users, review notes, configure settings,
 
 ## Email Verification
 
-The admin saves SMTP host, port, username, password, sender address, and sender name. The backend applies those settings when sending verification and test emails. When verification is enabled, login is blocked until the user clicks the signed verification link.
+The admin saves SMTP host, port, username, password, sender address, and sender name. The backend applies those settings when sending verification and test emails. When verification is enabled, registration sends a 6-digit code by SMTP, the web frontend opens a verification popup, and login is blocked until `email_verified_at` is set.
 
-## AI Summary
+## AI Tools
 
-The note summary endpoint checks note permission, verifies that AI summaries are enabled, summarizes the note, saves the generated summary, and returns it to the web or Flutter client.
+The note AI endpoints check note permission, verify that AI is enabled, call the configured provider, and return the result to the web or Flutter client. Summary responses are saved on the note; prompt responses are returned directly.
+
+## Safe File Preview
+
+File preview uses short-lived signed URLs. The backend allows inline preview only for PDF, text/code, and common image files, sets `X-Content-Type-Options: nosniff`, and keeps unsupported files download-only.
 
 ## Conclusion
 
-Notexa demonstrates a complete full-stack workflow with a shared API, web client, app client, authentication, collaboration, file handling, admin settings, email verification, and AI-assisted note summaries.
+Notexa demonstrates a complete full-stack workflow with a shared API, web client, app client, authentication, collaboration, safe file handling, admin settings, email verification, and AI-assisted study features.

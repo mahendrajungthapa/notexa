@@ -24,13 +24,6 @@ return new class extends Migration {
     }
 
     public function down(): void {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'is_premium')) {
-                $table->boolean('is_premium')->default(false);
-            }
-            if (!Schema::hasColumn('users', 'premium_expires_at')) {
-                $table->timestamp('premium_expires_at')->nullable();
-            }
-        });
+        // Billing was intentionally removed from the product surface.
     }
 };

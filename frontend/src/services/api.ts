@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEFAULT_API_URL = 'https://app.notexa.cloud/api';
+const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
 
 const normalizeApiUrl = (value?: string) => {
   const base = (value || DEFAULT_API_URL).trim().replace(/\/+$/, '');
@@ -8,6 +8,13 @@ const normalizeApiUrl = (value?: string) => {
 };
 
 const API_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_URL);
+const API_ORIGIN = API_URL.replace(/\/api$/, '');
+
+export const resolveApiAssetUrl = (value?: string | null) => {
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${API_ORIGIN}${value.startsWith('/') ? value : `/${value}`}`;
+};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -45,10 +52,13 @@ api.interceptors.response.use(
 export const authApi = {
   register: (d: any) => api.post('/register', d),
   login: (d: { login: string; password: string }) => api.post('/login', d),
+  forgotPassword: (email: string) => api.post('/forgot-password', { email }),
+  resetPassword: (d: { email: string; code: string; password: string; password_confirmation: string }) => api.post('/reset-password', d),
   logout: () => api.post('/logout'),
   me: () => api.get('/me'),
   updateProfile: (d: any) => api.put('/profile', d),
   changePassword: (d: any) => api.put('/change-password', d),
+  verifyEmailCode: (d: { email: string; code: string }) => api.post('/email/verify-code', d),
   resendVerification: (email: string) => api.post('/email/verification-notification', { email }),
 };
 
@@ -69,6 +79,7 @@ export const notesApi = {
   regenerateCode: (id: number) => api.post(`/notes/${id}/regenerate-code`),
   redeemCode: (code: string) => api.post('/notes/redeem-code', { code }),
   aiSummary: (id: number) => api.post(`/notes/${id}/ai-summary`),
+  aiQuery: (id: number, data: { systemPrompt: string; userPrompt: string }) => api.post(`/notes/${id}/ai-query`, data),
   share: (noteId: number, d: any) => api.post(`/notes/${noteId}/share`, d),
   updatePermission: (noteId: number, userId: number, d: any) => api.put(`/notes/${noteId}/share/${userId}`, d),
   unshare: (noteId: number, userId: number) => api.delete(`/notes/${noteId}/share/${userId}`),
@@ -82,7 +93,6 @@ export const friendsApi = {
   sendRequest: (username: string) => api.post('/friends/request', { username }),
   acceptRequest: (id: number) => api.put(`/friends/accept/${id}`),
   rejectRequest: (id: number) => api.put(`/friends/reject/${id}`),
-  cancelRequest: (id: number) => api.delete(`/friends/request/${id}`),
   removeFriend: (userId: number) => api.delete(`/friends/${userId}`),
   searchUsers: (query: string) => api.get('/friends/search', { params: { query } }),
 };
@@ -95,10 +105,10 @@ export const filesApi = {
     if (noteId) fd.append('note_id', String(noteId));
     return api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
-  preview: (id: number) => api.get(`/files/${id}/preview`),
   download: (id: number) => api.get(`/files/${id}/download`),
+  preview: (id: number) => api.get(`/files/${id}/preview`),
   shares: (id: number) => api.get(`/files/${id}/shares`),
-  share: (id: number, userId: number) => api.post(`/files/${id}/share`, { user_id: userId }),
+  share: (id: number, d: { user_id: number }) => api.post(`/files/${id}/share`, d),
   unshare: (id: number, userId: number) => api.delete(`/files/${id}/share/${userId}`),
   delete: (id: number) => api.delete(`/files/${id}`),
 };

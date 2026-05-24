@@ -79,7 +79,14 @@ class _NotesListScreenState extends State<NotesListScreen> {
       }
       if ((sync['failed'] ?? 0) > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${sync['failed']} offline change${sync['failed'] == 1 ? '' : 's'} could not sync. Try again.'),
+          content: Text('${sync['failed']} offline change${sync['failed'] == 1 ? '' : 's'} could not be synced. Try again.'),
+          backgroundColor: const Color(0xFFB45309),
+          duration: const Duration(seconds: 3),
+        ));
+      }
+      if ((sync['file_failed'] ?? 0) > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Note synced. ${sync['file_failed']} local attachment${sync['file_failed'] == 1 ? '' : 's'} could not upload.'),
           backgroundColor: const Color(0xFFB45309),
           duration: const Duration(seconds: 3),
         ));

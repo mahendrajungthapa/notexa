@@ -1,8 +1,10 @@
 'use client';
+
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/services/api';
+import { User } from '@/types';
 import toast from 'react-hot-toast';
-import { Search, Ban, Trash2, Eye, X, FileText, Users, HardDrive } from 'lucide-react';
+import { Search, Ban, Trash2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -10,140 +12,123 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  const [detail, setDetail] = useState<any>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
 
-  const fetch = useCallback(async () => {
-    try { const r = await adminApi.users({ search: search || undefined, page }); setUsers(r.data.data.data || []); setLastPage(r.data.data.last_page || 1); }
-    catch {} finally { setLoading(false); }
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await adminApi.users({ search: search || undefined, page });
+      setUsers(res.data.data.data || []);
+      setLastPage(res.data.data.last_page || 1);
+    } catch { toast.error('Failed'); }
+    finally { setLoading(false); }
   }, [search, page]);
 
-  useEffect(() => { const t = setTimeout(fetch, 300); return () => clearTimeout(t); }, [fetch]);
+  useEffect(() => { const t = setTimeout(fetchUsers, 300); return () => clearTimeout(t); }, [fetchUsers]);
 
-  const openDetail = async (id: number) => {
-    setDetailLoading(true); setDetail(null);
-    try { const r = await adminApi.userDetail(id); setDetail(r.data.data); }
-    catch { toast.error('Failed'); } finally { setDetailLoading(false); }
+  const handleToggleActive = async (user: any) => {
+    try {
+      await adminApi.updateUser(user.id, { is_active: !user.is_active });
+      toast.success(user.is_active ? 'Deactivated' : 'Activated');
+      fetchUsers();
+    } catch { toast.error('Failed'); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Delete this user and all their data?')) return;
+    try { await adminApi.deleteUser(id); toast.success('Deleted'); fetchUsers(); } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Users</h1>
-        <div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-sm w-56 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Search..." /></div>
+    <div className="pb-10 fade-in animate-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">User Management</h1>
+          <p className="text-sm font-medium text-slate-500 mt-1">Monitor accounts, roles, and platform activity</p>
+        </div>
+        <div className="relative group">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+            <Search size={18} strokeWidth={2.5} />
+          </div>
+          <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm text-sm w-full sm:w-72 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 focus:bg-white transition-all shadow-sm placeholder:text-slate-400 font-medium text-slate-700 hover:border-slate-300"
+            placeholder="Search by name or email..." />
+        </div>
       </div>
 
-      {loading ? <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div> : (
+      {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div> : (
         <>
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">User</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Role</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Notes</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Files</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u: any) => (
-                  <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-sm">{u.name}</p>
-                      <p className="text-xs text-gray-400">@{u.username} · {u.email}</p>
-                    </td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${u.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>{u.role}</span></td>
-                    <td className="px-4 py-3 text-gray-600">{u.notes_count}</td>
-                    <td className="px-4 py-3 text-gray-600">{u.files_count}</td>
-                    <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        <button onClick={() => openDetail(u.id)} title="View detail" className="p-1.5 rounded-lg text-gray-400 hover:bg-indigo-50 hover:text-indigo-600"><Eye size={14} /></button>
-                        <button onClick={async () => { await adminApi.updateUser(u.id, { is_active: !u.is_active }); toast.success('Updated'); fetch(); }} title="Toggle active"
-                          className={`p-1.5 rounded-lg ${!u.is_active ? 'text-red-500 bg-red-50' : 'text-gray-400 hover:bg-gray-100'}`}><Ban size={14} /></button>
-                        {u.role !== 'admin' && <button onClick={async () => { if (!confirm('Delete user and all data?')) return; await adminApi.deleteUser(u.id); toast.success('Deleted'); fetch(); }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={14} /></button>}
-                      </div>
-                    </td>
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow duration-500 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-200/60 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+                  <tr>
+                    <th className="px-6 py-4">User</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Notes</th>
+                    <th className="px-6 py-4">Files</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((u) => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shadow-sm border border-indigo-100/50 group-hover:scale-105 transition-transform">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-800 flex items-center gap-1.5">{u.name}</p>
+                            <p className="text-xs font-medium text-slate-500">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest ${u.role === 'admin' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-600">{u.notes_count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-600">{u.files_count}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-widest ${u.is_active ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleToggleActive(u)} title="Toggle active"
+                            className={`p-2 rounded-xl transition-all duration-300 ${!u.is_active ? 'text-rose-600 bg-rose-50 hover:bg-rose-100' : 'text-slate-400 hover:text-orange-600 hover:bg-orange-50'}`}>
+                            <Ban size={16} strokeWidth={2.5} />
+                          </button>
+                          {u.role !== 'admin' && (
+                            <button onClick={() => handleDelete(u.id)} title="Delete user"
+                              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all duration-300">
+                              <Trash2 size={16} strokeWidth={2.5} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-          {lastPage > 1 && <div className="flex justify-center gap-2 mt-4">{Array.from({ length: lastPage }, (_, i) => (
-            <button key={i} onClick={() => setPage(i + 1)} className={`px-3 py-1.5 rounded-lg text-sm ${page === i + 1 ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>{i + 1}</button>
-          ))}</div>}
+
+          {/* Pagination */}
+          {lastPage > 1 && (
+            <div className="flex justify-center gap-2 mt-8">
+              {Array.from({ length: lastPage }, (_, i) => (
+                <button key={i} onClick={() => setPage(i + 1)}
+                  className={`min-w-[36px] h-[36px] flex items-center justify-center rounded-xl text-sm font-bold transition-all duration-300 ${page === i + 1 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-white border border-slate-200/60 text-slate-600 hover:bg-slate-50 hover:border-slate-300'}`}>
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          )}
         </>
-      )}
-
-      {/* USER DETAIL MODAL */}
-      {(detail || detailLoading) && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setDetail(null)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
-            {detailLoading ? <div className="flex justify-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div> : detail && (
-              <>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold text-lg">{detail.user.name.charAt(0)}</div>
-                    <div>
-                      <h2 className="text-lg font-bold">{detail.user.name}</h2>
-                      <p className="text-sm text-gray-400">@{detail.user.username} · {detail.user.email}</p>
-                    </div>
-                  </div>
-                  <button onClick={() => setDetail(null)}><X size={20} className="text-gray-400" /></button>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  <div className="bg-gray-50 rounded-xl p-3 text-center"><FileText size={16} className="mx-auto mb-1 text-indigo-500" /><p className="text-lg font-bold">{detail.user.notes?.length || 0}</p><p className="text-xs text-gray-400">Notes</p></div>
-                  <div className="bg-gray-50 rounded-xl p-3 text-center"><Users size={16} className="mx-auto mb-1 text-emerald-500" /><p className="text-lg font-bold">{detail.friends_count}</p><p className="text-xs text-gray-400">Friends</p></div>
-                  <div className="bg-gray-50 rounded-xl p-3 text-center"><HardDrive size={16} className="mx-auto mb-1 text-amber-500" /><p className="text-lg font-bold">{detail.storage_used_mb} MB</p><p className="text-xs text-gray-400">Storage</p></div>
-                </div>
-
-                {/* Notes */}
-                <div className="mb-5">
-                  <h3 className="text-sm font-semibold mb-2">Notes ({detail.user.notes?.length || 0})</h3>
-                  <div className="max-h-40 overflow-y-auto space-y-1">
-                    {(detail.user.notes || []).map((n: any) => (
-                      <div key={n.id} className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2">
-                        <span className="truncate">{n.title}</span>
-                        <span className="text-xs text-gray-400 shrink-0 ml-2">{new Date(n.created_at).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Friends */}
-                <div className="mb-5">
-                  <h3 className="text-sm font-semibold mb-2">Friends ({detail.friends_count})</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {(detail.friends || []).map((f: any) => (
-                      <span key={f.id} className="text-xs bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">@{f.username}</span>
-                    ))}
-                    {detail.friends_count === 0 && <span className="text-xs text-gray-400">No friends</span>}
-                  </div>
-                </div>
-
-                {/* Shared notes */}
-                <div className="mb-5">
-                  <h3 className="text-sm font-semibold mb-2">Shared by User ({(detail.shared_by_user || []).length})</h3>
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {(detail.shared_by_user || []).map((s: any) => (
-                      <div key={s.id} className="text-xs bg-gray-50 rounded-lg px-3 py-2 flex justify-between">
-                        <span>{s.note?.title} → @{s.recipient?.username}</span><span className="text-gray-400">{s.permission}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </>
-            )}
-          </div>
-        </div>
       )}
     </div>
   );

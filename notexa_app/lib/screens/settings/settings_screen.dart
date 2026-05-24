@@ -14,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _name;
   late TextEditingController _username;
+  late TextEditingController _institution;
   final _curPw = TextEditingController();
   final _newPw = TextEditingController();
   final _confirmPw = TextEditingController();
@@ -23,6 +24,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final u = context.read<AuthService>().user;
     _name = TextEditingController(text: u?['name'] ?? '');
     _username = TextEditingController(text: u?['username'] ?? '');
+    _institution = TextEditingController(text: u?['institution'] ?? '');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _username.dispose();
+    _institution.dispose();
+    _curPw.dispose();
+    _newPw.dispose();
+    _confirmPw.dispose();
+    super.dispose();
   }
 
   @override
@@ -98,9 +111,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ]),
             Text('@${auth.user?['username'] ?? ''}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+            if ((auth.user?['institution'] ?? '').toString().isNotEmpty)
+              Text(auth.user?['institution'] ?? '', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
             Text(auth.user?['email'] ?? '', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
           ])),
         ]))),
@@ -113,10 +128,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
           const SizedBox(height: 12),
           TextField(controller: _username, decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email))),
+          const SizedBox(height: 12),
+          TextField(controller: _institution, decoration: const InputDecoration(labelText: 'Institution', prefixIcon: Icon(Icons.school_outlined))),
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async {
             try {
-              await auth.updateProfile(name: _name.text, username: _username.text);
+              await auth.updateProfile(name: _name.text, username: _username.text, institution: _institution.text);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated!'), backgroundColor: Colors.green));
             } catch (error, stackTrace) {
               if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);

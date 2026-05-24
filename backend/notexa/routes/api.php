@@ -11,11 +11,14 @@ use App\Http\Controllers\Admin\AdminController;
 // ═══ PUBLIC ═══
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-    ->middleware(['signed', 'throttle:6,1'])
-    ->name('verification.verify');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+    ->middleware('throttle:6,1');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:10,1');
 Route::post('/email/verification-notification', [AuthController::class, 'resendVerification'])
     ->middleware('throttle:6,1');
+Route::post('/email/verify-code', [AuthController::class, 'verifyCode'])
+    ->middleware('throttle:10,1');
 
 Route::get('/settings/public', function () {
     return response()->json(['status' => 'success', 'data' => [
@@ -25,6 +28,11 @@ Route::get('/settings/public', function () {
         'privacy_policy' => \App\Models\SiteSetting::get('privacy_policy', ''),
         'terms_conditions' => \App\Models\SiteSetting::get('terms_conditions', ''),
         'about_us' => \App\Models\SiteSetting::get('about_us', ''),
+        'ai_enabled' => \App\Models\SiteSetting::get('ai_enabled', true),
+        'ai_provider' => \App\Models\SiteSetting::get('ai_provider', 'deepseek'),
+        'openai_model' => \App\Models\SiteSetting::get('openai_model', 'gpt-4o-mini'),
+        'gemini_model' => \App\Models\SiteSetting::get('gemini_model', 'gemini-1.5-flash'),
+        'deepseek_model' => \App\Models\SiteSetting::get('deepseek_model', 'deepseek-chat'),
     ]]);
 });
 
@@ -65,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // AI Summary
     Route::post('/notes/{note}/ai-summary', [NoteController::class, 'aiSummary']);
+    Route::post('/notes/{note}/ai-query', [NoteController::class, 'aiQuery']);
 
     // Note Sharing
     Route::get('/shared-with-me', [NoteShareController::class, 'sharedWithMe']);

@@ -1,121 +1,516 @@
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
-import { UserPlus, Eye, EyeOff, AtSign, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [form, setForm] = useState({ name: '', username: '', email: '', password: '', password_confirmation: '' });
-  const [showPw, setShowPw] = useState(false);
+
+  const [form, setForm] = useState({
+    name: '',
+    username: '',
+    email: '',
+    password: '',
+    password_confirmation: ''
+  });
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    if (form.password !== form.password_confirmation) { setError('Passwords do not match.'); return; }
-    if (form.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    if (form.username.length < 3) { setError('Username must be at least 3 characters.'); return; }
+
+    if (form.password !== form.password_confirmation) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    if (form.username.length < 3) {
+      toast.error('Username must be at least 3 characters');
+      return;
+    }
 
     setLoading(true);
+
     try {
-      const res = await authApi.register({ ...form, username: form.username.toLowerCase() });
-      if (res.data?.email_verification_required) {
-        toast.success(res.data.message || 'Check your email to verify your account.');
-        router.push(`/auth/login?verify=1&email=${encodeURIComponent(res.data.email || form.email)}`);
-      } else if (res.data?.token && res.data?.user) {
-        setAuth(res.data.user, res.data.token);
-        toast.success(res.data.message || 'Account created!');
-        router.push('/dashboard/notes');
-      } else {
-        setError('Unexpected server response.');
+      const res = await authApi.register({
+        ...form,
+        username: form.username.toLowerCase()
+      });
+
+      if (res.data?.email_verification_required || res.data?.data?.email_verification_required) {
+        setVerificationEmail(res.data?.email || res.data?.data?.email || form.email);
+        setVerificationCode('');
+        toast.success(res.data?.message || res.data?.data?.message || 'Verification code sent.');
+        return;
       }
+
+      const user = res.data?.data?.user || res.data?.user;
+      const token = res.data?.data?.token || res.data?.token;
+
+      if (!user || !token) {
+        throw new Error('Invalid registration response');
+      }
+
+      setAuth(user, token);
+
+      toast.success(
+        res.data?.message ||
+        res.data?.data?.message ||
+        'Registration successful!'
+      );
+
+      router.push('/dashboard/notes');
     } catch (err: any) {
-      console.error('Register error:', err);
-      let msg = 'Registration failed.';
-      if (err.code === 'ERR_NETWORK' || !err.response) {
-        msg = 'Cannot connect to server.';
-      } else if (err.response?.data?.errors) {
-        msg = Object.values(err.response.data.errors).flat().join(' ');
-      } else if (err.response?.data?.message) {
-        msg = err.response.data.message;
+      const errors = err.response?.data?.errors;
+      const verificationRequired = err.response?.data?.email_verification_required;
+
+      if (verificationRequired) {
+        setVerificationEmail(err.response?.data?.email || form.email);
+        setVerificationCode('');
+        toast.error(err.response?.data?.message || 'Verification code could not be sent.');
+        return;
       }
-      setError(msg);
-      toast.error(msg);
-    } finally { setLoading(false); }
+
+      if (errors) {
+        Object.values(errors)
+          .flat()
+          .forEach((msg: any) => toast.error(msg));
+      } else {
+        toast.error(err.response?.data?.message || 'Registration failed');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const setField = (k: string, v: string) => { setForm(p => ({ ...p, [k]: v })); setError(''); };
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!verificationEmail || verificationCode.length !== 6) {
+      toast.error('Enter the 6-digit code from your email');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const res = await authApi.verifyEmailCode({ email: verificationEmail, code: verificationCode });
+      const user = res.data?.data?.user || res.data?.user;
+      const token = res.data?.data?.token || res.data?.token;
+
+      if (!user || !token) {
+        throw new Error('Invalid verification response');
+      }
+
+      setAuth(user, token);
+      toast.success(res.data?.message || 'Email verified successfully!');
+      router.push('/dashboard/notes');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Verification failed');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!verificationEmail) return;
+
+    setResending(true);
+    try {
+      const res = await authApi.resendVerification(verificationEmail);
+      toast.success(res.data?.message || 'Verification code sent.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not resend code');
+    } finally {
+      setResending(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1 flex items-center justify-center pt-20 pb-10 px-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-extrabold tracking-tight mb-2">Create account</h1>
-            <p className="text-gray-500">Join Notexa — it&apos;s free</p>
+    <main className="min-h-screen grid lg:grid-cols-2">
+      {/* Left Side */}
+      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
+        <div className="absolute inset-0 z-0">
+          <img
+            alt="Modern minimalist library interior with warm wood accents, large windows, and students focused on digital devices in soft natural light"
+            className="w-full h-full object-cover opacity-60"
+            src="https://images.unsplash.com/photo-1497436072909-60f360e1d4b1?q=80&w=2560&auto=format&fit=crop"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#3525cd]/90 to-[#4f46e5]/80 mix-blend-multiply"></div>
+        </div>
+
+        <div className="relative z-10 max-w-xl text-white">
+          <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20">
+            <span
+              className="material-symbols-outlined text-secondary-container"
+              style={{ fontVariationSettings: '"FILL" 1' }}
+            >
+              auto_awesome
+            </span>
+
+            <span className="text-sm font-semibold tracking-wide uppercase">
+              Academic Intelligence
+            </span>
           </div>
-          <div className="bg-white rounded-3xl shadow-xl shadow-gray-100/50 border border-gray-100 p-8">
-            {error && (
-              <div className="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-                <AlertCircle size={18} className="shrink-0 mt-0.5" /><span>{error}</span>
+
+          <h1 className="font-headline text-5xl lg:text-7xl font-extrabold tracking-tight mb-8 drop-shadow-sm leading-tight">
+            Join the Sanctuary
+          </h1>
+
+          <p className="text-xl lg:text-2xl font-light text-white/90 mb-12 leading-relaxed">
+            Designed for the students, NotExA provides the focus you need to excel.
+          </p>
+
+          <div className="space-y-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-white">
+                  menu_book
+                </span>
               </div>
-            )}
-            <form onSubmit={handleSubmit} className="space-y-4">
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
-                <input type="text" required value={form.name} onChange={(e) => setField('name', e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm" placeholder="John Doe" />
+                <h3 className="font-headline text-xl font-bold mb-1">
+                  Deep Research Focus
+                </h3>
+
+                <p className="text-white/70">
+                  Distraction-free environment tailored for scholarly pursuits.
+                </p>
               </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-white">
+                  insights
+                </span>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Username</label>
-                <div className="relative">
-                  <AtSign size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" required value={form.username} onChange={(e) => setField('username', e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm" placeholder="johndoe" />
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Friends add you as @{form.username || 'username'}</p>
+                <h3 className="font-headline text-xl font-bold mb-1">
+                  Intelligent Connections
+                </h3>
+
+                <p className="text-white/70">
+                  Map your thoughts across multiple disciplines seamlessly.
+                </p>
               </div>
+            </div>
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-white">
+                  security
+                </span>
+              </div>
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
-                <input type="email" required value={form.email} onChange={(e) => setField('email', e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm" placeholder="john@example.com" />
+                <h3 className="font-headline text-xl font-bold mb-1">
+                  Academic Integrity First
+                </h3>
+
+                <p className="text-white/70">
+                  Tools that support original thinking and rigorous citation.
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
-                <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} required value={form.password} onChange={(e) => setField('password', e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm pr-12" placeholder="Min 8 characters" />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute bottom-12 left-12 lg:left-24 z-10 flex items-center gap-3">
+          <span className="text-3xl font-black text-white italic tracking-tighter">
+            NotExA
+          </span>
+
+          <span className="w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+
+          <span className="text-white/50 text-sm font-medium tracking-widest uppercase">
+            <br />
+          </span>
+        </div>
+      </section>
+
+      {/* Right Side */}
+      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center pt-8 lg:pt-0">
+            <h2 className="text-3xl font-headline font-bold text-on-surface mb-2 tracking-tight">
+              Create an Account
+            </h2>
+
+            <p className="text-on-surface-variant text-sm font-body">
+              Experience a new standard of academic note-taking.
+            </p>
+          </div>
+
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            {/* Full Name */}
+            <div className="group">
+              <label
+                className="block text-sm font-semibold text-on-surface-variant mb-1 ml-1 group-focus-within:text-primary transition-colors"
+                htmlFor="full_name"
+              >
+                Full Name
+              </label>
+
+              <input
+                required
+                value={form.name}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value })
+                }
+                className="w-full bg-surface-container-low border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium text-sm"
+                id="full_name"
+                placeholder="Nisha Saud"
+                type="text"
+              />
+            </div>
+
+            {/* Username */}
+            <div className="group">
+              <label
+                className="block text-sm font-semibold text-on-surface-variant mb-1 ml-1 group-focus-within:text-primary transition-colors"
+                htmlFor="username"
+              >
+                Username
+              </label>
+
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-[20px]">
+                  alternate_email
+                </span>
+
+                <input
+                  required
+                  value={form.username}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      username: e.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]/g, '')
+                    })
+                  }
+                  className="w-full bg-surface-container-low border-0 rounded-xl pl-12 pr-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium text-sm"
+                  id="username"
+                  placeholder="nishasaud"
+                  type="text"
+                />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
-                <input type="password" required value={form.password_confirmation} onChange={(e) => setField('password_confirmation', e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-sm" placeholder="Repeat password" />
+
+              <p className="text-[11px] text-on-surface-variant mt-1 ml-1 opacity-70">
+                Friends can add you as @{form.username || 'username'}
+              </p>
+            </div>
+
+            {/* Email */}
+            <div className="group">
+              <label
+                className="block text-sm font-semibold text-on-surface-variant mb-1 ml-1 group-focus-within:text-primary transition-colors"
+                htmlFor="email"
+              >
+                Academic Email
+              </label>
+
+              <input
+                required
+                value={form.email}
+                onChange={(e) =>
+                  setForm({ ...form, email: e.target.value })
+                }
+                className="w-full bg-surface-container-low border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium text-sm"
+                id="email"
+                placeholder="nishasaud@gmail.com"
+                type="email"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="group relative">
+              <label
+                className="block text-sm font-semibold text-on-surface-variant mb-1 ml-1 group-focus-within:text-primary transition-colors"
+                htmlFor="password"
+              >
+                Password
+              </label>
+
+              <div className="relative">
+                <input
+                  required
+                  value={form.password}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
+                  className="w-full bg-surface-container-low border-0 rounded-xl px-4 py-3 pr-12 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium text-sm"
+                  id="password"
+                  placeholder="••••••••••••"
+                  type={showPassword ? 'text' : 'password'}
+                />
+
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant hover:text-primary transition-colors"
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? 'visibility' : 'visibility_off'}
+                  </span>
+                </button>
               </div>
-              <button type="submit" disabled={loading}
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 text-sm transition disabled:opacity-50 mt-2">
-                {loading ? <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><UserPlus size={16} /> Create Account</>}
+            </div>
+
+            {/* Confirm Password */}
+            <div className="group relative">
+              <label
+                className="block text-sm font-semibold text-on-surface-variant mb-1 ml-1 group-focus-within:text-primary transition-colors"
+                htmlFor="password_confirmation"
+              >
+                Confirm Password
+              </label>
+
+              <div className="relative">
+                <input
+                  required
+                  value={form.password_confirmation}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      password_confirmation: e.target.value
+                    })
+                  }
+                  className="w-full bg-surface-container-low border-0 rounded-xl px-4 py-3 pr-12 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium text-sm"
+                  id="password_confirmation"
+                  placeholder="••••••••••••"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                />
+
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-outline-variant hover:text-primary transition-colors"
+                  type="button"
+                  onClick={() =>
+                    setShowConfirmPassword(!showConfirmPassword)
+                  }
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showConfirmPassword
+                      ? 'visibility'
+                      : 'visibility_off'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="pt-2">
+              <button
+                disabled={loading}
+                className="w-full bg-gradient-to-br flex gap-2 justify-center items-center from-primary to-primary-container text-white py-3 px-6 rounded-full font-bold text-sm uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 disabled:opacity-50"
+                type="submit"
+              >
+                {loading ? (
+                  <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  'Create Account'
+                )}
               </button>
-            </form>
-            <p className="text-center text-sm text-gray-500 mt-6">
-              Already have an account? <Link href="/auth/login" className="text-indigo-600 hover:underline font-semibold">Sign in</Link>
+            </div>
+
+            <p className="text-[11px] text-center text-on-surface-variant leading-relaxed opacity-80 pt-1">
+              By clicking "Create Account", you agree to our
+              <Link
+                className="text-primary font-semibold hover:underline px-1"
+                href="#"
+              >
+                Terms of Service
+              </Link>
+              and
+              <Link
+                className="text-primary font-semibold hover:underline"
+                href="#"
+              >
+                Privacy Policy
+              </Link>.
+            </p>
+          </form>
+
+          <div className="mt-8 text-center pb-8 lg:pb-0">
+            <p className="text-on-surface text-sm font-medium">
+              Already have an account?
+              <Link
+                className="text-primary font-bold hover:underline ml-1"
+                href="/auth/login"
+              >
+                Sign In
+              </Link>
             </p>
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </section>
+
+      {verificationEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl border border-slate-100">
+            <div className="mb-5">
+              <h3 className="text-2xl font-headline font-bold text-on-surface">Verify Your Email</h3>
+              <p className="text-sm text-on-surface-variant mt-2">
+                We sent a 6-digit code to <span className="font-bold text-primary">{verificationEmail}</span>.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyEmail} className="space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-widest text-outline mb-2">Verification Code</label>
+                <input
+                  autoFocus
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full rounded-2xl bg-surface-container-low px-5 py-4 text-center text-3xl font-black tracking-[0.35em] text-on-surface outline-none focus:ring-4 focus:ring-primary/15"
+                  placeholder="000000"
+                />
+              </div>
+
+              <button
+                disabled={verifying}
+                type="submit"
+                className="w-full rounded-2xl bg-primary py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 disabled:opacity-50"
+              >
+                {verifying ? 'Verifying...' : 'Verify Email'}
+              </button>
+
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <button
+                  type="button"
+                  disabled={resending}
+                  onClick={handleResendCode}
+                  className="font-bold text-primary hover:underline disabled:opacity-50"
+                >
+                  {resending ? 'Sending...' : 'Resend code'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVerificationEmail('')}
+                  className="font-semibold text-outline hover:text-on-surface"
+                >
+                  Edit registration
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

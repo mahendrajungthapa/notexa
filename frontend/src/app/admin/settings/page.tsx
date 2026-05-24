@@ -1,239 +1,311 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { adminApi } from '@/services/api';
+import { SiteSetting } from '@/types';
 import toast from 'react-hot-toast';
-import { Save, Mail, Globe, Shield, Send, HardDrive, Sparkles, ToggleLeft } from 'lucide-react';
-
-type Setting = {
-  key: string;
-  value: string;
-  type: string;
-  group: string;
-};
-
-const definitions: Record<string, Omit<Setting, 'key'>> = {
-  site_name: { value: 'Notexa', type: 'string', group: 'general' },
-  site_logo: { value: '', type: 'string', group: 'general' },
-  site_description: { value: 'Collaborative Note Taking Platform', type: 'string', group: 'general' },
-  about_us: { value: '', type: 'text', group: 'general' },
-  smtp_host: { value: '', type: 'string', group: 'smtp' },
-  smtp_port: { value: '587', type: 'integer', group: 'smtp' },
-  smtp_username: { value: '', type: 'string', group: 'smtp' },
-  smtp_password: { value: '', type: 'string', group: 'smtp' },
-  smtp_encryption: { value: 'tls', type: 'string', group: 'smtp' },
-  smtp_from_address: { value: 'noreply@notexa.com', type: 'string', group: 'smtp' },
-  smtp_from_name: { value: 'Notexa', type: 'string', group: 'smtp' },
-  email_verification_enabled: { value: 'false', type: 'boolean', group: 'email' },
-  privacy_policy: { value: '', type: 'text', group: 'legal' },
-  terms_conditions: { value: '', type: 'text', group: 'legal' },
-  r2_access_key: { value: '', type: 'string', group: 'storage' },
-  r2_secret_key: { value: '', type: 'string', group: 'storage' },
-  r2_bucket: { value: 'notexa-files', type: 'string', group: 'storage' },
-  r2_endpoint: { value: '', type: 'string', group: 'storage' },
-  r2_public_url: { value: '', type: 'string', group: 'storage' },
-  ai_enabled: { value: 'true', type: 'boolean', group: 'ai' },
-  deepseek_api_key: { value: '', type: 'string', group: 'ai' },
-};
-
-const tabs = [
-  { key: 'general', label: 'General', icon: Globe },
-  { key: 'smtp', label: 'SMTP', icon: Mail },
-  { key: 'email', label: 'Email', icon: ToggleLeft },
-  { key: 'legal', label: 'Legal', icon: Shield },
-  { key: 'storage', label: 'Storage (R2)', icon: HardDrive },
-  { key: 'ai', label: 'AI (DeepSeek)', icon: Sparkles },
-];
+import { Save, Mail, Globe, Shield, Send, Sparkles } from 'lucide-react';
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const [settings, setSettings] = useState<SiteSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [testEmail, setTestEmail] = useState('');
-  const [tab, setTab] = useState('general');
+  const [tab, setTab] = useState<'general' | 'smtp' | 'email' | 'legal' | 'ai'>('general');
 
   useEffect(() => {
-    (async () => {
-      try {
-        const response = await adminApi.getSettings();
-        setSettings(mergeDefaults(response.data.data || []));
-      } catch {
-        toast.error('Failed to load settings');
-      } finally {
-        setLoading(false);
-      }
-    })();
+    const fetch = async () => {
+      try { const res = await adminApi.getSettings(); setSettings(res.data.data || []); }
+      catch { toast.error('Failed'); } finally { setLoading(false); }
+    };
+    fetch();
   }, []);
 
-  const mergeDefaults = (incoming: Setting[]) => {
-    const map = new Map<string, Setting>();
-    Object.entries(definitions).forEach(([key, value]) => map.set(key, { key, ...value }));
-    incoming.forEach((item) => {
-      const fallback = definitions[item.key] || { value: '', type: 'string', group: item.group || 'general' };
-      map.set(item.key, {
-        key: item.key,
-        value: item.value ?? fallback.value,
-        type: item.type || fallback.type,
-        group: item.group || fallback.group,
-      });
-    });
-    return Array.from(map.values());
-  };
-
-  const meta = (key: string) => definitions[key] || { value: '', type: 'string', group: tab };
-  const gv = (key: string) => settings.find((setting) => setting.key === key)?.value ?? meta(key).value;
-
-  const sv = (key: string, value: string) => {
-    const definition = meta(key);
-    setSettings((previous) => {
-      const exists = previous.some((setting) => setting.key === key);
+  const getValue = (key: string) => settings.find((s) => s.key === key)?.value || '';
+  const setValue = (key: string, value: string, group: string = 'general') => {
+    setSettings((prev) => {
+      const exists = prev.some((s) => s.key === key);
       if (exists) {
-        return previous.map((setting) => setting.key === key ? { ...setting, value, type: setting.type || definition.type, group: setting.group || definition.group } : setting);
+        return prev.map((s) => s.key === key ? { ...s, value } : s);
+      } else {
+        return [...prev, { id: 0, key, value, type: 'text', group }];
       }
-      return [...previous, { key, value, type: definition.type, group: definition.group }];
     });
   };
 
-  const groupSettings = (group: string) => {
-    const keys = Object.keys(definitions).filter((key) => definitions[key].group === group);
-    return keys.map((key) => {
-      const definition = definitions[key];
-      const existing = settings.find((setting) => setting.key === key);
-      return {
-        key,
-        value: existing?.value ?? definition.value,
-        type: existing?.type || definition.type,
-        group,
-      };
-    });
-  };
-
-  const save = async (group: string, quiet = false) => {
+  const handleSave = async (group: string) => {
     setSaving(true);
     try {
-      const response = await adminApi.updateSettings(groupSettings(group));
-      setSettings(mergeDefaults(response.data.data || settings));
-      if (!quiet) toast.success('Settings saved');
-      return true;
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Save failed');
-      return false;
-    } finally {
-      setSaving(false);
-    }
+      const aiKeys = [
+        'ai_enabled', 'ai_provider',
+        'openai_api_key', 'openai_base_url', 'openai_model',
+        'gemini_api_key', 'gemini_base_url', 'gemini_model',
+        'deepseek_api_key', 'deepseek_base_url', 'deepseek_model'
+      ];
+      const groupSettings = settings
+        .filter((s) => s.group === group || (group === 'ai' && aiKeys.includes(s.key)))
+        .map((s) => ({
+          key: s.key,
+          value: s.value || '',
+          type: s.type,
+          group: aiKeys.includes(s.key) ? 'ai' : s.group
+        }));
+      await adminApi.updateSettings(groupSettings);
+      toast.success('Settings saved!');
+    } catch { toast.error('Failed to save'); }
+    finally { setSaving(false); }
   };
 
-  const testSmtp = async () => {
-    if (!testEmail.trim()) {
-      toast.error('Enter a test email address');
-      return;
-    }
-    const saved = await save('smtp', true);
-    if (!saved) return;
-
-    setTesting(true);
-    try {
-      await adminApi.testSmtp(testEmail.trim());
-      toast.success('Test email sent');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'SMTP test failed');
-    } finally {
-      setTesting(false);
-    }
+  const handleTestSmtp = async () => {
+    if (!testEmail) return;
+    try { await adminApi.testSmtp(testEmail); toast.success('Test email sent!'); }
+    catch (err: any) { toast.error(err.response?.data?.message || 'SMTP test failed'); }
   };
 
-  const Toggle = ({ k }: { k: string }) => {
-    const on = ['true', '1', 'yes'].includes(String(gv(k)).toLowerCase());
-    return <button type="button" onClick={() => sv(k, on ? 'false' : 'true')} className={`w-11 h-6 rounded-full transition relative ${on ? 'bg-indigo-600' : 'bg-gray-300'}`}><div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${on ? 'left-5' : 'left-0.5'}`} /></button>;
-  };
+  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>;
 
-  const Input = ({ k, label, type = 'text', placeholder = '' }: any) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input type={type} value={gv(k)} onChange={(event) => sv(k, event.target.value)} placeholder={placeholder} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" />
-    </div>
-  );
-
-  const TextArea = ({ k, label }: any) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <textarea value={gv(k)} onChange={(event) => sv(k, event.target.value)} rows={8} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono" />
-    </div>
-  );
-
-  const SaveBtn = ({ group }: { group: string }) => (
-    <button onClick={() => save(group)} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
-      <Save size={15} /> {saving ? 'Saving...' : 'Save'}
-    </button>
-  );
-
-  if (loading) return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div>;
+  const tabs = [
+    { key: 'general' as const, label: 'General', icon: Globe },
+    { key: 'smtp' as const, label: 'SMTP', icon: Mail },
+    { key: 'email' as const, label: 'Email', icon: Mail },
+    { key: 'legal' as const, label: 'Legal Pages', icon: Shield },
+    { key: 'ai' as const, label: 'AI Settings', icon: Sparkles },
+  ];
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Settings</h1>
-      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1 mb-6 flex-wrap">
-        {tabs.map((item) => (
-          <button key={item.key} onClick={() => setTab(item.key)} className={`flex items-center gap-1.5 py-2 px-3 rounded-xl text-xs font-medium transition ${tab === item.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
-            <item.icon size={14} /> {item.label}
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Site Settings</h1>
+
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 flex-wrap">
+        {tabs.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+            <t.icon size={16} /> {t.label}
           </button>
         ))}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        {tab === 'general' && <div className="space-y-4">
-          <Input k="site_name" label="Site Name" />
-          <Input k="site_logo" label="Logo URL" placeholder="https://..." />
-          <Input k="site_description" label="Description" />
-          <TextArea k="about_us" label="About Us (HTML)" />
-          <SaveBtn group="general" />
-        </div>}
-
-        {tab === 'smtp' && <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input k="smtp_host" label="Host" placeholder="smtp.gmail.com" /><Input k="smtp_port" label="Port" placeholder="587" /></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><Input k="smtp_username" label="Username" /><Input k="smtp_password" label="Password" type="password" /></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label><select value={gv('smtp_encryption')} onChange={(event) => sv('smtp_encryption', event.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none text-sm"><option value="tls">TLS</option><option value="ssl">SSL</option><option value="">None</option></select></div>
-            <Input k="smtp_from_address" label="From Address" />
-            <Input k="smtp_from_name" label="From Name" />
+        {tab === 'general' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+              <input type="text" value={getValue('site_name')} onChange={(e) => setValue('site_name', e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Logo URL</label>
+              <input type="text" value={getValue('site_logo')} onChange={(e) => setValue('site_logo', e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="https://example.com/logo.png" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Site Description</label>
+              <input type="text" value={getValue('site_description')} onChange={(e) => setValue('site_description', e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500" />
+            </div>
+            <button onClick={() => handleSave('general')} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              <Save size={16} /> Save General Settings
+            </button>
           </div>
-          <div className="flex gap-3 items-end flex-wrap">
-            <SaveBtn group="smtp" />
-            <div className="flex gap-2 ml-auto">
-              <input type="email" value={testEmail} onChange={(event) => setTestEmail(event.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-44" placeholder="test@email.com" />
-              <button onClick={testSmtp} disabled={testing || saving} className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-semibold disabled:opacity-50"><Send size={13} /> {testing ? 'Sending...' : 'Test'}</button>
+        )}
+
+        {tab === 'smtp' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+                <input type="text" value={getValue('smtp_host')} onChange={(e) => setValue('smtp_host', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="smtp.gmail.com" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+                <input type="text" value={getValue('smtp_port')} onChange={(e) => setValue('smtp_port', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="587" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input type="text" value={getValue('smtp_username')} onChange={(e) => setValue('smtp_username', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" value={getValue('smtp_password')} onChange={(e) => setValue('smtp_password', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
+                <select value={getValue('smtp_encryption')} onChange={(e) => setValue('smtp_encryption', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
+                  <option value="tls">TLS</option><option value="ssl">SSL</option><option value="">None</option>
+                </select></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">From Address</label>
+                <input type="email" value={getValue('smtp_from_address')} onChange={(e) => setValue('smtp_from_address', e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => handleSave('smtp')} disabled={saving}
+                className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+                <Save size={16} /> Save SMTP
+              </button>
+              <div className="flex gap-2 ml-auto">
+                <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-48" placeholder="test@email.com" />
+                <button onClick={handleTestSmtp}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800">
+                  <Send size={14} /> Test
+                </button>
+              </div>
             </div>
           </div>
-        </div>}
+        )}
 
-        {tab === 'email' && <div className="space-y-4">
-          <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4"><div><p className="font-semibold text-sm">Email Verification</p><p className="text-xs text-gray-500">Require users to verify email before login</p></div><Toggle k="email_verification_enabled" /></div>
-          <p className="text-xs text-gray-500">Configure and test SMTP before enabling verification.</p>
-          <SaveBtn group="email" />
-        </div>}
+        {tab === 'email' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+              <div>
+                <p className="font-medium text-gray-900">Email Verification</p>
+                <p className="text-sm text-gray-500">Require users to verify email after registration</p>
+              </div>
+              <button onClick={() => {
+                const current = getValue('email_verification_enabled');
+                setValue('email_verification_enabled', current === 'true' ? 'false' : 'true');
+              }}
+                className={`w-12 h-6 rounded-full transition relative ${getValue('email_verification_enabled') === 'true' ? 'bg-brand-600' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${getValue('email_verification_enabled') === 'true' ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+            <button onClick={() => handleSave('email')} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              <Save size={16} /> Save
+            </button>
+          </div>
+        )}
 
-        {tab === 'legal' && <div className="space-y-4">
-          <TextArea k="privacy_policy" label="Privacy Policy (HTML)" />
-          <TextArea k="terms_conditions" label="Terms & Conditions (HTML)" />
-          <SaveBtn group="legal" />
-        </div>}
+        {tab === 'legal' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Privacy Policy (HTML)</label>
+              <textarea value={getValue('privacy_policy')} onChange={(e) => setValue('privacy_policy', e.target.value)}
+                rows={8} className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-mono text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Terms & Conditions (HTML)</label>
+              <textarea value={getValue('terms_conditions')} onChange={(e) => setValue('terms_conditions', e.target.value)}
+                rows={8} className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none font-mono text-sm" />
+            </div>
+            <button onClick={() => handleSave('legal')} disabled={saving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
+              <Save size={16} /> Save Legal Pages
+            </button>
+          </div>
+        )}
 
-        {tab === 'storage' && <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800"><strong>Cloudflare R2</strong> - Get credentials from Cloudflare Dashboard, R2, Manage API Tokens.</div>
-          <Input k="r2_access_key" label="Access Key ID" />
-          <Input k="r2_secret_key" label="Secret Access Key" type="password" />
-          <Input k="r2_bucket" label="Bucket Name" placeholder="notexa-files" />
-          <Input k="r2_endpoint" label="Endpoint URL" placeholder="https://account-id.r2.cloudflarestorage.com" />
-          <Input k="r2_public_url" label="Public URL" placeholder="https://pub-xxx.r2.dev" />
-          <SaveBtn group="storage" />
-        </div>}
+        {tab === 'ai' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h3 className="text-base font-bold text-gray-900 mb-1">Global Smart AI Workspace</h3>
+              <p className="text-xs text-gray-500">Configure keys to power AI tools like summarizers, card builders, quizzes and more across the platform.</p>
+            </div>
 
-        {tab === 'ai' && <div className="space-y-4">
-          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 text-sm text-violet-800"><strong>DeepSeek AI</strong> - Add a key for model summaries. If no key is set, Notexa uses a local fallback summary.</div>
-          <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4"><div><p className="font-semibold text-sm">AI Features</p><p className="text-xs text-gray-500">Enable or disable note summaries</p></div><Toggle k="ai_enabled" /></div>
-          <Input k="deepseek_api_key" label="DeepSeek API Key" type="password" placeholder="sk-..." />
-          <SaveBtn group="ai" />
-        </div>}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
+              <div>
+                <p className="font-medium text-gray-900">Enable Smart AI Assistant</p>
+                <p className="text-sm text-gray-500">Allow users to access AI features on their notes dashboard</p>
+              </div>
+              <button onClick={() => {
+                const current = getValue('ai_enabled');
+                setValue('ai_enabled', current === 'true' ? 'false' : 'true', 'ai');
+              }}
+                className={`w-12 h-6 rounded-full transition relative ${getValue('ai_enabled') === 'true' ? 'bg-brand-600' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${getValue('ai_enabled') === 'true' ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Default AI Provider</label>
+              <select value={getValue('ai_provider') || 'openai'} onChange={(e) => setValue('ai_provider', e.target.value, 'ai')}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-semibold text-sm transition bg-white cursor-pointer">
+                <option value="openai">OpenAI (GPT-4o-mini)</option>
+                <option value="gemini">Google Gemini (Gemini 1.5 Flash)</option>
+                <option value="deepseek">DeepSeek (deepseek-chat)</option>
+              </select>
+            </div>
+
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">
+              <h4 className="text-sm font-bold text-gray-900">OpenAI Workspace (or Custom Endpoint)</h4>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">OpenAI API Key</label>
+                <input type="password" value={getValue('openai_api_key')} onChange={(e) => setValue('openai_api_key', e.target.value, 'ai')}
+                  placeholder="sk-..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm bg-white" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">API Base URL</label>
+                  <input type="text" value={getValue('openai_base_url')} onChange={(e) => setValue('openai_base_url', e.target.value, 'ai')}
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
+                  <input type="text" value={getValue('openai_model')} onChange={(e) => setValue('openai_model', e.target.value, 'ai')}
+                    placeholder="gpt-4o-mini"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">
+              <h4 className="text-sm font-bold text-gray-900">Google Gemini Workspace</h4>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Google Gemini API Key</label>
+                <input type="password" value={getValue('gemini_api_key')} onChange={(e) => setValue('gemini_api_key', e.target.value, 'ai')}
+                  placeholder="AIzaSy..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm bg-white" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">API Base URL</label>
+                  <input type="text" value={getValue('gemini_base_url')} onChange={(e) => setValue('gemini_base_url', e.target.value, 'ai')}
+                    placeholder="https://generativelanguage.googleapis.com/v1beta"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
+                  <input type="text" value={getValue('gemini_model')} onChange={(e) => setValue('gemini_model', e.target.value, 'ai')}
+                    placeholder="gemini-1.5-flash"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">
+              <h4 className="text-sm font-bold text-gray-900">DeepSeek Workspace</h4>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">DeepSeek API Key</label>
+                <input type="password" value={getValue('deepseek_api_key')} onChange={(e) => setValue('deepseek_api_key', e.target.value, 'ai')}
+                  placeholder="sk-..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm bg-white" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">API Base URL</label>
+                  <input type="text" value={getValue('deepseek_base_url')} onChange={(e) => setValue('deepseek_base_url', e.target.value, 'ai')}
+                    placeholder="https://api.deepseek.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
+                  <input type="text" value={getValue('deepseek_model')} onChange={(e) => setValue('deepseek_model', e.target.value, 'ai')}
+                    placeholder="deepseek-chat"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => handleSave('ai')} disabled={saving}
+              className="flex items-center gap-2 px-5 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-md shadow-brand-600/10 hover:shadow-brand-600/20 hover:-translate-y-0.5 active:translate-y-0 transition duration-200 disabled:opacity-50">
+              <Save size={16} /> Save AI Settings
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

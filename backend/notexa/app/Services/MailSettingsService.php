@@ -24,6 +24,7 @@ class MailSettingsService
         Config::set('mail.mailers.smtp.username', $username === '' ? null : $username);
         Config::set('mail.mailers.smtp.password', $password === '' ? null : $password);
         Config::set('mail.mailers.smtp.scheme', $scheme === '' ? null : $scheme);
+        Config::set('mail.mailers.smtp.encryption', $scheme === '' ? null : $scheme);
         Config::set('mail.from.address', $fromAddress === '' ? 'hello@example.com' : $fromAddress);
         Config::set('mail.from.name', $fromName === '' ? 'Notexa' : $fromName);
 

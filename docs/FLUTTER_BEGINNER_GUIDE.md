@@ -1,9 +1,5 @@
 # Flutter Beginner Guide for Notexa
 
-## Important Note
-
-Flutter dependencies were not upgraded in this task because you asked not to upgrade Flutter due to time. This guide documents the existing Flutter app.
-
 ## What Flutter Does
 
 Flutter is the mobile app frontend of Notexa. It uses the same Laravel API as the Next.js website, so users can access the same notes from mobile and web.
@@ -107,9 +103,17 @@ Important methods:
 | --- | --- |
 | `login` | Calls Laravel `/login` |
 | `register` | Calls Laravel `/register` |
+| `forgotPassword` | Sends a 6-digit SMTP password reset code |
+| `resetPassword` | Applies the reset code and new password |
+| `verifyEmailCode` | Verifies the 6-digit SMTP registration code |
+| `resendVerification` | Requests a new registration code |
 | `logout` | Calls Laravel `/logout` and clears token |
 | `fetchMe` | Calls Laravel `/me` |
-| `updateProfile` | Updates profile |
+| `updateProfile` | Updates name, username, and institution |
+
+## Offline Sync
+
+Notes are cached in `LocalNoteStorage`. Dirty local notes sync before cloud notes are loaded. If a local note points to a cloud note that no longer exists, the app recreates it through `/notes` instead of leaving a permanent "could not be synced" warning. Local attachment upload failures are reported separately so note text can still sync.
 
 ## Local Storage
 
@@ -148,10 +152,14 @@ Offline note behavior:
 | `NotesListScreen` | Show/search/create notes |
 | `NoteEditorScreen` | Edit notes, share, AI, attach files |
 | `SharedScreen` | Notes shared with user |
-| `FriendsScreen` | Friend requests and friends |
-| `FilesScreen` | Upload/download/delete files |
+| `FriendsScreen` | Friend requests, search, friends, and note/file sharing |
+| `FilesScreen` | Upload/download/delete files and inline PDF viewing |
 | `PdfViewerScreen` | Preview PDFs |
 | `SettingsScreen` | Profile/password/login/logout area |
+
+## AI and Email Verification
+
+The note editor can call backend AI endpoints for summaries, questions, flashcards, quizzes, and cleaned study notes. Registration shows a popup for the 6-digit verification code when backend email verification is enabled.
 
 ## How To Run
 
@@ -176,4 +184,3 @@ http://YOUR_COMPUTER_IP:8000/api
 ## Teacher Explanation
 
 Flutter is the mobile client. It displays screens using widgets, calls Laravel API using the `http` package, stores login tokens with SharedPreferences, and supports offline drafts through local storage.
-

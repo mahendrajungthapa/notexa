@@ -8,8 +8,8 @@ use App\Models\SiteSetting;
 use App\Services\MailSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\Redirect;
 use Throwable;
 
 class AuthController extends Controller
@@ -33,22 +33,21 @@ class AuthController extends Controller
         $emailEnabled = SiteSetting::get('email_verification_enabled', false);
         if ($emailEnabled) {
             try {
-                MailSettingsService::apply();
-                $user->sendEmailVerificationNotification();
+                $this->sendVerificationCode($user);
             } catch (Throwable $e) {
                 return response()->json([
-                    'status' => 'success',
+                    'status' => 'error',
+                    'message' => 'Account created, but the verification code could not be sent. Please ask an admin to check SMTP settings, then resend verification.',
                     'email_verification_required' => true,
                     'email' => $user->email,
-                    'message' => 'Account created, but the verification email could not be sent. Please ask an admin to check SMTP settings, then resend verification.',
-                ], 201);
+                ], 503);
             }
 
             return response()->json([
                 'status' => 'success',
                 'email_verification_required' => true,
                 'email' => $user->email,
-                'message' => 'Account created. Please check your email to verify your account before signing in.',
+                'message' => 'Account created. Enter the 6-digit verification code sent to your email.',
             ], 201);
         }
 
@@ -144,9 +143,10 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => 'sometimes|string|max:255',
+            'institution' => 'sometimes|nullable|string|max:255',
             'username' => 'sometimes|string|max:30|alpha_dash|unique:users,username,' . $request->user()->id,
         ]);
-        $request->user()->update($request->only(['name', 'username']));
+        $request->user()->update($request->only(['name', 'username', 'institution']));
         return response()->json(['status' => 'success', 'user' => $request->user()->fresh()]);
     }
 
@@ -163,20 +163,65 @@ class AuthController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Password changed.']);
     }
 
-    public function verifyEmail(Request $request, string $id, string $hash)
+    public function forgotPassword(Request $request)
     {
-        $user = User::findOrFail($id);
+        $validated = $request->validate(['email' => 'required|email']);
+        $user = User::where('email', strtolower($validated['email']))->first();
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            abort(403, 'Invalid verification link.');
+        if (!$user) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'If that account exists, a reset code will be sent.',
+            ]);
         }
 
-        if (!$user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
+        if (!MailSettingsService::hasSmtpConfig()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'SMTP is not configured. Please ask an admin to update SMTP settings.',
+            ], 503);
         }
 
-        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3000'), '/');
-        return Redirect::away($frontendUrl . '/auth/login?verified=1&email=' . urlencode($user->email));
+        $this->sendPasswordResetCode($user);
+
+        return response()->json([
+            'status' => 'success',
+            'email' => $user->email,
+            'message' => 'A 6-digit password reset code was sent to your email.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|digits:6',
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $user = User::where('email', strtolower($validated['email']))->first();
+
+        if (!$user || !$user->password_reset_code_hash) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid or expired reset code.'], 422);
+        }
+
+        if (!$user->password_reset_code_expires_at || now()->greaterThan($user->password_reset_code_expires_at)) {
+            return response()->json(['status' => 'error', 'message' => 'Reset code expired. Please request a new code.'], 422);
+        }
+
+        if (!Hash::check($validated['code'], $user->password_reset_code_hash)) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid or expired reset code.'], 422);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+            'password_reset_code_hash' => null,
+            'password_reset_code_expires_at' => null,
+        ])->save();
+
+        $user->tokens()->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Password reset successfully. Please sign in with your new password.']);
     }
 
     public function resendVerification(Request $request)
@@ -197,9 +242,100 @@ class AuthController extends Controller
             return response()->json(['status' => 'success', 'message' => 'This email is already verified.']);
         }
 
-        MailSettingsService::apply();
-        $user->sendEmailVerificationNotification();
+        $this->sendVerificationCode($user);
 
-        return response()->json(['status' => 'success', 'message' => 'Verification email sent.']);
+        return response()->json(['status' => 'success', 'message' => 'A new 6-digit verification code was sent.']);
+    }
+
+    public function verifyCode(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|digits:6',
+        ]);
+
+        $user = User::where('email', strtolower($validated['email']))->first();
+
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid verification code.'], 422);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            $token = $user->createToken('auth-token')->plainTextToken;
+            return response()->json(['status' => 'success', 'message' => 'Email is already verified.', 'user' => $user->fresh(), 'token' => $token]);
+        }
+
+        if (!$user->email_verification_code_hash || !$user->email_verification_code_expires_at || now()->greaterThan($user->email_verification_code_expires_at)) {
+            return response()->json(['status' => 'error', 'message' => 'Verification code expired. Please request a new code.'], 422);
+        }
+
+        if (!Hash::check($validated['code'], $user->email_verification_code_hash)) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid verification code.'], 422);
+        }
+
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'email_verification_code_hash' => null,
+            'email_verification_code_expires_at' => null,
+        ])->save();
+
+        $token = $user->createToken('auth-token')->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Email verified successfully.',
+            'user' => $user->fresh(),
+            'token' => $token,
+        ]);
+    }
+
+    private function sendVerificationCode(User $user): void
+    {
+        if (!MailSettingsService::hasSmtpConfig()) {
+            throw new \RuntimeException('SMTP host is required before sending verification codes.');
+        }
+
+        $code = (string) random_int(100000, 999999);
+
+        $user->forceFill([
+            'email_verification_code_hash' => Hash::make($code),
+            'email_verification_code_expires_at' => now()->addMinutes(15),
+        ])->save();
+
+        MailSettingsService::apply();
+
+        $siteName = SiteSetting::get('site_name', 'Notexa');
+        Mail::raw(
+            "Your {$siteName} verification code is {$code}.\n\nThis code expires in 15 minutes. If you did not create an account, you can ignore this email.",
+            function ($message) use ($user, $siteName) {
+                $message->to($user->email, $user->name)
+                    ->subject("{$siteName} verification code");
+            }
+        );
+    }
+
+    private function sendPasswordResetCode(User $user): void
+    {
+        if (!MailSettingsService::hasSmtpConfig()) {
+            throw new \RuntimeException('SMTP host is required before sending password reset codes.');
+        }
+
+        $code = (string) random_int(100000, 999999);
+
+        $user->forceFill([
+            'password_reset_code_hash' => Hash::make($code),
+            'password_reset_code_expires_at' => now()->addMinutes(15),
+        ])->save();
+
+        MailSettingsService::apply();
+
+        $siteName = SiteSetting::get('site_name', 'Notexa');
+        Mail::raw(
+            "Your {$siteName} password reset code is {$code}.\n\nThis code expires in 15 minutes. If you did not request a password reset, you can ignore this email.",
+            function ($message) use ($user, $siteName) {
+                $message->to($user->email, $user->name)
+                    ->subject("{$siteName} password reset code");
+            }
+        );
     }
 }

@@ -1,6 +1,6 @@
 # Notexa Complete Study Guide
 
-Notexa is a collaborative note-taking platform with a Laravel API backend, a Next.js web frontend, and a Flutter app. Users can create rich notes, share notes with friends, redeem share codes, attach files, and generate summaries. Admins can manage users, notes, settings, sharing records, friendships, and activity logs.
+Notexa is a collaborative note-taking platform with a Laravel API backend, a Next.js web frontend, and a Flutter app. Users can create rich notes, share notes with friends, redeem share codes, attach files, safely preview supported files, and use backend AI tools. Admins can manage users, notes, settings, sharing records, friendships, and activity logs.
 
 ## System Overview
 
@@ -14,11 +14,11 @@ Admin panel       -> Laravel API -> Site settings
 
 - Authentication and Sanctum token login.
 - Optional SMTP email verification.
-- Notes, archive, trash, pinning, version history, and AI summaries.
+- Notes, archive, trash, restore, pinning, version history, and AI summaries.
 - Friends and friend requests.
 - Note sharing with view/edit permissions.
 - Share code redemption.
-- File upload and download.
+- File upload, signed download URLs, direct friend sharing, and safe previews for PDF, text/code, and common image files.
 - Admin dashboard and settings.
 - Cloud storage configuration through R2-compatible settings.
 
@@ -33,7 +33,7 @@ Laravel handles validation, permissions, storage, and JSON API responses. Import
 | `NoteController.php` | Notes and AI summaries |
 | `NoteShareController.php` | Friend-based note sharing |
 | `FriendController.php` | Friend requests and friend list |
-| `FileController.php` | Upload and download files |
+| `FileController.php` | Upload, preview, share, and download files |
 | `AdminController.php` | Admin stats, users, notes, settings, and logs |
 | `MailSettingsService.php` | Applies SMTP settings from the database |
 | `DeepSeekService.php` | External or fallback note summaries |
@@ -50,7 +50,8 @@ Important screens:
 - Notes dashboard
 - Note editor
 - Friends
-- Files
+- Files and safe previews
+- Trash
 - User settings
 - Admin dashboard
 - Admin users
@@ -78,19 +79,26 @@ Important files:
 1. Admin saves SMTP settings.
 2. Admin tests SMTP from the admin settings panel.
 3. Admin enables email verification.
-4. New users receive a signed verification link.
-5. Login is blocked until `email_verified_at` is set.
-6. Users can request a new verification email from the login page.
+4. New users receive a 6-digit verification code by SMTP.
+5. The registration page opens a verification popup.
+6. Users verify with `/api/email/verify-code`, then receive a Sanctum token.
 
-## AI Summary Flow
+## AI Flow
 
 1. User opens a note.
-2. User clicks Summary.
+2. User clicks Summary, Ask AI, Flashcards, Quiz, or Clean Notes.
 3. Frontend saves dirty content first.
 4. Backend checks permission and `ai_enabled`.
-5. Backend calls DeepSeek when a key is available.
-6. Backend uses a local fallback summary if the external service is unavailable.
-7. Summary is saved on the note and returned to the client.
+5. Backend calls the configured OpenAI, Gemini, or DeepSeek provider.
+6. Summary responses are saved on the note and returned to the client; prompt responses are returned without exposing provider API keys.
+
+## File Preview and Sharing Flow
+
+1. User uploads a file.
+2. The files dashboard can preview only PDF, text/code, and safe image formats.
+3. The backend returns a short-lived signed preview URL and forces `X-Content-Type-Options: nosniff`.
+4. PDF previews render in a sandboxed frame, images render as images, and text/code renders as escaped text.
+5. File owners can share files directly with accepted friends and remove access later.
 
 ## Admin Settings
 
@@ -116,4 +124,6 @@ The admin settings UI saves typed values so booleans, integers, and text are han
 7. Share a note with view/edit permission.
 8. Redeem a share code.
 9. Upload a file.
-10. Open the admin dashboard and update settings.
+10. Share a file with a friend.
+11. Move a note to trash, restore it, then permanently delete a test note.
+12. Open the admin dashboard and update settings.

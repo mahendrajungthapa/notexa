@@ -134,6 +134,7 @@ class LocalNoteStorage {
     final notes = await _read();
     var synced = 0;
     var failed = 0;
+    var fileFailed = 0;
 
     for (final entry in notes.entries.toList()) {
       final note = Map<String, dynamic>.from(entry.value);
@@ -152,16 +153,30 @@ class LocalNoteStorage {
       try {
         final id = note['id'];
         final action = note['_sync_action'];
+        late Map<String, dynamic> cloudNote;
+
         if (action == 'create' || isLocalId(id)) {
           final response = await ApiService.post('/notes', body: body);
-          final cloudNote = Map<String, dynamic>.from(response['data']);
-          await _syncLocalFiles(cloudNote['id'], note);
+          cloudNote = _extractNote(response);
+          fileFailed += await _syncLocalFiles(cloudNote['id'], note);
           await replaceNoteId(entry.key, cloudNote);
         } else {
-          final response = await ApiService.put('/notes/$id', body: body);
-          final cloudNote = Map<String, dynamic>.from(response['data']);
-          await _syncLocalFiles(id, note);
-          await saveNote(id, cloudNote);
+          Map<String, dynamic> response;
+          var recreated = false;
+          try {
+            response = await ApiService.put('/notes/$id', body: body);
+          } on ApiException catch (error) {
+            if (error.statusCode != 404) rethrow;
+            response = await ApiService.post('/notes', body: body);
+            recreated = true;
+          }
+          cloudNote = _extractNote(response);
+          fileFailed += await _syncLocalFiles(cloudNote['id'], note);
+          if (recreated) {
+            await replaceNoteId(entry.key, cloudNote);
+          } else {
+            await saveNote(id, cloudNote);
+          }
         }
         synced++;
       } catch (error, stackTrace) {
@@ -170,7 +185,14 @@ class LocalNoteStorage {
       }
     }
 
-    return {'synced': synced, 'failed': failed};
+    return {'synced': synced, 'failed': failed, 'file_failed': fileFailed};
+  }
+
+  static Map<String, dynamic> _extractNote(Map<String, dynamic> response) {
+    final data = response['data'];
+    if (data is Map<String, dynamic>) return Map<String, dynamic>.from(data);
+    if (data is Map) return Map<String, dynamic>.from(data);
+    throw ApiException(statusCode: 0, message: 'Server did not return a note after sync.');
   }
 
   static String htmlToPlain(dynamic html) {
@@ -187,14 +209,23 @@ class LocalNoteStorage {
         .trim();
   }
 
-  static Future<void> _syncLocalFiles(dynamic noteId, Map<String, dynamic> note) async {
+  static Future<int> _syncLocalFiles(dynamic noteId, Map<String, dynamic> note) async {
     final files = (note['files'] as List?) ?? const [];
+    var failed = 0;
+
     for (final item in files) {
       if (item is! Map || item['_local'] != true) continue;
       final path = item['path']?.toString();
       if (path == null || path.isEmpty) continue;
-      await ApiService.uploadFile('/files/upload', path, noteId: noteId.toString());
+      try {
+        await ApiService.uploadFile('/files/upload', path, noteId: noteId.toString());
+      } catch (error, stackTrace) {
+        failed++;
+        AppErrorHandler.report(error, stackTrace, source: 'Local file sync');
+      }
     }
+
+    return failed;
   }
 
   static Future<bool> hasLocalChanges(dynamic noteId, String? cloudUpdatedAt) async {
