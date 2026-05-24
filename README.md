@@ -127,6 +127,7 @@ Important values:
 - `APP_URL`: Backend public URL, usually `http://127.0.0.1:8000` locally.
 - `DB_CONNECTION`: `sqlite` locally, or change to `mysql`/`pgsql` with matching credentials.
 - `NEXT_PUBLIC_API_URL`: Frontend API URL, usually `http://127.0.0.1:8000/api` locally.
+- `CORS_ALLOWED_ORIGINS`: Comma-separated frontend origins. Production should include `https://notexa.cloud`, `https://www.notexa.cloud`, and `https://app.notexa.cloud`.
 - `CLOUDFLARE_R2_*`: Cloud storage credentials.
 - `MAIL_*`: SMTP settings for email verification and password reset codes.
 
