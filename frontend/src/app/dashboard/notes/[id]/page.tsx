@@ -112,8 +112,16 @@ export default function NoteDetailPage() {
       setAiSummary(data.ai_summary || '');
       setFiles(data.files || []);
       setCollaborators(data.shares || []);
-    } catch {
-      toast.error('Note not found');
+    } catch (error: any) {
+      const isCollabLink = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('collab') === 'true';
+      const status = error.response?.status;
+      if (status === 403) {
+        toast.error(isCollabLink
+          ? 'Ask the owner to share this note with you as an editor before using the realtime link.'
+          : 'You do not have access to this note.');
+      } else {
+        toast.error('Note not found');
+      }
       router.push('/dashboard/notes');
     } finally {
       setLoading(false);

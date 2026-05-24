@@ -961,7 +961,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               onClick={() => {
                 const link = collabSharedLink || `${window.location.origin}${window.location.pathname}?collab=true`;
                 navigator.clipboard.writeText(link);
-                toast.success('Realtime collaboration link copied!');
+                toast.success('Realtime link copied. Share this note with edit permission first.');
               }}
               className="px-3 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-extrabold hover:bg-indigo-50 transition flex items-center gap-1 shrink-0"
             >
