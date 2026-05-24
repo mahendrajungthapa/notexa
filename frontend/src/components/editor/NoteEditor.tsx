@@ -104,8 +104,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   });
 
   useEffect(() => {
-    if (editor && content && !applyingRemoteRef.current && editor.getHTML() !== content) {
-      editor.commands.setContent(content, false);
+    if (!editor || applyingRemoteRef.current) return;
+    const nextContent = content || '';
+    if (editor.getHTML() !== nextContent) {
+      editor.commands.setContent(nextContent, false);
     }
   }, [content, editor]);
 
@@ -260,6 +262,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiResult, setAiResult] = useState<any>(null);
+  const [aiResultApplied, setAiResultApplied] = useState(false);
 
   useEffect(() => {
     collabActiveRef.current = collabActive;
@@ -269,10 +272,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
+    if (editable && noteId) {
+      setCollabActive(true);
+      return;
+    }
     if (params.get('collab') === 'true' || params.has('collab_token') || params.has('token')) {
       setCollabActive(true);
     }
-  }, []);
+  }, [editable, noteId]);
 
   const buildCollabLink = () => {
     if (typeof window === 'undefined') return '';
@@ -375,7 +382,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     applyRemoteContent();
     updatePeers();
     setCollabSharedLink(buildCollabLink());
-    toast.success('Real-time collaboration is active.');
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('collab') === 'true' || params.has('collab_token') || params.has('token')) {
+      toast.success('Real-time collaboration is active.');
+    }
 
     return () => {
       window.clearTimeout(readyTimer);
@@ -524,12 +534,40 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  const aiTextToEditorHtml = (value: string) => {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    if (/<(p|h[1-6]|ul|ol|li|blockquote|pre|table|hr|br|strong|em)\b/i.test(text)) {
+      return text;
+    }
+
+    return text
+      .split(/\n{2,}/)
+      .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+  };
+
+  const writeAiResultToNote = (value: string, closeAfter = false) => {
+    if (!editor || !value?.trim()) return;
+    editor.chain().focus().insertContent(aiTextToEditorHtml(value)).run();
+    setAiResultApplied(true);
+    if (closeAfter) setAiFeature(null);
+  };
+
   // AI Feature Handlers
   const handleAskAI = async () => {
     if (!editor) return;
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     setAiResult('');
+    setAiResultApplied(false);
     const originalText = editor.getText();
     try {
       const sysPrompt = "You are a stellar academic academic writing assistant. Answer the user prompt/question directly and concisely, structuring your content beautifully using readable paragraphs or markdown lists. Ignore the optional reference context unless the user request is specifically referencing it. CRITICAL: Output ONLY the direct answer/text. Absolutely NO introductory conversational remarks, preamble, greetings, or outro comments (such as 'Certainly, here is...', 'Here is the response', 'I hope this helps'). Start directly with the first word of the response.";
@@ -541,6 +579,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       
       const res = await runAICall(sysPrompt, userPromptBody);
       setAiResult(res);
+      writeAiResultToNote(res);
+      toast.success(editor.state.selection.empty ? 'AI response written to the note.' : 'AI response replaced the selected text.');
     } catch (err: any) {
       toast.error(err.message || "Failed to generate AI response.");
     } finally {
@@ -552,6 +592,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     if (!editor) return;
     setAiLoading(true);
     setAiResult('');
+    setAiResultApplied(false);
     const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || editor.getText();
     try {
       const sysPrompt = "You are a precise study and academic editor. Edit the following text as instructed and output ONLY the updated text. CRITICAL: Absolutely NO introductory conversational remarks, preamble, greetings, or outro comments (such as 'Certainly, here is...', 'Sure, I can simplify that for you', 'Here is the elaborated text'). Start directly with the first word of the edited text itself.";
@@ -563,6 +604,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       };
       const res = await runAICall(sysPrompt, promptMap[action]);
       setAiResult(res);
+      writeAiResultToNote(res);
+      toast.success(editor.state.selection.empty ? 'AI edit inserted into the note.' : 'Selected text updated by AI.');
     } catch (err: any) {
       toast.error(err.message || "Failed to complete smart prompt.");
     } finally {
@@ -575,6 +618,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiFeature('summarize');
     setAiLoading(true);
     setAiResult(null);
+    setAiResultApplied(false);
 
     // 1. Try to call the backend AI Summary endpoint first if noteId is present (no frontend API keys needed)
     if (noteId) {
@@ -611,6 +655,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiFeature('flashcards');
     setAiLoading(true);
     setAiResult(null);
+    setAiResultApplied(false);
     setActiveFlashcard(0);
     setShowAnswer(false);
     const contentText = editor.getText();
@@ -632,6 +677,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiFeature('quiz');
     setAiLoading(true);
     setAiResult(null);
+    setAiResultApplied(false);
     setActiveQuizQuestion(0);
     setQuizScore(0);
     setQuizSelectedOption(null);
@@ -654,6 +700,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     if (!ocrImageUrl.trim()) return;
     setAiLoading(true);
     setAiResult('');
+    setAiResultApplied(false);
     try {
       const sysPrompt = "You are a perfect OCR text extraction machine. Extract all legible text from the image url provided. Return ONLY the plain transcribed text. CRITICAL: Absolutely NO labels, markdown formatting, introductory conversational remarks, preamble, greetings, or outro comments.";
       const res = await runAICall(sysPrompt, ocrImageUrl);
@@ -669,6 +716,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     if (!editor) return;
     setAiLoading(true);
     setAiResult('');
+    setAiResultApplied(false);
     const selectedText = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ') || editor.getText();
     try {
       const sysPrompt = `You are a fluent scholarly translator. Translate the provided text into ${targetLanguage}. Maintain technical terminology and structural flow. CRITICAL: Output ONLY the translated result. Absolutely NO introductory conversational remarks, preamble, greetings, commentary, or outro comments.`;
@@ -691,6 +739,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiFeature('meaning');
     setAiLoading(true);
     setAiResult(null);
+    setAiResultApplied(false);
     try {
       const sysPrompt = "You are a professional dictionary and linguistics expert. For the given word, provide: 1. A phonetic pronunciation guide (using both IPA and intuitive phonetics like 'law-kee'). 2. Part of speech. 3. Concise academic meaning/definition. 4. A brief usage example. Output the response in beautiful, clean HTML using <h3>, <p>, and <ul> tags. CRITICAL: Output ONLY the direct HTML content. Absolutely NO introductory conversational remarks, preamble, greetings, or outro comments. Start directly with the first HTML tag.";
       const res = await runAICall(sysPrompt, `Word: "${selectedText}"`);
@@ -1037,7 +1086,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'ask' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 pb-3 mb-4 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-indigo-900">
                 <Bot size={22} className="text-indigo-600" /> Smart AI Writer
               </h2>
@@ -1134,10 +1183,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             {aiResult && (
               <div className="flex gap-3 border-t border-slate-100 pt-4 mt-4 shrink-0">
                 <button
-                  onClick={() => { editor.chain().focus().insertContent(aiResult).run(); setAiFeature(null); toast.success(editor.state.selection.empty ? 'Inserted!' : 'Selection Replaced!'); }}
-                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-indigo-600/10 flex items-center justify-center gap-2 transition"
+                  onClick={() => {
+                    if (!aiResultApplied) writeAiResultToNote(String(aiResult), true);
+                    else setAiFeature(null);
+                    toast.success(aiResultApplied ? 'AI writer closed.' : 'Inserted!');
+                  }}
+                  className={`flex-1 py-3 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2 transition ${aiResultApplied ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/10' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/10'}`}
                 >
-                  {editor.state.selection.empty ? 'Insert at Cursor' : 'Replace Selection'} <ArrowRight size={14} />
+                  {aiResultApplied ? 'Written to Note' : (editor.state.selection.empty ? 'Insert at Cursor' : 'Replace Selection')} <ArrowRight size={14} />
                 </button>
                 <button
                   onClick={() => { editor.chain().focus().setContent(aiResult).run(); setAiFeature(null); toast.success('Replaced Note!'); }}
@@ -1165,7 +1218,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'summarize' && (
         <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1 custom-scrollbar">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between pb-3 border-b border-slate-100 bg-white/95 shrink-0">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-purple-900">
                 <Wand2 size={18} className="text-purple-600" /> AI Smart Summary
               </h2>
@@ -1209,8 +1262,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {/* Overlay 3: Flashcard Flipping Arena */}
       {aiFeature === 'flashcards' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-pink-100 rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col justify-between overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
+          <div className="bg-white border border-pink-100 rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] flex flex-col justify-between overflow-hidden">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white pb-3 mb-4 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-pink-900">
                 <Layers size={22} className="text-pink-600" /> Flashcard Arena
               </h2>
@@ -1282,7 +1335,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'quiz' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-emerald-100 rounded-3xl shadow-2xl w-full max-w-md p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white pb-3 mb-4 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-emerald-900">
                 <HelpCircle size={22} className="text-emerald-600" /> Interactive Smart Quiz
               </h2>
@@ -1425,7 +1478,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'ocr' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-orange-100 rounded-3xl shadow-2xl w-full max-w-md p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white pb-3 mb-4 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-orange-900">
                 <ScanLine size={22} className="text-orange-600" /> OCR Engine
               </h2>
@@ -1491,7 +1544,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'translate' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-cyan-100 rounded-3xl shadow-2xl w-full max-w-lg p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white pb-3 mb-4 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-cyan-900">
                 <Languages size={22} className="text-cyan-600" /> Grammar & translation Hub
               </h2>
@@ -1572,7 +1625,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'meaning' && (
         <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1 custom-scrollbar">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+            <div className="sticky top-0 z-10 flex items-center justify-between pb-3 border-b border-slate-100 bg-white/95 shrink-0">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-amber-900 animate-pulse">
                 <BookOpen size={18} className="text-amber-600" /> AI Dictionary
               </h2>
@@ -1629,7 +1682,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           >
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between pb-3 border-b border-slate-100 bg-white/95 shrink-0 mb-4">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-rose-950">
                 <Heart size={18} className="text-rose-500 fill-rose-300 animate-pulse" /> ADHD DopaCompanion
               </h2>
@@ -1805,7 +1858,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between pb-3 border-b border-slate-100 bg-white/95 shrink-0 mb-4">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-pink-900">
                 <FileText size={18} className="text-pink-600 animate-pulse" /> Study PDFs List
               </h2>

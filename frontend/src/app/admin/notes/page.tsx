@@ -3,17 +3,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/services/api';
 import toast from 'react-hot-toast';
-import { Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react';
 
 export default function AdminNotesPage() {
   const [notes, setNotes] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const fetchNotes = useCallback(async () => {
-    try { const res = await adminApi.notes({ search: search || undefined }); setNotes(res.data.data.data || []); }
+    setLoading(true);
+    try {
+      const res = await adminApi.notes({ search: search || undefined, page, per_page: 20 });
+      const payload = res.data.data || {};
+      setNotes(payload.data || []);
+      setLastPage(payload.last_page || 1);
+      setTotal(payload.total || 0);
+    }
     catch { toast.error('Failed'); } finally { setLoading(false); }
-  }, [search]);
+  }, [search, page]);
 
   useEffect(() => { const t = setTimeout(fetchNotes, 300); return () => clearTimeout(t); }, [fetchNotes]);
 
@@ -33,15 +43,19 @@ export default function AdminNotesPage() {
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-500 transition-colors">
             <Search size={18} strokeWidth={2.5} />
           </div>
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+          <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-11 pr-4 py-3 rounded-2xl border border-slate-200/60 bg-white/50 backdrop-blur-sm text-sm w-full sm:w-72 outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 focus:bg-white transition-all shadow-sm placeholder:text-slate-400 font-medium text-slate-700 hover:border-slate-300" 
             placeholder="Search notes..." />
         </div>
       </div>
       {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600" /></div> : (
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow duration-500 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+        <>
+          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">
+            {total} notes found
+          </div>
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow duration-500 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
               <thead className="bg-slate-50/50 border-b border-slate-200/60 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
                 <tr>
                   <th className="px-6 py-4">Title</th>
@@ -79,9 +93,29 @@ export default function AdminNotesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
-        </div>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={page <= 1}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+            >
+              <ChevronLeft size={16} /> Previous
+            </button>
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Page {page} of {lastPage}
+            </span>
+            <button
+              onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
+              disabled={page >= lastPage}
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+            >
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

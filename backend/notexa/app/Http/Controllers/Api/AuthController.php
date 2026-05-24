@@ -182,7 +182,14 @@ class AuthController extends Controller
             ], 503);
         }
 
-        $this->sendPasswordResetCode($user);
+        try {
+            $this->sendPasswordResetCode($user);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Password reset code could not be sent. Please ask an admin to check SMTP settings.',
+            ], 503);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -242,7 +249,16 @@ class AuthController extends Controller
             return response()->json(['status' => 'success', 'message' => 'This email is already verified.']);
         }
 
-        $this->sendVerificationCode($user);
+        try {
+            $this->sendVerificationCode($user);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Verification code could not be sent. Please ask an admin to check SMTP settings.',
+                'email_verification_required' => true,
+                'email' => $user->email,
+            ], 503);
+        }
 
         return response()->json(['status' => 'success', 'message' => 'A new 6-digit verification code was sent.']);
     }

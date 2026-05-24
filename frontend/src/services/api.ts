@@ -21,6 +21,9 @@ api.interceptors.request.use((c) => {
   if (typeof window !== 'undefined') {
     const t = localStorage.getItem('notexa_token');
     if (t) c.headers.Authorization = `Bearer ${t}`;
+    if (c.data instanceof FormData) {
+      delete c.headers['Content-Type'];
+    }
   }
   return c;
 });
@@ -51,6 +54,8 @@ export const authApi = {
   changePassword: (d: any) => api.put('/change-password', d),
   forgotPassword: (email: string) => api.post('/forgot-password', { email }),
   resetPassword: (d: { email: string; code: string; password: string; password_confirmation: string }) => api.post('/reset-password', d),
+  resendVerification: (email: string) => api.post('/email/verification-notification', { email }),
+  verifyEmailCode: (d: { email: string; code: string }) => api.post('/email/verify-code', d),
 };
 
 export const notesApi = {
@@ -93,9 +98,10 @@ export const filesApi = {
   upload: (file: File, noteId?: number) => {
     const fd = new FormData(); fd.append('file', file);
     if (noteId) fd.append('note_id', String(noteId));
-    return api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post('/files/upload', fd);
   },
   download: (id: number) => api.get(`/files/${id}/download`),
+  preview: (id: number) => api.get(`/files/${id}/preview`),
   delete: (id: number) => api.delete(`/files/${id}`),
 };
 
@@ -112,7 +118,7 @@ export const adminApi = {
   uploadLogo: (file: File) => {
     const fd = new FormData();
     fd.append('logo', file);
-    return api.post('/admin/settings/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return api.post('/admin/settings/logo', fd);
   },
   testSmtp: (email: string) => api.post('/admin/settings/smtp/test', { email }),
   sharedNotes: (p?: any) => api.get('/admin/shared-notes', { params: p }),

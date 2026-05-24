@@ -146,8 +146,8 @@ export default function NoteDetailPage() {
 
     const params = new URLSearchParams(window.location.search);
     const collabToken = params.get('collab_token') || params.get('token') || '';
-    const isRealtimeLink = params.get('collab') === 'true' || !!collabToken;
-    if (!isRealtimeLink) return;
+    const realtimeEnabled = params.get('collab') === 'true' || !!collabToken || !!shareCode || !!note.share_code || collaborators.length > 0;
+    if (!realtimeEnabled) return;
 
     const pullRemoteChanges = async () => {
       if (savingRef.current || dirtyRef.current) return;
@@ -183,9 +183,9 @@ export default function NoteDetailPage() {
       }
     };
 
-    const interval = window.setInterval(pullRemoteChanges, 1500);
+    const interval = window.setInterval(pullRemoteChanges, 900);
     return () => window.clearInterval(interval);
-  }, [canEdit, note, noteId]);
+  }, [canEdit, collaborators.length, note, noteId, shareCode]);
 
   const handleSave = useCallback(
     async (silent = false) => {
@@ -230,9 +230,11 @@ export default function NoteDetailPage() {
       return;
     }
     setSaveState('dirty');
-    const timer = setTimeout(() => handleSave(true), 1400);
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const realtimeEnabled = params.get('collab') === 'true' || params.has('collab_token') || params.has('token') || !!shareCode || collaborators.length > 0;
+    const timer = setTimeout(() => handleSave(true), realtimeEnabled ? 650 : 1400);
     return () => clearTimeout(timer);
-  }, [canEdit, content, handleSave, lastSaved.content, lastSaved.title, loading, note, title]);
+  }, [canEdit, collaborators.length, content, handleSave, lastSaved.content, lastSaved.title, loading, note, shareCode, title]);
 
   const openShareModal = async () => {
     if (!isOwner) return;
@@ -463,40 +465,27 @@ export default function NoteDetailPage() {
     return mime.includes('pdf') || name.endsWith('.pdf');
   };
 
+  const isPreviewable = (file: FileItem) => {
+    const name = String(file.original_name || '').toLowerCase();
+    const mime = String(file.mime_type || '').toLowerCase();
+    return isPdf(file)
+      || mime.startsWith('image/')
+      || mime.startsWith('text/')
+      || /\.(txt|md|csv|json|xml|html|css|js|jsx|ts|tsx|php|py|java|dart|go|rs|sql|log|yml|yaml)$/i.test(name);
+  };
+
   // Fetch raw document using backend-supplied direct signed URL as Blob to bypass download disposition headers
   const handlePreviewPdf = async (file: FileItem) => {
     try {
-      toast.loading('Loading document preview...', { id: 'pdf-preview' });
-      
-      // 1. Fetch the direct pre-signed storage URL from backend
-      const res = await filesApi.download(file.id);
-      const downloadUrl = res.data.download_url;
-      
-      if (!downloadUrl) throw new Error('Download URL not found');
-      
-      // 2. Fetch the direct URL as a blob to bypass attachment headers
-      const blobResponse = await fetch(downloadUrl);
-      if (!blobResponse.ok) throw new Error('Failed to fetch raw document data');
-      
-      const blob = await blobResponse.blob();
-      // Force correct MIME type
-      const pdfBlob = new Blob([blob], { type: file.mime_type || 'application/pdf' });
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      
-      setPdfPreview({ title: file.original_name || 'PDF Preview', url: blobUrl });
+      toast.loading('Loading file preview...', { id: 'pdf-preview' });
+      const res = await filesApi.preview(file.id);
+      const previewUrl = res.data?.preview_url;
+      if (!previewUrl) throw new Error('Preview URL not found');
+      setPdfPreview({ title: file.original_name || 'File Preview', url: previewUrl });
       toast.success('Preview loaded!', { id: 'pdf-preview' });
     } catch (err: any) {
-      console.error('PDF Preview failed:', err);
-      toast.error('Direct preview blocked by security. Opening in new tab...', { id: 'pdf-preview' });
-      // Fallback: open pre-signed download url directly in new tab
-      try {
-        const res = await filesApi.download(file.id);
-        if (res.data?.download_url) {
-          window.open(res.data.download_url, '_blank', 'noopener,noreferrer');
-        }
-      } catch (fallbackErr) {
-        console.error('Fallback failed:', fallbackErr);
-      }
+      console.error('File preview failed:', err);
+      toast.error(err.response?.data?.message || 'Preview unavailable for this file.', { id: 'pdf-preview' });
     }
   };
 
@@ -672,7 +661,7 @@ export default function NoteDetailPage() {
                       <p className="text-[10px] text-slate-400 font-semibold">{Math.max((file.size || 0) / 1024, 1).toFixed(0)} KB</p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {isPdf(file) && (
+                      {isPreviewable(file) && (
                         <button onClick={() => handlePreviewPdf(file)} className="p-1.5 text-slate-400 hover:text-indigo-600 bg-white border border-slate-100 hover:border-indigo-100 rounded-lg shadow-sm transition">
                           <Eye size={13} strokeWidth={2.5} />
                         </button>

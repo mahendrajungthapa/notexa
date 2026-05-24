@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/services/api';
 import { User } from '@/types';
 import toast from 'react-hot-toast';
-import { Search, Ban, Trash2 } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -12,12 +12,16 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const fetchUsers = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await adminApi.users({ search: search || undefined, page });
-      setUsers(res.data.data.data || []);
-      setLastPage(res.data.data.last_page || 1);
+      const res = await adminApi.users({ search: search || undefined, page, per_page: 20 });
+      const payload = res.data.data || {};
+      setUsers(payload.data || []);
+      setLastPage(payload.last_page || 1);
+      setTotal(payload.total || 0);
     } catch { toast.error('Failed'); }
     finally { setLoading(false); }
   }, [search, page]);
@@ -57,6 +61,9 @@ export default function AdminUsersPage() {
 
       {loading ? <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" /></div> : (
         <>
+          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">
+            {total} users found
+          </div>
           <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow duration-500 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -124,13 +131,24 @@ export default function AdminUsersPage() {
 
           {/* Pagination */}
           {lastPage > 1 && (
-            <div className="flex justify-center gap-2 mt-8">
-              {Array.from({ length: lastPage }, (_, i) => (
-                <button key={i} onClick={() => setPage(i + 1)}
-                  className={`min-w-[36px] h-[36px] flex items-center justify-center rounded-xl text-sm font-bold transition-all duration-300 ${page === i + 1 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-white border border-slate-200/60 text-slate-600 hover:bg-slate-50 hover:border-slate-300'}`}>
-                  {i + 1}
-                </button>
-              ))}
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <button
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page <= 1}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">
+                Page {page} of {lastPage}
+              </span>
+              <button
+                onClick={() => setPage((current) => Math.min(lastPage, current + 1))}
+                disabled={page >= lastPage}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                Next <ChevronRight size={16} />
+              </button>
             </div>
           )}
         </>

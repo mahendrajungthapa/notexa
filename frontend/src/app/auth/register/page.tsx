@@ -22,6 +22,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [showVerification, setShowVerification] = useState(false);
+  const [verifying, setVerifying] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +48,14 @@ export default function RegisterPage() {
         username: form.username.toLowerCase()
       });
 
+      if (res.data?.email_verification_required) {
+        setVerificationEmail(res.data.email || form.email.trim());
+        setVerificationCode('');
+        setShowVerification(true);
+        toast.success(res.data?.message || 'Enter the 6-digit verification code sent to your email.');
+        return;
+      }
+
       const user = res.data?.data?.user || res.data?.user;
       const token = res.data?.data?.token || res.data?.token;
 
@@ -62,6 +74,15 @@ export default function RegisterPage() {
       router.push('/dashboard/notes');
     } catch (err: any) {
       const errors = err.response?.data?.errors;
+      const verificationRequired = err.response?.data?.email_verification_required;
+
+      if (verificationRequired) {
+        setVerificationEmail(err.response?.data?.email || form.email.trim());
+        setVerificationCode('');
+        setShowVerification(true);
+        toast.error(err.response?.data?.message || 'Verification code could not be sent. Check SMTP settings, then resend.');
+        return;
+      }
 
       if (errors) {
         Object.values(errors)
@@ -72,6 +93,45 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (verificationCode.length !== 6) {
+      toast.error('Enter the 6-digit code from your email.');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const res = await authApi.verifyEmailCode({
+        email: verificationEmail,
+        code: verificationCode,
+      });
+      const user = res.data?.data?.user || res.data?.user;
+      const token = res.data?.data?.token || res.data?.token;
+      if (!user || !token) throw new Error('Invalid verification response');
+      setAuth(user, token);
+      toast.success(res.data?.message || 'Email verified successfully.');
+      router.push('/dashboard/notes');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not verify email code.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verificationEmail) return;
+    setVerifying(true);
+    try {
+      const res = await authApi.resendVerification(verificationEmail);
+      toast.success(res.data?.message || 'Verification code resent.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not resend verification code.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -396,6 +456,56 @@ export default function RegisterPage() {
           </div>
         </div>
       </section>
+
+      {showVerification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+          <form onSubmit={handleVerifyEmail} className="w-full max-w-md rounded-3xl border border-white/20 bg-white p-6 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-headline font-black text-on-surface">Verify your email</h3>
+                <p className="mt-1 text-sm font-medium text-on-surface-variant">
+                  Enter the 6-digit code sent to {verificationEmail}.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVerification(false)}
+                className="rounded-xl p-2 text-outline hover:bg-surface-container-low hover:text-on-surface"
+                aria-label="Close verification popup"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            <input
+              autoFocus
+              inputMode="numeric"
+              maxLength={6}
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="mb-4 w-full rounded-2xl border border-outline-variant/40 bg-surface-container-low px-4 py-4 text-center font-mono text-2xl font-black tracking-[0.35em] text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="000000"
+            />
+
+            <button
+              type="submit"
+              disabled={verifying || verificationCode.length !== 6}
+              className="w-full rounded-full bg-gradient-to-br from-primary to-primary-container px-6 py-3 text-sm font-bold uppercase tracking-widest text-white shadow-lg shadow-primary/20 transition disabled:opacity-50"
+            >
+              {verifying ? 'Checking...' : 'Verify Email'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={verifying}
+              className="mt-3 w-full rounded-full border border-outline-variant/30 px-6 py-3 text-xs font-black uppercase tracking-widest text-primary transition hover:bg-primary/5 disabled:opacity-50"
+            >
+              Resend Code
+            </button>
+          </form>
+        </div>
+      )}
     </main>
   );
 }

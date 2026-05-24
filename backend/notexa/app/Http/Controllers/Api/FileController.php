@@ -9,6 +9,7 @@ use App\Models\Note;
 use App\Models\User;
 use App\Services\R2StorageService;
 use Illuminate\Http\Request;
+use Throwable;
 
 class FileController extends Controller
 {
@@ -58,16 +59,26 @@ class FileController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Storage limit reached. Delete unused files or ask an admin to increase your storage limit.'], 400);
         }
 
-        $fileData = $this->r2->upload($uploaded, "users/{$user->id}");
+        try {
+            $fileData = $this->r2->upload($uploaded, "users/{$user->id}");
 
-        $file = File::create(array_merge($fileData, [
-            'user_id' => $user->id,
-            'note_id' => $note?->id,
-        ]));
+            $file = File::create(array_merge($fileData, [
+                'user_id' => $user->id,
+                'note_id' => $note?->id,
+            ]));
 
-        $user->increment('storage_used', $fileData['size']);
+            $user->increment('storage_used', $fileData['size']);
+        } catch (Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File upload failed. Please check storage permissions and try again.',
+            ], 500);
+        }
 
         $payload = $file->toArray();
+        $payload['download_url'] = $this->r2->getTemporaryUrl($file->r2_key, 30, $file->id);
         if ($preview = $this->previewProfile($file)) {
             $payload['preview_url'] = $this->r2->getTemporaryPreviewUrl($file->r2_key, 60 * 24 * 365, $file->id);
             $payload['preview_type'] = $preview['type'];

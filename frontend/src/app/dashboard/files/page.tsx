@@ -20,6 +20,15 @@ function getFileIcon(mime: string) {
   return <File size={20} className="text-gray-400" />;
 }
 
+function isPreviewable(file: FileItem) {
+  const name = String(file.original_name || '').toLowerCase();
+  const mime = String(file.mime_type || '').toLowerCase();
+  return mime.startsWith('image/')
+    || mime.includes('pdf')
+    || mime.startsWith('text/')
+    || /\.(pdf|txt|md|csv|json|xml|html|css|js|jsx|ts|tsx|php|py|java|dart|go|rs|sql|log|yml|yaml)$/i.test(name);
+}
+
 export default function FilesPage() {
   const user = useAuthStore((s) => s.user);
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -34,30 +43,17 @@ export default function FilesPage() {
 
   const handleViewFile = async (file: FileItem) => {
     try {
-      const res = await filesApi.download(file.id);
-      const rawUrl: string = res.data.download_url || `/api/files/${file.id}/download`;
-      const isImage = file.mime_type?.startsWith('image/');
-      const isPdf = file.mime_type?.includes('pdf') || file.original_name?.toLowerCase().endsWith('.pdf');
+      const res = await filesApi.preview(file.id);
+      const rawUrl: string = res.data.preview_url;
+      const previewType = res.data.preview_type;
 
       setViewerName(file.original_name);
-      setViewerIsImage(!!isImage);
+      setViewerIsImage(previewType === 'image');
+      setViewerUrl(rawUrl);
 
-      if (isImage) {
-        // Images render inline directly
-        setViewerUrl(rawUrl);
-      } else if (isPdf) {
-        // Use Google Docs Viewer to render the PDF inline, bypassing Content-Disposition: attachment
-        setViewerUrl(`https://docs.google.com/viewer?url=${encodeURIComponent(rawUrl)}&embedded=true`);
-      } else {
-        // For unsupported types, open in new tab and don't open the modal
-        window.open(rawUrl, '_blank');
-        toast(`Opening ${file.original_name} in a new tab`, { icon: '📄' });
-        return;
-      }
-
-      toast.success(`Opening preview: ${file.original_name}`, { icon: '📖' });
-    } catch {
-      toast.error('Failed to open file preview');
+      toast.success(`Opening preview: ${file.original_name}`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to open file preview');
     }
   };
 
@@ -164,10 +160,10 @@ export default function FilesPage() {
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
-                {(file.mime_type?.includes('pdf') || file.mime_type?.startsWith('image/') || file.original_name?.toLowerCase().endsWith('.pdf')) && (
+                {isPreviewable(file) && (
                   <button 
                     onClick={() => handleViewFile(file)} 
-                    title="View Document Inline" 
+                    title="View File Preview"
                     className="p-2 text-gray-400 hover:text-emerald-600 transition"
                   >
                     <Eye size={16} />

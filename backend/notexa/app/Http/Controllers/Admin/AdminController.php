@@ -114,10 +114,10 @@ class AdminController extends Controller
     // ═══ NOTES ═══
     public function notes(Request $request)
     {
-        $query = Note::with('user:id,name,username');
+        $query = Note::with('user:id,name,username,email');
         if ($s = $request->get('search')) $query->where('title', 'like', "%{$s}%");
         if ($uid = $request->get('user_id')) $query->where('user_id', $uid);
-        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate(20)]);
+        return response()->json(['status' => 'success', 'data' => $query->orderByDesc('created_at')->paginate($request->get('per_page', 20))]);
     }
 
     public function deleteNote(Note $note) { $note->delete(); return response()->json(['status' => 'success']); }
