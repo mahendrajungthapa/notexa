@@ -80,7 +80,10 @@ export default function NoteDetailPage() {
 
   const fetchNote = useCallback(async () => {
     try {
-      const response = await notesApi.get(noteId);
+      const collabToken = typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('collab_token') || new URLSearchParams(window.location.search).get('token')
+        : null;
+      const response = await notesApi.get(noteId, collabToken ? { collab_token: collabToken } : undefined);
       const data = response.data.data;
       const cloudTitle = data.title || '';
       const cloudContent = data.content || '';

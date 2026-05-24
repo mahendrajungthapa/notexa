@@ -10,7 +10,7 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 - Version history for notes so recent edits can be previewed and restored.
 - Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
 - Note sharing through friends, permissions, collaborators, and share codes.
-- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC for multiple authorized editors on the same shared note.
+- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC. Friends can be shared in directly, and a valid realtime collaboration link grants edit access to logged-in users.
 - File upload, safe PDF/text/image previews, download, note attachments, and direct file sharing with friends.
 - Admin area for users, notes, site settings, shared notes, friendships, and activity logs.
 - AI summary and prompt endpoints through the backend service layer; API keys are configured only in the Admin Panel.

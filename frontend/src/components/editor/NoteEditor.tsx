@@ -55,6 +55,16 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     return `notexa-note-${roomSafe(String(noteId || 'draft'))}-${roomSafe(String(token))}`;
   }, [collaborationToken, noteId]);
 
+  const buildCollabLink = () => {
+    if (typeof window === 'undefined') return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('collab', 'true');
+    if (collaborationToken) {
+      url.searchParams.set('collab_token', String(collaborationToken));
+    }
+    return url.toString();
+  };
+
   const editor = useEditor({
     extensions: [
       collabDoc ? StarterKit.configure({ history: false }) : StarterKit,
@@ -345,7 +355,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     let removeAwarenessListener: (() => void) | null = null;
 
     setCollabStatus('connecting');
-    setCollabSharedLink(`${window.location.origin}${window.location.pathname}?collab=true`);
+    setCollabSharedLink(buildCollabLink());
 
     (async () => {
       try {
@@ -959,9 +969,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               onClick={() => {
-                const link = collabSharedLink || `${window.location.origin}${window.location.pathname}?collab=true`;
+                const link = collabSharedLink || buildCollabLink();
                 navigator.clipboard.writeText(link);
-                toast.success('Realtime link copied. Share this note with edit permission first.');
+                toast.success('Realtime link copied. Anyone logged in with this link can edit.');
               }}
               className="px-3 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-extrabold hover:bg-indigo-50 transition flex items-center gap-1 shrink-0"
             >

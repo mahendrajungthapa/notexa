@@ -18,7 +18,9 @@ Updated on 2026-05-24.
 
 ## Realtime Collaboration
 
-The REST API manages note access and share permissions. The Next.js editor syncs active collaborators through Tiptap Collaboration and Yjs WebRTC rooms based on the shared note token. Backend autosave still persists note HTML and creates version snapshots when content changes.
+The REST API manages note access and share permissions. Friend sharing can grant view or edit permission from the Manage Sharing dialog.
+
+Realtime collaboration links include a `collab_token`. When a logged-in user opens a valid collaboration link, the backend grants that user edit access to the note even if they are not already friends with the owner. The Next.js editor then syncs active collaborators through Tiptap Collaboration and Yjs WebRTC rooms based on the shared note token. Backend autosave still persists note HTML and creates version snapshots when content changes.
 
 ## Postman
 

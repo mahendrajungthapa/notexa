@@ -57,7 +57,21 @@ class NoteController extends Controller
 
     public function show(Request $request, Note $note)
     {
-        if (!$note->canView($request->user())) {
+        $collabToken = $request->query('collab_token', $request->query('token'));
+        $collabTokenGrantsEdit = false;
+
+        if ($collabToken && $note->share_code && hash_equals((string) $note->share_code, strtoupper((string) $collabToken))) {
+            $collabTokenGrantsEdit = true;
+
+            if ($note->user_id !== $request->user()->id) {
+                NoteShare::updateOrCreate(
+                    ['note_id' => $note->id, 'shared_with' => $request->user()->id],
+                    ['shared_by' => $note->user_id, 'permission' => 'edit']
+                );
+            }
+        }
+
+        if (!$collabTokenGrantsEdit && !$note->canView($request->user())) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
 
@@ -66,7 +80,7 @@ class NoteController extends Controller
         $permission = 'owner';
         if ($note->user_id !== $request->user()->id) {
             $share = $note->shares()->where('shared_with', $request->user()->id)->first();
-            $permission = $share ? $share->permission : 'none';
+            $permission = $collabTokenGrantsEdit ? 'edit' : ($share ? $share->permission : 'none');
         }
 
         return response()->json(['status' => 'success', 'data' => $note, 'permission' => $permission]);
