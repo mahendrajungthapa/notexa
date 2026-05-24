@@ -219,7 +219,7 @@ export default function FilesPage() {
         <div>
           <input ref={inputRef} type="file" className="hidden" onChange={handleUpload} />
           <button onClick={() => inputRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
+            className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
             {uploading ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Upload size={16} />}
             Upload File
           </button>
@@ -236,7 +236,7 @@ export default function FilesPage() {
         </div>
       </div>
 
-      <div className="flex bg-gray-100 rounded-xl p-1 mb-6 max-w-sm">
+      <div className="flex bg-gray-100 rounded-xl p-1 mb-6 w-full sm:max-w-sm">
         <button onClick={() => setActiveTab('mine')} className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-bold transition ${activeTab === 'mine' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
           My Files ({files.length})
         </button>
@@ -255,8 +255,8 @@ export default function FilesPage() {
       ) : (
         <div className="space-y-2">
           {visibleFiles.map((file) => (
-            <div key={file.id} className="flex items-center justify-between bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={file.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                 {getFileIcon(file)}
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 text-sm truncate">{file.original_name}</p>
@@ -266,7 +266,7 @@ export default function FilesPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 justify-end w-full sm:w-auto">
                 {previewKind(file) && (
                   <button onClick={() => handleViewFile(file)} title="Preview safely" className="p-2 text-gray-400 hover:text-emerald-600 transition">
                     <Eye size={16} />
@@ -286,9 +286,9 @@ export default function FilesPage() {
       )}
 
       {viewer && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col justify-between z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col h-[90vh] overflow-hidden border border-gray-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex flex-col justify-between z-50 p-2 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col h-[92vh] sm:h-[90vh] overflow-hidden border border-gray-150">
+            <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 shrink-0">
               <h2 className="text-base font-extrabold text-gray-800 flex items-center gap-2 truncate">
                 <FileText size={18} className="text-indigo-500" /> {viewer.name}
               </h2>
@@ -311,7 +311,7 @@ export default function FilesPage() {
 
       {shareFile && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                 <Share2 size={20} className="text-indigo-600" /> Share File
@@ -323,14 +323,14 @@ export default function FilesPage() {
 
             <p className="text-sm font-bold text-slate-800 truncate mb-4">{shareFile.original_name}</p>
 
-            <div className="flex gap-2 mb-5">
+            <div className="flex flex-col sm:flex-row gap-2 mb-5">
               <select value={selectedFriend} onChange={(e) => setSelectedFriend(e.target.value)} className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10">
                 <option value="">Choose friend</option>
                 {friends
                   .filter((friend) => !shares.some((share) => share.shared_with === friend.id))
                   .map((friend) => <option key={friend.id} value={friend.id}>{friend.name} @{friend.username}</option>)}
               </select>
-              <button onClick={shareWithFriend} disabled={!selectedFriend || sharing} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition">
+              <button onClick={shareWithFriend} disabled={!selectedFriend || sharing} className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition">
                 Share
               </button>
             </div>

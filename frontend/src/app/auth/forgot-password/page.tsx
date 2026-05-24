@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface-container-lowest px-6 py-12">
+    <main className="min-h-screen flex items-center justify-center bg-surface-container-lowest px-5 sm:px-6 py-10 sm:py-12">
       <div className="w-full max-w-md">
         <Link href="/auth/login" className="mb-8 inline-flex items-center text-sm font-bold text-primary hover:opacity-80">
           <span className="material-symbols-outlined mr-1 text-base">arrow_back</span>
@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-headline font-bold text-on-surface tracking-tight">Reset password</h1>
+          <h1 className="text-3xl sm:text-4xl font-headline font-bold text-on-surface">Reset password</h1>
           <p className="mt-3 text-on-surface-variant">
             {step === 'email'
               ? 'Enter your account email and NotExA will send a 6-digit reset code through SMTP.'
@@ -95,7 +95,7 @@ export default function ForgotPasswordPage() {
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-on-surface">6-digit code</span>
               <input
-                className="w-full rounded-2xl bg-surface-container-low px-4 py-4 text-center text-2xl font-black tracking-[0.35em] outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full rounded-2xl bg-surface-container-low px-4 py-4 text-center text-2xl font-black tracking-[0.25em] sm:tracking-[0.35em] outline-none focus:ring-2 focus:ring-primary/20"
                 inputMode="numeric"
                 maxLength={6}
                 required

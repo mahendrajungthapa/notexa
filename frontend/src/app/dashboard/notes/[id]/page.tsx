@@ -459,14 +459,14 @@ export default function NoteDetailPage() {
   const SaveIcon = saveStatus.icon;
 
   return (
-    <div className={`w-full flex flex-col fade-in animate-in slide-in-from-bottom-4 duration-500 overflow-hidden h-[calc(100vh-120px)] lg:h-[calc(100vh-100px)] ${isZoomed ? 'note-zoomed' : ''}`}>
+    <div className={`w-full flex flex-col fade-in animate-in slide-in-from-bottom-4 duration-500 min-h-[calc(100dvh-96px)] lg:min-h-0 lg:overflow-hidden lg:h-[calc(100vh-100px)] ${isZoomed ? 'note-zoomed' : ''}`}>
       {/* Top bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 sm:gap-4 shrink-0">
         <button onClick={() => router.push('/dashboard/notes')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm border border-transparent hover:border-slate-200/60 transition-all duration-300 w-fit">
+          className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm border border-transparent hover:border-slate-200/60 transition-all duration-300 w-full sm:w-fit">
           <ArrowLeft size={18} strokeWidth={2.5} /> Back
         </button>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest border shadow-sm transition-all duration-300 ${saveStatus.className}`}>
             <SaveIcon size={13} className={saveStatus.spin ? 'animate-spin' : ''} strokeWidth={2.5} /> {saveStatus.label}
           </span>
@@ -481,18 +481,18 @@ export default function NoteDetailPage() {
             </span>
           )}
           <button onClick={handleAiSummary} disabled={aiLoading}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
+            className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
             {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} strokeWidth={2.5} />} AI Summary
           </button>
           {isOwner && (
             <button onClick={handleDeleteNote}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow">
+              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-white border border-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow">
               <Trash2 size={16} strokeWidth={2.5} /> Delete Note
             </button>
           )}
           {isOwner && (
             <button onClick={openShareModal}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm hover:shadow">
+              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm hover:shadow">
               <Share2 size={16} strokeWidth={2.5} /> Share
             </button>
           )}
@@ -507,7 +507,7 @@ export default function NoteDetailPage() {
           )}
           {canEdit && (
             <button onClick={() => handleSave(false)} disabled={saving || !dirty}
-              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all duration-300 shadow-[0_4px_15px_-3px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
+              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all duration-300 shadow-[0_4px_15px_-3px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
               <Save size={16} strokeWidth={2.5} /> Save Note
             </button>
           )}
@@ -515,9 +515,9 @@ export default function NoteDetailPage() {
       </div>
 
       {/* Main Workspace Layout split into Editor & Panels */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px] flex-1 min-h-0 overflow-hidden mb-4">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_300px] flex-1 min-h-0 lg:overflow-hidden mb-4">
         {/* Left Column: Title, Editor */}
-        <section className="flex flex-col min-w-0 h-full overflow-hidden">
+        <section className="flex flex-col min-w-0 h-[calc(100dvh-230px)] min-h-[540px] lg:h-full lg:min-h-0 overflow-hidden">
 
           {/* Title Area */}
           <div className="relative group flex items-center gap-3 mb-3 border-b border-transparent focus-within:border-slate-200 transition-colors pb-1 shrink-0">
@@ -543,12 +543,13 @@ export default function NoteDetailPage() {
               onChange={setContent}
               editable={canEdit}
               noteId={noteId}
+              collaborationToken={note?.share_code}
             />
           </div>
         </section>
 
         {/* Right Column: Files & Collaboration Sidebars */}
-        <aside className="space-y-6 overflow-y-auto max-h-full pr-1 shrink-0 w-full lg:w-[300px] custom-scrollbar">
+        <aside className="space-y-4 sm:space-y-6 lg:overflow-y-auto lg:max-h-full lg:pr-1 shrink-0 w-full lg:w-[300px] custom-scrollbar">
           {/* Files Panel */}
           <div className="bg-white/85 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
@@ -662,7 +663,7 @@ export default function NoteDetailPage() {
       {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 border border-slate-100 relative overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-6 border border-slate-100 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5 shrink-0">
               <h2 className="text-lg font-headline font-black text-slate-900 flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
@@ -685,8 +686,8 @@ export default function NoteDetailPage() {
                   <RefreshCw size={12} strokeWidth={2.5} /> New Code
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center font-mono text-xl font-black tracking-[0.25em] text-indigo-700 shadow-inner">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center font-mono text-lg sm:text-xl font-black tracking-[0.18em] sm:tracking-[0.25em] text-indigo-700 shadow-inner overflow-hidden">
                   {shareCode || '--------'}
                 </div>
                 <button onClick={handleCopyCode} className="p-3 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 shrink-0">
@@ -703,7 +704,7 @@ export default function NoteDetailPage() {
               <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Share with Friend
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select
                   value={selectedFriend || ''}
                   onChange={(e) => setSelectedFriend(Number(e.target.value) || null)}
@@ -723,7 +724,7 @@ export default function NoteDetailPage() {
                   <option value="edit">Edit</option>
                 </select>
                 <button onClick={handleShareFriend} disabled={!selectedFriend}
-                  className="px-4 py-2.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 transition-all duration-200">
+                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 transition-all duration-200">
                   Share
                 </button>
               </div>
@@ -810,7 +811,7 @@ export default function NoteDetailPage() {
                   const isPreviewing = previewingVersionId === v.id;
                   return (
                     <div key={v.id} className="border border-slate-100 bg-slate-50/50 rounded-2xl p-4 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-300">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-md text-[10px] font-black tracking-wide">
@@ -825,7 +826,7 @@ export default function NoteDetailPage() {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 self-end min-[420px]:self-auto">
                           <button
                             onClick={() => setPreviewingVersionId(isPreviewing ? null : v.id)}
                             className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
@@ -858,8 +859,8 @@ export default function NoteDetailPage() {
 
       {/* PDF Preview Modal */}
       {pdfPreview && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setPdfPreview(null)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in" onClick={() => setPdfPreview(null)}>
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] sm:h-[85vh] flex flex-col border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 min-w-0">
                 <FileText size={16} className="text-indigo-500 shrink-0" strokeWidth={2.5} />
@@ -888,7 +889,7 @@ export default function NoteDetailPage() {
                 Are you sure you want to delete <strong className="text-slate-700">"{title || 'Untitled Note'}"</strong>? This notebook will be moved to the trash folder and can be restored later.
               </p>
             </div>
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
               <button 
                 onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 py-3 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider transition"

@@ -95,6 +95,14 @@ Password: password123
 
 Change this account before using the app outside local development.
 
+Create a new admin or reset an existing admin account:
+
+```powershell
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
+If you omit the password argument, Artisan prompts for it securely.
+
 ## Useful Commands
 
 ```powershell

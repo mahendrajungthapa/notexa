@@ -30,7 +30,7 @@ export default function SharedPage() {
           <div className="p-2.5 bg-indigo-50 rounded-2xl border border-indigo-100/60">
             <Share2 size={22} className="text-indigo-500" strokeWidth={2.5} />
           </div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Shared with Me</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Shared with Me</h1>
         </div>
         <p className="text-slate-500 font-medium ml-1">Notes that friends and collaborators have shared with you</p>
       </div>
@@ -56,7 +56,7 @@ export default function SharedPage() {
               {/* Gradient halo — shifts colour by permission */}
               <div className={`absolute -right-10 -top-10 w-48 h-48 rounded-full blur-3xl opacity-0 group-hover:opacity-30 transition-opacity duration-700 pointer-events-none ${note.pivot?.permission === 'edit' ? 'bg-emerald-400' : 'bg-indigo-400'}`} />
 
-              <div className="relative z-10 flex items-start justify-between gap-4">
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 {/* Left: icon + content */}
                 <div className="flex items-start gap-4 min-w-0 flex-1">
                   <div className="shrink-0 p-2.5 bg-slate-100 rounded-2xl group-hover:bg-indigo-50 group-hover:scale-110 transition-all duration-500">
@@ -67,7 +67,7 @@ export default function SharedPage() {
                     <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed mb-3">
                       {note.plain_text || <span className="italic text-slate-400">Empty note</span>}
                     </p>
-                    <div className="flex items-center gap-3 text-xs font-semibold text-slate-400">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-semibold text-slate-400">
                       <div className="flex items-center gap-1.5">
                         <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[10px]">
                           {note.user?.name?.charAt(0).toUpperCase()}

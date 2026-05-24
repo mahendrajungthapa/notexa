@@ -82,6 +82,10 @@ npm run start
 | `src/contexts/authStore.ts` | Authentication state |
 | `src/services/api.ts` | Axios API client and endpoint wrappers |
 
+## Realtime Collaboration
+
+The note editor uses `@tiptap/extension-collaboration`, Yjs, and `y-webrtc` for realtime multi-collaborator editing. Open a note, click the collaboration button in the editor toolbar, and share the generated realtime link with users who already have access to that note.
+
 ## Local Login Flow
 
 1. Start the backend.

@@ -136,14 +136,14 @@ export default function FriendsPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Friends</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
         {[
           { key: 'friends' as const, label: 'My Friends', count: friends.length },
           { key: 'requests' as const, label: 'Requests', count: pendingCount },
           { key: 'add' as const, label: 'Add Friend', count: 0 },
         ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`min-w-[118px] sm:min-w-0 sm:flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
             {t.label} {t.count > 0 && <span className="ml-1 bg-brand-100 text-brand-700 text-xs px-1.5 py-0.5 rounded-full">{t.count}</span>}
           </button>
         ))}
@@ -156,7 +156,7 @@ export default function FriendsPage() {
           {/* Friends list */}
           {tab === 'friends' && (
             <div className="mt-4">
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-2 mb-5">
                 <h2 className="text-xl font-bold text-gray-900">Active Connections</h2>
                 <button className="text-brand-700 font-semibold text-sm hover:underline">View All</button>
               </div>
@@ -172,8 +172,8 @@ export default function FriendsPage() {
                     const isOnline = f.is_active || false;
                     return (
                       <div key={f.id} className="bg-white rounded-[1.5rem] border border-gray-100 p-5 shadow-sm hover:shadow-md transition">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-4">
+                        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
                             <div className="relative">
                               <div className="w-14 h-14 rounded-[1.2rem] bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-2xl overflow-hidden shrink-0">
                                 {f.avatar ? (
@@ -184,7 +184,7 @@ export default function FriendsPage() {
                               </div>
                               <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-[3px] border-white ${isOnline ? 'bg-green-600' : 'bg-[#D1D5DB]'}`}></div>
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="font-bold text-gray-900 text-lg leading-tight">{f.name}</h3>
                               <p className="text-sm font-medium mt-0.5 text-gray-500">
                                 {getUsername(f.name, f.id, f.username)}
@@ -192,7 +192,7 @@ export default function FriendsPage() {
                             </div>
                           </div>
                           
-                          <div className="relative group">
+                          <div className="relative group self-end min-[420px]:self-auto">
                             <button className="text-gray-400 hover:text-gray-600 p-1">
                               <MoreHorizontal size={20} />
                             </button>
@@ -229,8 +229,8 @@ export default function FriendsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {received.map((r) => (
                       <div key={r.id} className="bg-white rounded-[1.5rem] border border-gray-100 p-5 shadow-sm hover:shadow-md transition">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
                             <div className="w-14 h-14 rounded-[1.2rem] bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-2xl shrink-0 overflow-hidden">
                               {r.sender?.avatar ? (
                                 <img src={r.sender.avatar} alt={r.sender.name} className="w-full h-full object-cover" />
@@ -238,12 +238,12 @@ export default function FriendsPage() {
                                 r.sender?.name?.charAt(0).toUpperCase()
                               )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="font-bold text-gray-900 text-lg leading-tight">{r.sender?.name}</h3>
                               <p className="text-sm font-medium mt-0.5 text-gray-500">{getUsername(r.sender?.name, r.sender?.id, r.sender?.username)}</p>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 self-end min-[420px]:self-auto">
                             <button onClick={() => handleAccept(r.id)} className="p-2.5 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition" title="Accept"><Check size={20} /></button>
                             <button onClick={() => handleReject(r.id)} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition" title="Reject"><X size={20} /></button>
                           </div>
@@ -259,8 +259,8 @@ export default function FriendsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sent.map((s) => (
                       <div key={s.id} className="bg-white rounded-[1.5rem] border border-gray-100 p-5 shadow-sm hover:shadow-md transition opacity-90">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
+                        <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4 min-w-0">
                             <div className="w-14 h-14 rounded-[1.2rem] bg-gray-50 text-gray-500 flex items-center justify-center font-bold text-2xl shrink-0 overflow-hidden">
                               {s.receiver?.avatar ? (
                                 <img src={s.receiver.avatar} alt={s.receiver.name} className="w-full h-full object-cover grayscale opacity-70" />
@@ -268,12 +268,12 @@ export default function FriendsPage() {
                                 s.receiver?.name?.charAt(0).toUpperCase()
                               )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="font-bold text-gray-900 text-lg leading-tight">{s.receiver?.name}</h3>
                               <p className="text-sm font-medium mt-0.5 text-gray-500">{getUsername(s.receiver?.name, s.receiver?.id, s.receiver?.username)} • Pending</p>
                             </div>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 self-end min-[420px]:self-auto">
                             <button onClick={() => handleCancelRequest(s.id)} className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition" title="Cancel Request"><X size={20} /></button>
                           </div>
                         </div>
@@ -290,7 +290,7 @@ export default function FriendsPage() {
 
           {/* Add friend */}
           {tab === 'add' && (
-            <div className="bg-[#3b2dd4] rounded-[1.5rem] border border-[#3b2dd4] p-8 shadow-sm text-white">
+            <div className="bg-[#3b2dd4] rounded-[1.5rem] border border-[#3b2dd4] p-5 sm:p-8 shadow-sm text-white">
               <div className="mb-6 border-b border-white/10 pb-5">
                 <h2 className="text-xl font-bold flex items-center gap-2 text-white"><UserPlus size={22} className="text-white" /> Add a Connection</h2>
                 <p className="text-sm text-indigo-100/90 mt-2">Connect with peers by entering their NotExA username.</p>
@@ -306,7 +306,7 @@ export default function FriendsPage() {
                     placeholder="Enter username"
                   />
                 </div>
-                <button type="submit" className="px-8 py-3.5 bg-white text-[#3b2dd4] rounded-xl font-bold hover:bg-gray-50 hover:shadow-lg active:scale-[0.98] transition-all whitespace-nowrap">
+                <button type="submit" className="w-full sm:w-auto px-8 py-3.5 bg-white text-[#3b2dd4] rounded-xl font-bold hover:bg-gray-50 hover:shadow-lg active:scale-[0.98] transition-all whitespace-nowrap">
                   Send Request
                 </button>
               </form>
@@ -318,10 +318,10 @@ export default function FriendsPage() {
       {/* Share Note/File Modal */}
       {shareModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col justify-between overflow-hidden">
+          <div className="bg-white border border-gray-100 rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 flex flex-col justify-between overflow-hidden max-h-[92vh]">
             <div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 shrink-0">
-                <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2 min-w-0">
                   <Share size={20} className="text-indigo-600" /> Share with {selectedFriend?.name}
                 </h3>
                 <button onClick={() => setShareModalOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition">
@@ -396,7 +396,7 @@ export default function FriendsPage() {
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex gap-3 justify-end mt-4 border-t border-slate-100 pt-4 shrink-0">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end mt-4 border-t border-slate-100 pt-4 shrink-0">
               <button
                 onClick={() => { setShareModalOpen(false); setSelectedNoteId(null); setSelectedFileId(null); }}
                 className="px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition"

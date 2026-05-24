@@ -76,16 +76,16 @@ export default function AdminSettingsPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Site Settings</h1>
 
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 flex-wrap">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+            className={`flex shrink-0 items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
             <t.icon size={16} /> {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
         {tab === 'general' && (
           <div className="space-y-4">
             <div>
@@ -113,7 +113,7 @@ export default function AdminSettingsPage() {
 
         {tab === 'smtp' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
                 <input type="text" value={getValue('smtp_host')} onChange={(e) => setValue('smtp_host', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="smtp.gmail.com" /></div>
@@ -121,7 +121,7 @@ export default function AdminSettingsPage() {
                 <input type="text" value={getValue('smtp_port')} onChange={(e) => setValue('smtp_port', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="587" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input type="text" value={getValue('smtp_username')} onChange={(e) => setValue('smtp_username', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
@@ -129,7 +129,7 @@ export default function AdminSettingsPage() {
                 <input type="password" value={getValue('smtp_password')} onChange={(e) => setValue('smtp_password', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
                 <select value={getValue('smtp_encryption')} onChange={(e) => setValue('smtp_encryption', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
@@ -139,14 +139,14 @@ export default function AdminSettingsPage() {
                 <input type="email" value={getValue('smtp_from_address')} onChange={(e) => setValue('smtp_from_address', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col lg:flex-row gap-3">
               <button onClick={() => handleSave('smtp')} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                 <Save size={16} /> Save SMTP
               </button>
-              <div className="flex gap-2 ml-auto">
+              <div className="flex flex-col sm:flex-row gap-2 lg:ml-auto">
                 <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-48" placeholder="test@email.com" />
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-full sm:w-48" placeholder="test@email.com" />
                 <button onClick={handleTestSmtp}
                   className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800">
                   <Send size={14} /> Test
@@ -158,7 +158,7 @@ export default function AdminSettingsPage() {
 
         {tab === 'email' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4 bg-gray-50 rounded-xl p-4">
               <div>
                 <p className="font-medium text-gray-900">Email Verification</p>
                 <p className="text-sm text-gray-500">Require users to verify email after registration</p>
@@ -204,7 +204,7 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-gray-500">Configure keys to power AI tools like summarizers, card builders, quizzes and more across the platform.</p>
             </div>
 
-            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
               <div>
                 <p className="font-medium text-gray-900">Enable Smart AI Assistant</p>
                 <p className="text-sm text-gray-500">Allow users to access AI features on their notes dashboard</p>

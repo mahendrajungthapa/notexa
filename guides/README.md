@@ -34,6 +34,12 @@ Password: password123
 
 Use this only for local development and change it in any deployed environment.
 
+To create or reset an admin from the backend server:
+
+```powershell
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
 ## What Not To Commit
 
 Keep these local:

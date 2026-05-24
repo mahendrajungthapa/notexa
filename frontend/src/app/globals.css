@@ -3,10 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body {
+    width: 100%;
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+
   *, *::before, *::after {
+    box-sizing: border-box;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Helvetica", "Arial", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  img,
+  svg,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
   }
 
   .tiptap-editor .ProseMirror,
@@ -40,6 +56,27 @@
   padding: 1rem;
   font-size: 1rem;
   line-height: 1.75;
+}
+
+@media (max-width: 640px) {
+  .tiptap-editor .ProseMirror {
+    min-height: 420px;
+    padding: 0.875rem;
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  .tiptap-editor .ProseMirror h1 {
+    font-size: 1.5rem;
+  }
+
+  .tiptap-editor .ProseMirror h2 {
+    font-size: 1.25rem;
+  }
+
+  .tiptap-editor .ProseMirror pre {
+    padding: 0.875rem;
+  }
 }
 
 .tiptap-editor .ProseMirror h1 {

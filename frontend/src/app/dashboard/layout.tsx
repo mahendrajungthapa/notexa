@@ -117,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   return (
-    <div className={`min-h-screen flex bg-gray-50 ${isPookie ? 'pookie-mode' : ''}`}>
+    <div className={`min-h-dvh flex bg-gray-50 ${isPookie ? 'pookie-mode' : ''}`}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -128,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         fixed lg:relative inset-y-0 left-0 z-50 bg-white border-r border-slate-100/60
         transform transition-all duration-300 lg:transform-none shadow-[2px_0_24px_-12px_rgba(0,0,0,0.06)] shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        ${isCollapsed ? 'w-[85px]' : 'w-[280px]'}
+        ${isCollapsed ? 'w-[min(86vw,280px)] lg:w-[85px]' : 'w-[min(86vw,280px)] lg:w-[280px]'}
         relative
       `}>
         {/* Floating Collapse Toggle on Sidebar Border - centered next to Settings options and in a highly clickable right size */}
@@ -159,12 +159,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* User info */}
-          <div className={`px-4 pb-4 mt-5 shrink-0 ${isCollapsed ? 'flex justify-center' : ''}`}>
-            <div className={`flex items-center rounded-[1.25rem] bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-indigo-100/50 transition-all duration-300 cursor-pointer group overflow-hidden ${isCollapsed ? 'p-2 justify-center' : 'p-4 gap-4'}`}>
+          <div className={`px-4 pb-4 mt-5 shrink-0 ${isCollapsed ? 'lg:flex lg:justify-center' : ''}`}>
+            <div className={`flex items-center rounded-[1.25rem] bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-indigo-100/50 transition-all duration-300 cursor-pointer group overflow-hidden ${isCollapsed ? 'p-4 gap-4 lg:p-2 lg:justify-center lg:gap-0' : 'p-4 gap-4'}`}>
               <div className="w-10 h-10 bg-indigo-100/80 text-indigo-700 rounded-[0.85rem] flex items-center justify-center font-bold text-base shadow-inner shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
-              {!isCollapsed && (
+              {(!isCollapsed || sidebarOpen) && (
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors flex items-center gap-1.5">
                     {user?.name || 'Scholar'}
@@ -185,13 +185,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${isActive
+                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'gap-4 px-5 py-3.5 lg:justify-center lg:p-3 lg:gap-0' : 'gap-4 px-5 py-3.5'} ${isActive
                     ? 'bg-indigo-50/80 text-indigo-700 shadow-[0_2px_10px_-4px_rgba(79,70,229,0.2)] border border-indigo-100/50'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 border border-transparent hover:border-slate-100/50'
                     }`}
                 >
                   <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={`shrink-0 transition-colors duration-300 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  {(!isCollapsed || sidebarOpen) && <span className="truncate">{item.label}</span>}
                 </Link>
               );
             })}
@@ -204,13 +204,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href="/admin/analytics"
                   onClick={() => setSidebarOpen(false)}
                   title={isCollapsed ? "Admin Panel" : undefined}
-                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${pathname.startsWith('/admin')
+                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'gap-4 px-5 py-3.5 lg:justify-center lg:p-3 lg:gap-0' : 'gap-4 px-5 py-3.5'} ${pathname.startsWith('/admin')
                     ? 'bg-red-50 text-red-700 border border-red-100'
                     : 'text-slate-500 hover:bg-slate-50 border border-transparent'
                     }`}
                 >
                   <LayoutDashboard size={20} strokeWidth={2} className="shrink-0 text-red-500" />
-                  {!isCollapsed && <span>Admin Panel</span>}
+                  {(!isCollapsed || sidebarOpen) && <span>Admin Panel</span>}
                 </Link>
               </>
             )}
@@ -220,10 +220,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <button
               onClick={handleLogout}
               title={isCollapsed ? "Sign Out" : undefined}
-              className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-700 hover:border-red-100 border border-transparent transition-all duration-300 group mb-6 ${isCollapsed ? 'justify-center p-3 w-fit mx-auto' : 'gap-4 px-5 py-3.5 w-full'}`}
+              className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-700 hover:border-red-100 border border-transparent transition-all duration-300 group mb-6 ${isCollapsed ? 'gap-4 px-5 py-3.5 w-full lg:justify-center lg:p-3 lg:w-fit lg:mx-auto lg:gap-0' : 'gap-4 px-5 py-3.5 w-full'}`}
             >
               <LogOut size={20} strokeWidth={2} className="shrink-0 text-slate-400 group-hover:text-red-500 transition-colors duration-300" />
-              {!isCollapsed && <span>Sign Out</span>}
+              {(!isCollapsed || sidebarOpen) && <span>Sign Out</span>}
             </button>
             {/* Sidebar Controls Footer */}
             <div className="mt-auto border-t border-slate-100/60 p-4 shrink-0 bg-white flex items-center justify-center transition-all duration-300">
@@ -231,7 +231,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 onClick={togglePookie}
                 className={`flex items-center justify-center transition-all duration-300 border
-                  ${isCollapsed ? 'w-11 h-11 rounded-full px-0' : 'px-3.5 py-2.5 rounded-xl gap-2 text-xs font-bold w-full'}
+                  ${isCollapsed ? 'px-3.5 py-2.5 rounded-xl gap-2 text-xs font-bold w-full lg:w-11 lg:h-11 lg:rounded-full lg:px-0 lg:gap-0' : 'px-3.5 py-2.5 rounded-xl gap-2 text-xs font-bold w-full'}
                   ${isPookie 
                     ? 'bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200 shadow-sm' 
                     : 'bg-white text-slate-600 border-slate-200 hover:text-pink-500 hover:bg-pink-50/50 hover:border-pink-200'
@@ -239,7 +239,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 title={isPookie ? "Deactivate Pookie Mode 🧸" : "Activate Pookie Mode! ✨🎀"}
               >
                 <Heart size={isCollapsed ? 18 : 14} className={`${isPookie ? 'fill-pink-500 text-pink-600 animate-pulse' : ''}`} strokeWidth={2.5} />
-                {!isCollapsed && <span className="truncate">Pookie Mode</span>}
+                  {(!isCollapsed || sidebarOpen) && <span className="truncate">Pookie Mode</span>}
               </button>
             </div>
           </nav>
@@ -249,8 +249,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar for mobile */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
+        <header className="sticky top-0 z-30 lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-2 -ml-2 rounded-xl hover:bg-slate-50" aria-label="Open navigation">
             <Menu size={24} />
           </button>
           <span className="font-bold text-gray-900">NotExA</span>
@@ -259,7 +259,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main className="flex-1 overflow-auto bg-gray-50/50">
-          <div className="mx-auto max-w-[1400px] w-full px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+          <div className="mx-auto max-w-[1400px] w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-10 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-10">
             {children}
           </div>
         </main>

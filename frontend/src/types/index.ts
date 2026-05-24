@@ -40,6 +40,7 @@ export interface Note {
   is_pinned: boolean;
   is_archived: boolean;
   is_trashed: boolean;
+  share_code?: string | null;
   trashed_at: string | null;
   created_at: string;
   updated_at: string;

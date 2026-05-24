@@ -53,6 +53,16 @@ Password: password123
 
 Change this account before using the app outside local development.
 
+## Create or Reset an Admin
+
+Use this on the API server to create a new admin account or reset an existing admin email/password:
+
+```powershell
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
+If you omit the password argument, the command securely prompts for it.
+
 ## More Documentation
 
 See:

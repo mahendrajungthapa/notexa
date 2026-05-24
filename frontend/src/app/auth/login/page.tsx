@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       {/* Section 1: Brand Message / Visual side (Left side on Desktop) */}
-      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-surface-container-low textured-bg min-h-[50vh] lg:min-h-screen">
+      <section className="relative overflow-hidden hidden lg:flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-surface-container-low textured-bg min-h-[50vh] lg:min-h-screen">
         {/* Brand Logo Floating */}
         <div className="absolute top-8 left-8 lg:top-12 lg:left-12 z-20">
           <span className="text-3xl font-black text-primary tracking-tighter font-headline">NotExA</span>
@@ -90,10 +90,13 @@ export default function LoginPage() {
       </section>
 
       {/* Section 2: Auth / Login Flow side (Right side on Desktop) */}
-      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
+      <section className="flex flex-col justify-center items-center px-5 sm:px-8 lg:px-20 py-12 sm:py-16 lg:py-0 bg-surface-container-lowest min-h-screen">
         <div className="w-full max-w-md">
-          <div className="mb-10 text-center">
-            <h2 className="text-4xl font-headline font-bold text-on-surface mb-3 tracking-tight">Welcome back</h2>
+          <div className="mb-8 sm:mb-10 text-center">
+            <div className="mb-5 lg:hidden">
+              <span className="text-3xl font-black text-primary font-headline">NotExA</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-headline font-bold text-on-surface mb-3">Welcome back</h2>
             <p className="text-on-surface-variant font-body">Log in to your NotExA Account</p>
           </div>
 
@@ -174,7 +177,7 @@ export default function LoginPage() {
             </div>
 
             {/* Secondary Auth */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:gap-4">
               <button className="flex items-center justify-center gap-3 py-3.5 rounded-2xl border border-outline-variant/20 bg-surface-container-lowest hover:bg-surface-container-low transition-colors group" type="button" onClick={() => toast.success("Google login coming soon")}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z" />
@@ -193,7 +196,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <div className="mt-12 text-center">
+          <div className="mt-10 sm:mt-12 text-center">
             <p className="text-on-surface-variant font-medium">
               New to the NotExA?
               <Link className="text-primary font-bold hover:underline decoration-2 underline-offset-4 ml-1" href="/auth/register">Create an account</Link>
@@ -201,7 +204,7 @@ export default function LoginPage() {
           </div>
 
           {/* Footer Terms */}
-          <div className="mt-16 text-center">
+          <div className="mt-10 sm:mt-16 text-center">
             <p className="text-[10px] text-outline-variant font-bold uppercase tracking-[0.2em] leading-loose max-w-xs mx-auto">
               By signing in, you agree to our <br />
               <Link className="hover:text-on-surface transition-colors" href="#">Terms of Service</Link> &amp;

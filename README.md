@@ -10,6 +10,7 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 - Version history for notes so important changes can be reviewed later.
 - Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
 - Note sharing through friends, permissions, collaborators, and share codes.
+- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC for multiple authorized editors.
 - File upload, safe PDF/text/image previews, download, note attachments, and direct file sharing with friends.
 - Admin area for users, notes, site settings, shared notes, friendships, and activity logs.
 - AI summary and prompt endpoints through the backend service layer.
@@ -112,6 +113,15 @@ Password: password123
 ```
 
 Change this password immediately in any shared, staging, or production environment.
+
+To create a new admin or reset an existing admin password on the API server:
+
+```bash
+cd backend/notexa
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
+Omit the password argument to be prompted securely.
 
 ## Environment Files
 

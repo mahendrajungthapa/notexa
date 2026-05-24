@@ -139,7 +139,7 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       {/* Left Side */}
-      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
+      <section className="relative overflow-hidden hidden lg:flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
         <div className="absolute inset-0 z-0">
           <img
             alt="Modern minimalist library interior with warm wood accents, large windows, and students focused on digital devices in soft natural light"
@@ -242,10 +242,13 @@ export default function RegisterPage() {
       </section>
 
       {/* Right Side */}
-      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
+      <section className="flex flex-col justify-center items-center px-5 sm:px-8 lg:px-20 py-10 sm:py-14 lg:py-0 bg-surface-container-lowest min-h-screen">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center pt-8 lg:pt-0">
-            <h2 className="text-3xl font-headline font-bold text-on-surface mb-2 tracking-tight">
+            <div className="mb-5 lg:hidden">
+              <span className="text-3xl font-black text-primary font-headline">NotExA</span>
+            </div>
+            <h2 className="text-3xl font-headline font-bold text-on-surface mb-2">
               Create an Account
             </h2>
 
@@ -460,7 +463,7 @@ export default function RegisterPage() {
 
       {verificationEmail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-7 shadow-2xl border border-slate-100">
+          <div className="w-full max-w-md rounded-3xl bg-white p-5 sm:p-7 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
             <div className="mb-5">
               <h3 className="text-2xl font-headline font-bold text-on-surface">Verify Your Email</h3>
               <p className="text-sm text-on-surface-variant mt-2">
@@ -477,7 +480,7 @@ export default function RegisterPage() {
                   maxLength={6}
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full rounded-2xl bg-surface-container-low px-5 py-4 text-center text-3xl font-black tracking-[0.35em] text-on-surface outline-none focus:ring-4 focus:ring-primary/15"
+                  className="w-full rounded-2xl bg-surface-container-low px-5 py-4 text-center text-2xl sm:text-3xl font-black tracking-[0.25em] sm:tracking-[0.35em] text-on-surface outline-none focus:ring-4 focus:ring-primary/15"
                   placeholder="000000"
                 />
               </div>
@@ -490,7 +493,7 @@ export default function RegisterPage() {
                 {verifying ? 'Verifying...' : 'Verify Email'}
               </button>
 
-              <div className="flex items-center justify-between gap-3 text-sm">
+              <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 text-sm">
                 <button
                   type="button"
                   disabled={resending}

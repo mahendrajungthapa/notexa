@@ -128,9 +128,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#f8f9ff] text-slate-900 selection:bg-indigo-500/15 selection:text-indigo-900 overflow-x-hidden font-sans">
 
       {/* ── NAVBAR ── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-20 py-4 transition-all duration-300 ${scrolled ? 'bg-white/85 backdrop-blur-xl shadow-[0_2px_20px_-8px_rgba(0,0,0,0.1)] border-b border-slate-200/50' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 sm:px-6 lg:px-20 py-4 transition-all duration-300 ${scrolled ? 'bg-white/85 backdrop-blur-xl shadow-[0_2px_20px_-8px_rgba(0,0,0,0.1)] border-b border-slate-200/50' : 'bg-transparent'}`}>
         <Link href="/" className="flex items-center gap-1.5 group">
-          <span className="text-[28px] font-black tracking-tighter bg-gradient-to-br from-[#3525cd] to-[#4f46e5] bg-clip-text text-transparent group-hover:opacity-90 transition-opacity font-headline">NotExA</span>
+          <span className="text-[28px] font-black bg-gradient-to-br from-[#3525cd] to-[#4f46e5] bg-clip-text text-transparent group-hover:opacity-90 transition-opacity font-headline">NotExA</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-10">
@@ -143,13 +143,13 @@ export default function HomePage() {
         </div>
 
         <div className="md:hidden flex gap-2">
-          <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-slate-600">Login</Link>
-          <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-sm font-bold shadow">Sign Up</Link>
+          <Link href="/auth/login" className="px-3 py-2 text-sm font-bold text-slate-600">Login</Link>
+          <Link href="/auth/register" className="px-3 py-2 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-sm font-bold shadow">Sign Up</Link>
         </div>
       </nav>
 
       {/* ── HERO SECTION ── */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center pt-32 pb-24 px-6 lg:px-20 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-screen flex items-center pt-28 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-20 overflow-hidden">
         {/* Glow meshes */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-[-10%] right-[-10%] w-[800px] h-[800px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 65%)' }} />
@@ -165,10 +165,10 @@ export default function HomePage() {
           </svg>
         </div>
 
-        <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-16 lg:gap-24 items-center relative z-10 w-full">
+        <div className="max-w-[1400px] mx-auto grid lg:grid-cols-2 gap-12 lg:gap-24 items-center relative z-10 w-full">
           {/* Left Hero Content */}
           <div className="max-w-[620px]">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/60 mb-8 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100/60 mb-6 sm:mb-8 shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-600" />
@@ -176,33 +176,33 @@ export default function HomePage() {
               AI-Powered Notes · Real-time Collab · ADHD Focus Tools
             </div>
 
-            <h1 className="text-[clamp(44px,5.2vw,72px)] font-black leading-[1.03] tracking-[-3px] text-slate-900 mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.08] text-slate-900 mb-6">
               Your notes,<br />smarter than<br />
               <span className="bg-gradient-to-br from-[#3525cd] to-[#4f46e5] bg-clip-text text-transparent font-headline">ever before.</span>
             </h1>
 
-            <p className="text-[18px] text-slate-500 leading-relaxed mb-10 max-w-[520px] font-medium">
+            <p className="text-base sm:text-lg text-slate-500 leading-relaxed mb-8 sm:mb-10 max-w-[520px] font-medium">
               NotExA is a rich note-taking workspace with built-in AI tools, real-time peer collaboration, PDF split-screen study, and ADHD-optimised focus sprints — all in one place.
             </p>
 
-            <div className="flex flex-wrap gap-4 mb-16">
-              <Link href="/auth/register" className="group inline-flex items-center gap-3 px-9 py-4 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-2xl text-base font-extrabold shadow-[0_8px_32px_-4px_rgba(53,37,205,0.45)] hover:shadow-[0_16px_48px_-4px_rgba(53,37,205,0.5)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-12 sm:mb-16">
+              <Link href="/auth/register" className="group inline-flex items-center justify-center gap-3 px-6 sm:px-9 py-4 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-2xl text-base font-extrabold shadow-[0_8px_32px_-4px_rgba(53,37,205,0.45)] hover:shadow-[0_16px_48px_-4px_rgba(53,37,205,0.5)] hover:-translate-y-1 active:translate-y-0 transition-all duration-300">
                 Start Writing Free
                 <span className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
                   <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M8 3l5 5-5 5" /></svg>
                 </span>
               </Link>
-              <a href="#features" className="inline-flex items-center gap-3 px-9 py-4 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl text-base font-bold hover:border-[#3525cd]/40 hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.1)] active:translate-y-0 transition-all duration-300">
+              <a href="#features" className="inline-flex items-center justify-center gap-3 px-6 sm:px-9 py-4 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl text-base font-bold hover:border-[#3525cd]/40 hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.1)] active:translate-y-0 transition-all duration-300">
                 See Features
                 <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><path d="M6 3l6 5-6 5" /></svg>
               </a>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-6 pt-10 border-t border-slate-200/70">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 pt-8 sm:pt-10 border-t border-slate-200/70">
               {stats.map((s) => (
                 <div key={s.label}>
-                  <div className="text-[25px] font-black text-slate-900 tracking-tight leading-none mb-1.5">{s.value}</div>
+                  <div className="text-[25px] font-black text-slate-900 leading-none mb-1.5">{s.value}</div>
                   <div className="text-[12px] font-semibold text-slate-500 leading-tight">{s.label}</div>
                 </div>
               ))}
@@ -247,7 +247,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Note Content */}
-                <div className="text-[21px] font-black text-slate-900 mb-3 tracking-tight">Quantum Superposition</div>
+                <div className="text-[21px] font-black text-slate-900 mb-3">Quantum Superposition</div>
                 <div className="text-[14px] text-slate-500 leading-relaxed mb-5 font-medium">
                   A system exists in <span className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md font-semibold text-[13px]">multiple states simultaneously</span> until observed by a measurement.
                   <br/><br/>
@@ -307,7 +307,7 @@ export default function HomePage() {
       </section>
 
       {/* ── AI TOOLS SECTION ── */}
-      <section id="ai-tools" className="py-24 lg:py-28 px-6 lg:px-20 bg-white border-t border-slate-100">
+      <section id="ai-tools" className="py-16 sm:py-24 lg:py-28 px-4 sm:px-6 lg:px-20 bg-white border-t border-slate-100">
         <div className="max-w-[1400px] mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: Copy */}
@@ -316,13 +316,13 @@ export default function HomePage() {
                 <div className="w-5 h-0.5 bg-violet-500 rounded" />
                 AI-Powered Workspace
               </div>
-              <h2 className="text-[clamp(32px,3.5vw,50px)] font-black tracking-[-2px] leading-[1.06] text-slate-900 mb-5">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-[1.08] text-slate-900 mb-5">
                 Six AI tools,<br />built right into<br />your notes.
               </h2>
               <p className="text-[17px] text-slate-500 leading-relaxed font-medium mb-8 max-w-[460px]">
                 Bring your own API key — OpenAI, Gemini, or DeepSeek — and unlock a full AI study suite inside every note. No context switching, no copy-pasting.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 {aiTools.map((tool, i) => (
                   <div
                     key={i}
@@ -396,7 +396,7 @@ export default function HomePage() {
       </section>
 
       {/* ── ALL FEATURES GRID ── */}
-      <section id="features" className="py-24 lg:py-32 px-6 lg:px-20 bg-[#f8f9ff]">
+      <section id="features" className="py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-20 bg-[#f8f9ff]">
         <div className="max-w-[1400px] mx-auto">
 
           <div className="text-center mb-16">
@@ -405,7 +405,7 @@ export default function HomePage() {
               Everything You Need
               <div className="w-5 h-0.5 bg-indigo-500 rounded" />
             </div>
-            <h2 className="text-[clamp(32px,3.8vw,52px)] font-black tracking-[-2px] leading-[1.06] text-slate-900 mb-5">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-[1.08] text-slate-900 mb-5">
               Built for serious note-takers.
             </h2>
             <p className="text-[17px] text-slate-500 max-w-[520px] mx-auto leading-relaxed font-medium">
@@ -424,7 +424,7 @@ export default function HomePage() {
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 ${f.bg} ${f.color} shadow-sm border ${f.border}`}>
                     <IconComponent size={20} strokeWidth={2.2} />
                   </div>
-                  <h3 className="text-[16px] font-bold tracking-tight text-slate-900 mb-2 transition-colors group-hover:text-indigo-600">{f.title}</h3>
+                  <h3 className="text-[16px] font-bold text-slate-900 mb-2 transition-colors group-hover:text-indigo-600">{f.title}</h3>
                   <p className="text-[13.5px] text-slate-500 leading-relaxed font-medium">{f.desc}</p>
                 </div>
               );
@@ -434,7 +434,7 @@ export default function HomePage() {
       </section>
 
       {/* ── ADHD / FOCUS SECTION ── */}
-      <section className="py-24 lg:py-32 px-6 lg:px-20 bg-slate-900 text-white relative overflow-hidden">
+      <section className="py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-20 bg-slate-900 text-white relative overflow-hidden">
         <div className="absolute top-[-30%] right-[-15%] w-[800px] h-[800px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 65%)' }} />
         <div className="absolute bottom-[-30%] left-[-15%] w-[800px] h-[800px] rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.08) 0%, transparent 65%)' }} />
 
@@ -442,13 +442,13 @@ export default function HomePage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
               <span className="text-[12px] font-black uppercase tracking-[3px] text-indigo-400 mb-5 inline-block">ADHD-Optimised Focus Mode</span>
-              <h2 className="text-[clamp(30px,4vw,48px)] font-black tracking-[-2px] leading-tight mb-6">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-6">
                 Your focus is a <span className="text-indigo-400">superpower.</span><br />We help you protect it.
               </h2>
               <p className="text-[17px] text-slate-400 leading-relaxed font-semibold mb-8 max-w-[480px]">
                 NotExA has a dedicated ADHD Focus Hub built right into the editor — with Pomodoro sprints, micro-task checklists, positive affirmations, and confetti bursts every time you hit a milestone.
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4">
                 {[
                   { icon: '⏱', title: 'Pomodoro Timer', desc: 'Custom focus sprint durations' },
                   { icon: '🎉', title: 'Confetti Rewards', desc: 'Every 150 chars earns celebration' },
@@ -508,7 +508,7 @@ export default function HomePage() {
       </section>
 
       {/* ── PDF + COLLAB STRIP ── */}
-      <section className="py-20 px-6 lg:px-20 bg-white border-t border-slate-100">
+      <section className="py-16 sm:py-20 px-4 sm:px-6 lg:px-20 bg-white border-t border-slate-100">
         <div className="max-w-[1400px] mx-auto grid md:grid-cols-2 gap-8">
           {/* PDF Split Screen */}
           <div className="rounded-2xl border border-slate-100 p-8 bg-gradient-to-br from-sky-50 to-white hover:shadow-[0_16px_40px_-12px_rgba(14,165,233,0.12)] transition-shadow duration-300">
@@ -535,7 +535,7 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA SECTION ── */}
-      <section className="py-24 lg:py-32 px-6 lg:px-20 relative overflow-hidden bg-[#f8f9ff]">
+      <section className="py-16 sm:py-24 lg:py-32 px-4 sm:px-6 lg:px-20 relative overflow-hidden bg-[#f8f9ff]">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] rounded-full" style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.07) 0%, transparent 65%)' }} />
         </div>
@@ -545,7 +545,7 @@ export default function HomePage() {
             🎓 Free to get started — no credit card
           </div>
 
-          <h2 className="text-[clamp(36px,4.5vw,58px)] font-black tracking-[-2.5px] text-slate-950 mb-6 leading-[1.06]">
+          <h2 className="text-4xl sm:text-5xl font-black text-slate-950 mb-6 leading-[1.08]">
             The smartest way to<br />take notes starts here.
           </h2>
 
@@ -553,14 +553,14 @@ export default function HomePage() {
             Join students and researchers using NotExA to write richer notes, collaborate in real time, and study smarter with built-in AI tools.
           </p>
 
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/auth/register" className="group inline-flex items-center gap-3 px-9 py-4 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-2xl text-base font-black shadow-[0_8px_32px_-4px_rgba(53,37,205,0.4)] hover:-translate-y-1 hover:shadow-[0_16px_48px_-4px_rgba(53,37,205,0.45)] active:translate-y-0 transition-all duration-300">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center">
+            <Link href="/auth/register" className="group inline-flex items-center justify-center gap-3 px-6 sm:px-9 py-4 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-2xl text-base font-black shadow-[0_8px_32px_-4px_rgba(53,37,205,0.4)] hover:-translate-y-1 hover:shadow-[0_16px_48px_-4px_rgba(53,37,205,0.45)] active:translate-y-0 transition-all duration-300">
               Create Free Account
               <span className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center group-hover:bg-white/25 transition-colors">
                 <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M8 3l5 5-5 5" /></svg>
               </span>
             </Link>
-            <Link href="/auth/login" className="inline-flex items-center gap-3 px-9 py-4 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl text-base font-bold hover:border-[#3525cd]/30 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.1)] active:translate-y-0 transition-all duration-300">
+            <Link href="/auth/login" className="inline-flex items-center justify-center gap-3 px-6 sm:px-9 py-4 bg-white text-slate-800 border-2 border-slate-200 rounded-2xl text-base font-bold hover:border-[#3525cd]/30 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.1)] active:translate-y-0 transition-all duration-300">
               Sign In
             </Link>
           </div>
@@ -569,14 +569,14 @@ export default function HomePage() {
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-slate-200/60 bg-white">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-20 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-20 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <span className="text-[20px] font-black tracking-tighter bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">NotExA</span>
+            <span className="text-[20px] font-black bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">NotExA</span>
             <span className="text-slate-300 text-sm mx-2">·</span>
             <p className="text-[13px] text-slate-400 font-bold">© 2026 College Minor Project</p>
           </div>
 
-          <div className="flex gap-8">
+          <div className="flex flex-wrap justify-center gap-5 sm:gap-8">
             <a href="#" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Privacy Policy</a>
             <a href="#" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Terms of Service</a>
             <a href="#features" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Features</a>
