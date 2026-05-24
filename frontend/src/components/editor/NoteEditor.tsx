@@ -28,6 +28,7 @@ interface NoteEditorProps {
   editable?: boolean;
   noteId?: number;
   collabToken?: string;
+  onRealtimeActiveChange?: (active: boolean) => void;
 }
 
 const normalizeImageWidth = (value: unknown) => {
@@ -159,7 +160,7 @@ const ResizableImage = ImageExt.extend({
   },
 });
 
-export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '' }: NoteEditorProps) {
+export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '', onRealtimeActiveChange }: NoteEditorProps) {
   // Real-time collaboration state
   const [collabActive, setCollabActive] = useState(false);
   const [collabStatus, setCollabStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
@@ -397,20 +398,17 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   useEffect(() => {
     collabActiveRef.current = collabActive;
+    onRealtimeActiveChange?.(collabActive);
     if (!collabActive) setCollabStatus('offline');
-  }, [collabActive]);
+  }, [collabActive, onRealtimeActiveChange]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (editable && noteId) {
-      setCollabActive(true);
-      return;
-    }
     if (params.get('collab') === 'true' || params.has('collab_token') || params.has('token')) {
       setCollabActive(true);
     }
-  }, [editable, noteId]);
+  }, []);
 
   const buildCollabLink = () => {
     if (typeof window === 'undefined') return '';
@@ -1266,18 +1264,18 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
       {/* Overlay 1: Ask AI */}
       {aiFeature === 'ask' && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 pb-3 mb-4 shrink-0">
-              <h2 className="text-lg font-extrabold flex items-center gap-2 text-indigo-900">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="z-20 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4 md:px-6 shrink-0">
+              <h2 className="min-w-0 truncate text-base sm:text-lg font-extrabold flex items-center gap-2 text-indigo-900">
                 <Bot size={22} className="text-indigo-600" /> Smart AI Writer
               </h2>
-              <button onClick={() => setAiFeature(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition">
+              <button onClick={() => setAiFeature(null)} className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition" aria-label="Close AI writer">
                 <X size={18} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 py-1 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-5 py-4 md:px-6 custom-scrollbar">
               {/* Context Selection Badge */}
               {(() => {
                 const sel = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, ' ').trim();
@@ -1363,7 +1361,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
             {/* Footer Buttons */}
             {aiResult && (
-              <div className="flex gap-3 border-t border-slate-100 pt-4 mt-4 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-3 border-t border-slate-100 p-4 md:px-6 shrink-0 bg-white">
                 <button
                   onClick={() => {
                     if (!aiResultApplied) writeAiResultToNote(String(aiResult), true);
@@ -1387,7 +1385,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <button
                 onClick={handleAskAI}
                 disabled={!aiPrompt.trim()}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md disabled:opacity-50 mt-4 transition"
+                className="w-[calc(100%-2.5rem)] mx-5 mb-5 md:w-[calc(100%-3rem)] md:mx-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md disabled:opacity-50 transition shrink-0"
               >
                 Compose Prompt
               </button>

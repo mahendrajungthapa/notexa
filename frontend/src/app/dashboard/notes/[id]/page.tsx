@@ -74,6 +74,7 @@ export default function NoteDetailPage() {
   const [pdfPreview, setPdfPreview] = useState<{ title: string; url: string } | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [realtimeActive, setRealtimeActive] = useState(false);
 
   const isOwner = permission === 'owner';
   const canEdit = permission === 'owner' || permission === 'edit';
@@ -147,7 +148,7 @@ export default function NoteDetailPage() {
 
     const params = new URLSearchParams(window.location.search);
     const collabToken = params.get('collab_token') || params.get('token') || '';
-    const realtimeEnabled = params.get('collab') === 'true' || !!collabToken || !!shareCode || !!note.share_code || collaborators.length > 0;
+    const realtimeEnabled = realtimeActive || params.get('collab') === 'true' || !!collabToken;
     if (!realtimeEnabled) return;
 
     const pullRemoteChanges = async () => {
@@ -186,7 +187,7 @@ export default function NoteDetailPage() {
 
     const interval = window.setInterval(pullRemoteChanges, 900);
     return () => window.clearInterval(interval);
-  }, [canEdit, collaborators.length, note, noteId, shareCode]);
+  }, [canEdit, note, noteId, realtimeActive]);
 
   const handleSave = useCallback(
     async (silent = false) => {
@@ -232,10 +233,10 @@ export default function NoteDetailPage() {
     }
     setSaveState('dirty');
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-    const realtimeEnabled = params.get('collab') === 'true' || params.has('collab_token') || params.has('token') || !!shareCode || collaborators.length > 0;
+    const realtimeEnabled = realtimeActive || params.get('collab') === 'true' || params.has('collab_token') || params.has('token');
     const timer = setTimeout(() => handleSave(true), realtimeEnabled ? 650 : 1400);
     return () => clearTimeout(timer);
-  }, [canEdit, collaborators.length, content, handleSave, lastSaved.content, lastSaved.title, loading, note, shareCode, title]);
+  }, [canEdit, content, handleSave, lastSaved.content, lastSaved.title, loading, note, realtimeActive, title]);
 
   const openShareModal = async () => {
     if (!isOwner) return;
@@ -635,6 +636,7 @@ export default function NoteDetailPage() {
               editable={canEdit}
               noteId={noteId}
               collabToken={shareCode || note?.share_code || ''}
+              onRealtimeActiveChange={setRealtimeActive}
             />
           </div>
         </section>
