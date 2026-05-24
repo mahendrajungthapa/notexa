@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { friendsApi, notesApi, filesApi } from '@/services/api';
-import { BACKEND_API_URL } from '@/lib/api-url';
 import { Friend, Friendship, Note, FileItem } from '@/types';
 import toast from 'react-hot-toast';
 import { UserPlus, Users, Search, Check, X, Trash2, Mail, MoreHorizontal, Share, MessageSquareText, FileText } from 'lucide-react';
@@ -37,6 +36,15 @@ export default function FriendsPage() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const profileUsername = new URLSearchParams(window.location.search).get('username');
+    if (profileUsername) {
+      setUsername(profileUsername.replace(/^@/, ''));
+      setTab('add');
+    }
+  }, []);
 
   const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,39 +114,7 @@ export default function FriendsPage() {
         toast.success('Note shared successfully!');
       } else {
         if (!selectedFileId) return;
-        const file = filesList.find((f) => f.id === selectedFileId);
-        if (!file) return;
-        
-        // Create a polished HTML note wrapper for the file download link
-        const noteHtml = `
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; max-width: 400px; margin: 12px 0; font-family: sans-serif;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <span style="font-size: 32px; background: #e0e7ff; padding: 8px; border-radius: 12px; display: inline-block;">📁</span>
-              <div>
-                <h4 style="margin: 0; font-size: 15px; font-weight: bold; color: #1e293b; word-break: break-all;">${file.original_name}</h4>
-                <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b; font-weight: 500;">Size: ${(file.size / 1024).toFixed(1)} KB</p>
-              </div>
-            </div>
-            <div style="margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
-              <a href="${BACKEND_API_URL}/files/${file.id}/download" target="_blank" style="display: block; text-align: center; background-color: #4f46e5; color: #ffffff; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: bold; text-decoration: none; transition: background 0.2s;">
-                Download File
-              </a>
-            </div>
-          </div>
-        `;
-        
-        // Create the note first
-        const noteRes = await notesApi.create({
-          title: `Shared File: ${file.original_name}`,
-          content: noteHtml,
-          color: '#f8fafc'
-        });
-        
-        const newNoteId = noteRes.data?.data?.id || noteRes.data?.id;
-        if (!newNoteId) throw new Error("Could not create wrapper note");
-        
-        // Share the created note with the friend
-        await notesApi.share(newNoteId, { user_id: selectedFriend.id, permission: 'view' });
+        await filesApi.share(selectedFileId, { user_id: selectedFriend.id });
         toast.success('File shared successfully!');
       }
       
@@ -242,7 +218,7 @@ export default function FriendsPage() {
                             onClick={() => handleOpenShare(f)}
                             className="w-full flex items-center justify-center gap-2 bg-[#F4F6FB] hover:bg-[#ebf0fa] text-[#4b5563] py-2.5 rounded-xl font-semibold text-sm transition">
                             <Share className="w-4 h-4 text-[#6b7280]" />
-                            Share Note
+                            Share
                           </button>
                         </div>
                       </div>

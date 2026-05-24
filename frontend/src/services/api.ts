@@ -118,6 +118,10 @@ export const filesApi = {
   },
   download: (id: number) => api.get(`/files/${id}/download`),
   preview: (id: number) => api.get(`/files/${id}/preview`),
+  shares: (id: number) => api.get(`/files/${id}/shares`),
+  share: (id: number, d: { user_id: number }) => api.post(`/files/${id}/share`, d),
+  unshare: (id: number, userId: number) => api.delete(`/files/${id}/share/${userId}`),
+  sharedWithMe: (p?: any) => api.get('/files/shared-with-me', { params: p }),
   delete: (id: number) => api.delete(`/files/${id}`),
 };
 
@@ -142,5 +146,8 @@ export const adminApi = {
   activityLogs: (p?: any) => api.get('/admin/activity-logs', { params: p }),
 };
 
-export const publicApi = { settings: () => api.get('/settings/public') };
+export const publicApi = {
+  settings: () => api.get('/settings/public'),
+  profile: (username: string) => api.get(`/profiles/${encodeURIComponent(username.replace(/^@/, ''))}`),
+};
 export default api;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\NoteShareController;
 use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\FileController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Admin\AdminController;
 
 // ═══ PUBLIC ═══
@@ -19,6 +20,8 @@ Route::post('/email/verification-notification', [AuthController::class, 'resendV
     ->middleware('throttle:6,1');
 Route::post('/email/verify-code', [AuthController::class, 'verifyCode'])
     ->middleware('throttle:10,1');
+Route::get('/profiles/{username}', [ProfileController::class, 'show'])
+    ->where('username', '[A-Za-z0-9_@-]+');
 
 Route::get('/settings/public', function () {
     return response()->json(['status' => 'success', 'data' => [

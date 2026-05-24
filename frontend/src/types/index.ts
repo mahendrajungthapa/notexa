@@ -110,6 +110,19 @@ export interface FileItem {
   r2_key: string;
   r2_url: string | null;
   created_at: string;
+  user?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
+  shares?: FileShare[];
+  pivot?: { shared_by: number };
+}
+
+export interface FileShare {
+  id: number;
+  file_id: number;
+  shared_by: number;
+  shared_with: number;
+  created_at: string;
+  recipient?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
+  sharer?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
 }
 
 // ═══════════════════════════════════════════

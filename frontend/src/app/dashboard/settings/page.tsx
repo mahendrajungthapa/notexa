@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { authApi, notesApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
-import { User, Lock, Save, Share, Pencil, Mail, Building2, GraduationCap, FileText, CheckCircle2, Sparkles, KeyRound, ShieldCheck } from 'lucide-react';
+import { User, Lock, Save, Share, Pencil, Mail, Building2, GraduationCap, FileText, CheckCircle2, Sparkles, KeyRound, ShieldCheck, Copy, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [username, setUsername] = useState('');
   const [saving, setSaving] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [profileShareUrl, setProfileShareUrl] = useState('');
 
   const [passwords, setPasswords] = useState({ current_password: '', password: '', password_confirmation: '' });
   const [changingPw, setChangingPw] = useState(false);
@@ -195,22 +196,37 @@ export default function SettingsPage() {
     }
   };
 
+  const buildProfileShareUrl = () => {
+    if (typeof window === 'undefined') return '';
+    const profileUsername = (username || user?.username || '').replace(/^@/, '').trim();
+    if (!profileUsername) return '';
+    return `${window.location.origin}/u/${encodeURIComponent(profileUsername)}`;
+  };
+
   const handleShareProfile = async () => {
     if (typeof window === 'undefined') return;
 
     const profileName = user?.name || 'Notexa user';
     const profileUsername = username ? `@${username}` : '';
     const shareText = `${profileName}${profileUsername ? ` (${profileUsername})` : ''} on Notexa`;
-    const shareUrl = window.location.origin;
+    const shareUrl = buildProfileShareUrl();
+
+    if (!shareUrl) {
+      toast.error('Add a username before sharing your profile');
+      return;
+    }
+
+    setProfileShareUrl(shareUrl);
 
     try {
       if (navigator.share) {
         await navigator.share({ title: profileName, text: shareText, url: shareUrl });
+        toast.success('Profile link ready');
         return;
       }
 
       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      toast.success('Profile share details copied');
+      toast.success('Profile link copied');
     } catch (error: any) {
       if (error?.name !== 'AbortError') {
         toast.error('Unable to share profile');
@@ -325,6 +341,40 @@ export default function SettingsPage() {
           >
             <Pencil size={16} /> Edit Profile
           </button>
+          {profileShareUrl && (
+            <div className="w-full sm:w-72 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-700">Profile link</span>
+                <a
+                  href={profileShareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg text-indigo-600 hover:bg-white/80 transition"
+                  title="Visit profile link"
+                >
+                  <ExternalLink size={14} />
+                </a>
+              </div>
+              <a
+                href={profileShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 block break-all text-xs font-semibold leading-relaxed text-indigo-950 underline decoration-indigo-300 underline-offset-4 visited:text-purple-700"
+              >
+                {profileShareUrl}
+              </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(profileShareUrl);
+                  toast.success('Profile link copied');
+                }}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-bold text-indigo-700 shadow-sm hover:bg-indigo-100 transition"
+              >
+                <Copy size={13} /> Copy link
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
