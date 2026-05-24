@@ -66,7 +66,6 @@ export default function AdminNotesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {n.is_trashed ? <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-widest bg-red-50 text-red-600 border border-red-100"><div className="w-1.5 h-1.5 rounded-full bg-red-500" />Trashed</span> :
-                       n.is_archived ? <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-widest bg-amber-50 text-amber-600 border border-amber-100"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" />Archived</span> :
                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">

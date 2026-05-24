@@ -9,11 +9,11 @@ class Note extends Model
 {
     protected $fillable = [
         'user_id', 'title', 'content', 'plain_text', 'color',
-        'is_pinned', 'is_archived', 'is_trashed', 'share_code', 'ai_summary', 'trashed_at',
+        'is_pinned', 'is_trashed', 'share_code', 'ai_summary', 'trashed_at',
     ];
 
     protected $casts = [
-        'is_pinned' => 'boolean', 'is_archived' => 'boolean',
+        'is_pinned' => 'boolean',
         'is_trashed' => 'boolean', 'trashed_at' => 'datetime',
     ];
 

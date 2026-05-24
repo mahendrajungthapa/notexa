@@ -129,7 +129,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         transform transition-all duration-300 lg:transform-none shadow-[2px_0_24px_-12px_rgba(0,0,0,0.06)] shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${isCollapsed ? 'w-[min(86vw,280px)] lg:w-[85px]' : 'w-[min(86vw,280px)] lg:w-[280px]'}
-        relative
       `}>
         {/* Floating Collapse Toggle on Sidebar Border - centered next to Settings options and in a highly clickable right size */}
         <button
@@ -247,7 +246,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full lg:w-auto">
         {/* Top bar for mobile */}
         <header className="sticky top-0 z-30 lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
           <button onClick={() => setSidebarOpen(true)} className="text-gray-600 p-2 -ml-2 rounded-xl hover:bg-slate-50" aria-label="Open navigation">

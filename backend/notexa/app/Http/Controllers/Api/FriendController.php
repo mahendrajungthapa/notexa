@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Friendship;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class FriendController extends Controller
 {
@@ -13,11 +14,14 @@ class FriendController extends Controller
     public function index(Request $request)
     {
         $friends = $request->user()->friends();
+        $onlineIds = collect($this->onlineUserIds($friends->pluck('id')->all()))->flip();
+
         return response()->json([
             'status' => 'success',
             'data' => $friends->map(fn($f) => [
                 'id' => $f->id, 'name' => $f->name, 'username' => $f->username,
                 'email' => $f->email, 'avatar' => $f->avatar,
+                'is_online' => $onlineIds->has($f->id),
             ]),
         ]);
     }
@@ -125,12 +129,16 @@ class FriendController extends Controller
             ->where(function ($q) use ($request) {
                 $q->where('username', 'like', "%{$request->query('query')}%")
                   ->orWhere('name', 'like', "%{$request->query('query')}%");
-            })->select('id', 'name', 'username', 'avatar')->limit(20)->get()
-            ->map(fn($user) => [
+            })->select('id', 'name', 'username', 'avatar')->limit(20)->get();
+
+        $onlineIds = collect($this->onlineUserIds($users->pluck('id')->all()))->flip();
+
+        $users = $users->map(fn($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'username' => $user->username,
                 'avatar' => $user->avatar,
+                'is_online' => $onlineIds->has($user->id),
                 'relationship' => $this->relationshipTo($current, $user),
             ]);
 
@@ -153,5 +161,28 @@ class FriendController extends Controller
         if ($friendship->status === 'pending') return 'received';
 
         return $friendship->status;
+    }
+
+    private function onlineUserIds(array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_filter($userIds)));
+        if (empty($userIds)) {
+            return [];
+        }
+
+        $onlineAfter = now()->subMinutes(2);
+
+        return PersonalAccessToken::query()
+            ->where('tokenable_type', User::class)
+            ->whereIn('tokenable_id', $userIds)
+            ->where(function ($query) use ($onlineAfter) {
+                $query->where('last_used_at', '>=', $onlineAfter)
+                    ->orWhere('created_at', '>=', $onlineAfter);
+            })
+            ->pluck('tokenable_id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

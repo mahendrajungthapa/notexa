@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notesApi } from '@/services/api';
 import { Note } from '@/types';
 import toast from 'react-hot-toast';
-import { Archive, Pin, Trash2, Zap, Star, MoreHorizontal, Info, X, Search, Filter, ArrowDownUp } from 'lucide-react';
+import { Pin, Trash2, Zap, Star, MoreHorizontal, Info, X, Search, Filter, ArrowDownUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -122,7 +122,7 @@ function ActivityLogPanel({ note, onClose }: { note: Note; onClose: () => void }
   );
 }
 
-function SortableNoteCard({ note, tag, onPin, onArchive, onTrash, viewMode, activeSortMode }: { note: Note, tag: any, onPin: any, onArchive: any, onTrash: any, viewMode: 'grid'|'list', activeSortMode?: string }) {
+function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode }: { note: Note, tag: any, onPin: any, onTrash: any, viewMode: 'grid'|'list', activeSortMode?: string }) {
   const router = useRouter();
   const [showActivity, setShowActivity] = useState(false);
   
@@ -216,13 +216,6 @@ function SortableNoteCard({ note, tag, onPin, onArchive, onTrash, viewMode, acti
                  <Pin size={16} />
               </button>
               <button
-                onClick={e => { e.stopPropagation(); onArchive(note); }}
-                className="text-slate-300 hover:text-amber-600 transition-colors bg-white hover:bg-amber-50 p-1.5 rounded-md"
-                title="Archive note"
-              >
-                <Archive size={16} />
-              </button>
-              <button
                 onClick={e => { e.stopPropagation(); onTrash(note); }}
                 className="text-slate-300 hover:text-red-600 transition-colors bg-white hover:bg-red-50 p-1.5 rounded-md"
                 title="Move to trash"
@@ -295,13 +288,6 @@ function SortableNoteCard({ note, tag, onPin, onArchive, onTrash, viewMode, acti
                 title={note.is_pinned ? "Unpin" : "Pin note"}
               >
                  <Pin size={16} />
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); onArchive(note); }}
-                className="text-slate-300 hover:text-amber-600 bg-white hover:bg-amber-50 p-2 rounded-lg transition-colors"
-                title="Archive note"
-              >
-                <Archive size={16} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onTrash(note); }}
@@ -450,14 +436,6 @@ export default function NotesPage() {
   const handlePin = async (note: Note) => {
     try {
       await notesApi.togglePin(note.id);
-      fetchNotes();
-    } catch { toast.error('Failed'); }
-  };
-
-  const handleArchive = async (note: Note) => {
-    try {
-      await notesApi.toggleArchive(note.id);
-      toast.success('Note archived');
       fetchNotes();
     } catch { toast.error('Failed'); }
   };
@@ -723,7 +701,6 @@ export default function NotesPage() {
                         note={note}
                         tag={tagObj}
                         onPin={handlePin}
-                        onArchive={handleArchive}
                         onTrash={handleTrash}
                         viewMode={viewMode}
                         activeSortMode={sortBy}
@@ -771,7 +748,6 @@ export default function NotesPage() {
                       note={note}
                       tag={tagObj}
                       onPin={handlePin}
-                      onArchive={handleArchive}
                       onTrash={handleTrash}
                       viewMode={viewMode}
                       activeSortMode={sortBy}

@@ -67,7 +67,13 @@ class FileController extends Controller
 
         $user->increment('storage_used', $fileData['size']);
 
-        return response()->json(['status' => 'success', 'data' => $file], 201);
+        $payload = $file->toArray();
+        if ($preview = $this->previewProfile($file)) {
+            $payload['preview_url'] = $this->r2->getTemporaryPreviewUrl($file->r2_key, 60 * 24 * 365, $file->id);
+            $payload['preview_type'] = $preview['type'];
+        }
+
+        return response()->json(['status' => 'success', 'data' => $payload], 201);
     }
 
     // Return a short-lived URL for preview/download after checking access.

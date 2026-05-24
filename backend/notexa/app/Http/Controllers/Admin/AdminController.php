@@ -64,7 +64,7 @@ class AdminController extends Controller
     // Full user detail with ALL data
     public function userDetail(User $user)
     {
-        $user->load(['notes' => function ($q) { $q->select('id','user_id','title','color','is_pinned','is_archived','is_trashed','created_at','updated_at'); },
+        $user->load(['notes' => function ($q) { $q->select('id','user_id','title','color','is_pinned','is_trashed','created_at','updated_at'); },
             'files']);
 
         $friendsList = $user->friends();

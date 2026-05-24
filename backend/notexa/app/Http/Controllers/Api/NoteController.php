@@ -15,7 +15,7 @@ class NoteController extends Controller
 {
     public function index(Request $request)
     {
-        $query = $request->user()->notes()->where('is_trashed', false)->where('is_archived', false);
+        $query = $request->user()->notes()->where('is_trashed', false);
 
         if ($s = $request->get('search')) {
             $query->where(function ($q) use ($s) {
@@ -37,7 +37,6 @@ class NoteController extends Controller
             'content' => 'nullable|string',
             'color' => 'nullable|string|max:7',
             'is_pinned' => 'sometimes|boolean',
-            'is_archived' => 'sometimes|boolean',
         ]);
 
         $note = $request->user()->notes()->create([
@@ -46,7 +45,6 @@ class NoteController extends Controller
             'plain_text' => strip_tags($request->content ?? ''),
             'color' => $request->color ?? '#ffffff',
             'is_pinned' => $request->boolean('is_pinned'),
-            'is_archived' => $request->boolean('is_archived'),
         ]);
 
         NoteVersion::create([
@@ -85,10 +83,9 @@ class NoteController extends Controller
             'content' => 'sometimes|nullable|string',
             'color' => 'sometimes|string|max:7',
             'is_pinned' => 'sometimes|boolean',
-            'is_archived' => 'sometimes|boolean',
         ]);
 
-        $data = $request->only(['title', 'content', 'color', 'is_pinned', 'is_archived']);
+        $data = $request->only(['title', 'content', 'color', 'is_pinned']);
         if (isset($data['content'])) {
             $data['plain_text'] = strip_tags($data['content']);
         }
@@ -133,20 +130,6 @@ class NoteController extends Controller
         if ($note->user_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
         $note->update(['is_pinned' => !$note->is_pinned]);
         return response()->json(['status' => 'success', 'data' => $note->fresh()]);
-    }
-
-    public function toggleArchive(Request $request, Note $note)
-    {
-        if ($note->user_id !== $request->user()->id) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
-        $note->update(['is_archived' => !$note->is_archived]);
-        return response()->json(['status' => 'success', 'data' => $note->fresh()]);
-    }
-
-    public function archived(Request $request)
-    {
-        return response()->json(['status' => 'success', 'data' =>
-            $request->user()->notes()->where('is_archived', true)->where('is_trashed', false)->orderByDesc('updated_at')->paginate(20)
-        ]);
     }
 
     public function trashed(Request $request)

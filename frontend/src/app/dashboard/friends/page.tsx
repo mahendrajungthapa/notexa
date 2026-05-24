@@ -169,7 +169,7 @@ export default function FriendsPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {friends.map((f, i) => {
-                    const isOnline = f.is_active || false;
+                    const isOnline = f.is_online || false;
                     return (
                       <div key={f.id} className="bg-white rounded-[1.5rem] border border-gray-100 p-5 shadow-sm hover:shadow-md transition">
                         <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start justify-between gap-4">
@@ -188,6 +188,9 @@ export default function FriendsPage() {
                               <h3 className="font-bold text-gray-900 text-lg leading-tight">{f.name}</h3>
                               <p className="text-sm font-medium mt-0.5 text-gray-500">
                                 {getUsername(f.name, f.id, f.username)}
+                              </p>
+                              <p className={`mt-1 text-[10px] font-bold uppercase tracking-wider ${isOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                {isOnline ? 'Online now' : 'Offline'}
                               </p>
                             </div>
                           </div>

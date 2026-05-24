@@ -38,7 +38,6 @@ export interface Note {
   plain_text: string | null;
   color: string;
   is_pinned: boolean;
-  is_archived: boolean;
   is_trashed: boolean;
   share_code?: string | null;
   trashed_at: string | null;
@@ -93,6 +92,7 @@ export interface Friend {
   email: string;
   avatar: string | null;
   is_active?: boolean;
+  is_online?: boolean;
 }
 
 // ═══════════════════════════════════════════

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import api, { publicApi, filesApi, notesApi } from '@/services/api';
+import { publicApi, filesApi, notesApi, resolveApiAssetUrl } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 
 interface NoteEditorProps {
@@ -45,12 +45,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [collabStatus, setCollabStatus] = useState<'idle' | 'connecting' | 'connected' | 'offline'>('idle');
   const [collabPeers, setCollabPeers] = useState<any[]>([]);
   const [collabSharedLink, setCollabSharedLink] = useState('');
-  const [collabGuestActive, setCollabGuestActive] = useState(false);
-  const [collabGuestText, setCollabGuestText] = useState('');
-  const ydocRef = useRef<any>(null);
-  const providerRef = useRef<any>(null);
   const collabSeededRoomRef = useRef('');
   const collabColorRef = useRef('#6366f1');
+  const collabAutoStartedForRef = useRef<number | null>(null);
 
   const collabRoomId = useMemo(() => {
     const token = collaborationToken || `note-${noteId || 'draft'}`;
@@ -168,6 +165,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [pdfFilesLoading, setPdfFilesLoading] = useState(false);
   const [activePdfUrl, setActivePdfUrl] = useState<string | null>(null);
   const [activePdfName, setActivePdfName] = useState<string>('');
+  const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const [imageUploading, setImageUploading] = useState(false);
 
   const fetchPdfFiles = async () => {
     setPdfFilesLoading(true);
@@ -180,6 +179,54 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       console.warn("Failed loading files list", e);
     } finally {
       setPdfFilesLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file || !editor) return;
+
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Upload a PNG, JPG, GIF, WebP, or BMP image.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image must be 10 MB or smaller.');
+      return;
+    }
+
+    setImageUploading(true);
+    toast.loading('Uploading image...', { id: 'editor-image-upload' });
+
+    try {
+      const res = await filesApi.upload(file, noteId);
+      const uploaded = res.data?.data || res.data || {};
+      let imageUrl = resolveApiAssetUrl(uploaded.preview_url || uploaded.r2_url);
+
+      if (!imageUrl && uploaded.id) {
+        const previewRes = await filesApi.preview(uploaded.id);
+        imageUrl = resolveApiAssetUrl(previewRes.data?.preview_url);
+      }
+
+      if (!imageUrl) {
+        throw new Error('The image uploaded, but no preview URL was returned.');
+      }
+
+      editor.chain().focus().setImage({
+        src: imageUrl,
+        alt: uploaded.original_name || file.name,
+        title: uploaded.original_name || file.name,
+      }).run();
+
+      toast.success('Image uploaded and inserted.', { id: 'editor-image-upload' });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.message || 'Image upload failed.', { id: 'editor-image-upload' });
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -262,6 +309,19 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   }, []);
 
+  useEffect(() => {
+    if (!editable) {
+      setCollabActive(false);
+      collabAutoStartedForRef.current = null;
+      return;
+    }
+
+    if (noteId && collabAutoStartedForRef.current !== noteId) {
+      collabAutoStartedForRef.current = noteId;
+      setCollabActive(true);
+    }
+  }, [editable, noteId]);
+
   // Real-time multi-collaborator editing. The WebRTC provider connects peers,
   // while Tiptap's Collaboration extension binds editor transactions to Yjs.
   useEffect(() => {
@@ -289,12 +349,15 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         if (cancelled) return;
 
         doc = new Y.Doc();
-        provider = new WebrtcProvider(collabRoomId, doc, {
-          signaling: ['wss://signaling.yjs.dev'],
-        });
+        const signaling = (process.env.NEXT_PUBLIC_YJS_SIGNALING_URLS || 'wss://signaling.yjs.dev')
+          .split(',')
+          .map((url) => url.trim())
+          .filter(Boolean);
 
-        ydocRef.current = doc;
-        providerRef.current = provider;
+        provider = new WebrtcProvider(collabRoomId, doc, {
+          signaling,
+          password: String(collaborationToken || noteId),
+        });
         setCollabDoc(doc);
 
         if (collabColorRef.current === '#6366f1') {
@@ -339,13 +402,11 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       removeStatusListener?.();
       provider?.destroy();
       doc?.destroy();
-      ydocRef.current = null;
-      providerRef.current = null;
       setCollabDoc(null);
       setCollabPeers([]);
       setCollabStatus('idle');
     };
-  }, [collabActive, collabRoomId, currentUser?.id, currentUser?.name, currentUser?.username, noteId]);
+  }, [collabActive, collabRoomId, collaborationToken, currentUser?.id, currentUser?.name, currentUser?.username, noteId]);
 
   useEffect(() => {
     if (!editor || !collabActive || !collabDoc || !content || collabSeededRoomRef.current === collabRoomId) {
@@ -364,47 +425,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     return () => window.clearTimeout(timer);
   }, [collabActive, collabDoc, collabRoomId, content, editor, onChange]);
 
-  // Guest Typist Bot Simulation Handler
-  const runGuestSimulation = () => {
-    if (!editor) return;
-    if (collabGuestActive) {
-      toast.error("Guest simulation is already running!");
-      return;
-    }
-    setCollabGuestActive(true);
-    
-    toast("Professor Clara (Study Partner) has joined the notebook room via WebRTC!", { icon: '🦄', duration: 4000 });
-    setCollabPeers(prev => [...prev, { name: "Professor Clara (Guest Bot 🦄)", color: "#ec4899" }]);
-
-    let step = 0;
-    const typingSteps = [
-      "\n\n",
-      "📚 *Professor Clara's Study Insight:* ",
-      "Here is a crucial tip for studying this topic:\n",
-      "- Focus on understanding the primary mechanisms first.\n",
-      "- Write short, atomic micro-summaries to improve retention.\n",
-      "- Test your active recall using flashcards and MCQ quizzes!\n",
-      "Keep writing! You are doing a highly impressive job!"
-    ];
-
-    const typeNextStep = () => {
-      if (step < typingSteps.length) {
-        editor.chain().focus().insertContent(typingSteps[step]).run();
-        step++;
-        setTimeout(typeNextStep, 1500);
-      } else {
-        setCollabGuestActive(false);
-        setCollabPeers(prev => prev.filter(p => p.name !== "Professor Clara (Guest Bot 🦄)"));
-        
-        const trigger = (window as any).triggerConfetti;
-        if (trigger) trigger();
-        toast.success("Guest simulation complete! Clara says: 'You are doing amazing, keep it up!' 🌟", { duration: 5000 });
-      }
-    };
-
-    setTimeout(typeNextStep, 2000);
-  };
-
   // Overlay Sub-states
   const [activeFlashcard, setActiveFlashcard] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -415,221 +435,88 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [targetLanguage, setTargetLanguage] = useState('Spanish');
   const [ocrImageUrl, setOcrImageUrl] = useState('');
 
-  // Model Selection states
+  // Server-managed AI state. API keys live only in the Admin Panel/backend.
   const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini' | 'deepseek'>('openai');
   const [selectedModel, setSelectedModel] = useState<string>('');
-  const [hasOpenAI, setHasOpenAI] = useState(false);
-  const [hasGemini, setHasGemini] = useState(false);
-  const [hasDeepSeek, setHasDeepSeek] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
-  // Resolve API Keys, Base URLs, and Models
+  const readSetting = (source: any, key: string, fallback: unknown = '') => {
+    if (Array.isArray(source)) {
+      return source.find((s: any) => s.key === key)?.value ?? fallback;
+    }
+    return source?.[key] ?? fallback;
+  };
+
+  const settingIsEnabled = (value: unknown) => {
+    return value === true || value === 1 || value === '1' || value === 'true' || value === undefined || value === null || value === '';
+  };
+
+  // Resolve only public server AI metadata. Keys are never read from browser storage.
   const getAIConfig = async () => {
-    let openaiKey = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_openai_key') || '' : '';
-    let geminiKey = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_gemini_key') || '' : '';
-    let deepseekKey = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_deepseek_key') || '' : '';
-    
-    let openaiBase = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_openai_base') || '' : '';
-    let openaiModel = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_openai_model') || '' : '';
-    let geminiBase = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_gemini_base') || '' : '';
-    let geminiModel = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_gemini_model') || '' : '';
-    let deepseekBase = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_deepseek_base') || '' : '';
-    let deepseekModel = typeof window !== 'undefined' ? localStorage.getItem('notexa_personal_deepseek_model') || '' : '';
-
-    let provider = 'openai';
-
-    if (!openaiKey && process.env.NEXT_PUBLIC_OPENAI_API_KEY) {
-      openaiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-    }
-    if (!geminiKey && process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-      geminiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-    }
-    if (!deepseekKey && process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY) {
-      deepseekKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
-    }
+    const config = {
+      enabled: true,
+      provider: 'deepseek' as 'openai' | 'gemini' | 'deepseek',
+      openaiModel: 'gpt-4o-mini',
+      geminiModel: 'gemini-1.5-flash',
+      deepseekModel: 'deepseek-chat',
+    };
 
     try {
       const res = await publicApi.settings();
       const data = res.data?.data || res.data || {};
-      
-      let opKeySetting = '';
-      let gemKeySetting = '';
-      let dsKeySetting = '';
-      let provSetting = '';
-      let enabledSetting: string | boolean | number = '';
-      
-      let opBaseSetting = '';
-      let opModelSetting = '';
-      let gemBaseSetting = '';
-      let gemModelSetting = '';
-      let dsBaseSetting = '';
-      let dsModelSetting = '';
 
-      if (Array.isArray(data)) {
-        opKeySetting = data.find((s: any) => s.key === 'openai_api_key')?.value || '';
-        gemKeySetting = data.find((s: any) => s.key === 'gemini_api_key')?.value || '';
-        dsKeySetting = data.find((s: any) => s.key === 'deepseek_api_key')?.value || '';
-        provSetting = data.find((s: any) => s.key === 'ai_provider')?.value || '';
-        enabledSetting = data.find((s: any) => s.key === 'ai_enabled')?.value || '';
-        
-        opBaseSetting = data.find((s: any) => s.key === 'openai_base_url')?.value || '';
-        opModelSetting = data.find((s: any) => s.key === 'openai_model')?.value || '';
-        gemBaseSetting = data.find((s: any) => s.key === 'gemini_base_url')?.value || '';
-        gemModelSetting = data.find((s: any) => s.key === 'gemini_model')?.value || '';
-        dsBaseSetting = data.find((s: any) => s.key === 'deepseek_base_url')?.value || '';
-        dsModelSetting = data.find((s: any) => s.key === 'deepseek_model')?.value || '';
-      } else if (typeof data === 'object' && data !== null) {
-        opKeySetting = (data as any).openai_api_key || '';
-        gemKeySetting = (data as any).gemini_api_key || '';
-        dsKeySetting = (data as any).deepseek_api_key || '';
-        provSetting = (data as any).ai_provider || '';
-        enabledSetting = (data as any).ai_enabled || '';
-        
-        opBaseSetting = (data as any).openai_base_url || '';
-        opModelSetting = (data as any).openai_model || '';
-        gemBaseSetting = (data as any).gemini_base_url || '';
-        gemModelSetting = (data as any).gemini_model || '';
-        dsBaseSetting = (data as any).deepseek_base_url || '';
-        dsModelSetting = (data as any).deepseek_model || '';
+      const provider = String(readSetting(data, 'ai_provider', config.provider)).toLowerCase();
+      if (provider === 'openai' || provider === 'gemini' || provider === 'deepseek') {
+        config.provider = provider;
       }
 
-      if (enabledSetting === 'true' || enabledSetting === true || enabledSetting === '1' || enabledSetting === 1) {
-        if (opKeySetting) openaiKey = opKeySetting;
-        if (gemKeySetting) geminiKey = gemKeySetting;
-        if (dsKeySetting) deepseekKey = dsKeySetting;
-        if (provSetting) provider = provSetting;
-        if (opBaseSetting) openaiBase = opBaseSetting;
-        if (opModelSetting) openaiModel = opModelSetting;
-        if (gemBaseSetting) geminiBase = gemBaseSetting;
-        if (gemModelSetting) geminiModel = gemModelSetting;
-        if (dsBaseSetting) deepseekBase = dsBaseSetting;
-        if (dsModelSetting) deepseekModel = dsModelSetting;
-      }
+      config.enabled = settingIsEnabled(readSetting(data, 'ai_enabled', true));
+      config.openaiModel = String(readSetting(data, 'openai_model', config.openaiModel) || config.openaiModel);
+      config.geminiModel = String(readSetting(data, 'gemini_model', config.geminiModel) || config.geminiModel);
+      config.deepseekModel = String(readSetting(data, 'deepseek_model', config.deepseekModel) || config.deepseekModel);
     } catch (e) {
-      console.warn("Using personal local keys:", e);
+      console.warn('Could not load public AI settings; backend AI endpoint will still enforce admin configuration.', e);
     }
 
-    return { 
-      openaiKey, 
-      geminiKey, 
-      deepseekKey,
-      provider,
-      openaiBase: openaiBase || 'https://api.openai.com/v1',
-      openaiModel: openaiModel || 'gpt-4o-mini',
-      geminiBase: geminiBase || 'https://generativelanguage.googleapis.com/v1beta',
-      geminiModel: geminiModel || 'gemini-1.5-flash',
-      deepseekBase: deepseekBase || 'https://api.deepseek.com',
-      deepseekModel: deepseekModel || 'deepseek-chat'
-    };
-  };
-
-  const callOpenAI = async (key: string, base: string, model: string, systemPrompt: string, userPrompt: string) => {
-    const cleanBase = base.replace(/\/+$/, '');
-    const url = `${cleanBase}/chat/completions`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `OpenAI error: ${res.statusText}`);
-    }
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
-  };
-
-  const callGemini = async (key: string, base: string, model: string, systemPrompt: string, userPrompt: string) => {
-    const cleanBase = base.replace(/\/+$/, '');
-    const url = `${cleanBase}/models/${model}:generateContent?key=${key}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          { parts: [{ text: `${systemPrompt}\n\nUser request:\n${userPrompt}` }] }
-        ],
-        generationConfig: { temperature: 0.7 }
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Gemini error: ${res.statusText}`);
-    }
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return config;
   };
 
   const runAICall = async (systemPrompt: string, userPrompt: string) => {
     const config = await getAIConfig();
-    const provider = selectedProvider;
-    const model = selectedModel;
 
-    // 1. Try to delegate to the backend secure AI endpoint first if there is no personal key and noteId is present
-    const activeKey = provider === 'openai' ? config.openaiKey : (provider === 'deepseek' ? config.deepseekKey : config.geminiKey);
-    if (!activeKey && noteId) {
-      try {
-        const apiRes = await notesApi.aiQuery(noteId, { systemPrompt, userPrompt });
-        const data = apiRes.data?.data || apiRes.data || {};
-        const resultText = typeof data === 'string' ? data : (data.result || data.text || data.summary || '');
-        if (resultText) {
-          return resultText;
-        }
-      } catch (apiErr: any) {
-        console.warn("Backend secure AI query failed, falling back to client-side direct LLM call...", apiErr);
-      }
+    if (!config.enabled) {
+      throw new Error('AI tools are disabled in the Admin Panel.');
     }
 
-    // 2. Client-side fallback using personal settings keys
-    if (provider === 'openai') {
-      if (!config.openaiKey) {
-        throw new Error("OpenAI API key is missing. Please add it in Settings under 'Personal AI Workspace' or in the Admin Panel.");
-      }
-      return await callOpenAI(config.openaiKey, config.openaiBase, model || config.openaiModel, systemPrompt, userPrompt);
-    } else if (provider === 'deepseek') {
-      if (!config.deepseekKey) {
-        throw new Error("DeepSeek API key is missing. Please add it in Settings under 'Personal AI Workspace' or in the Admin Panel.");
-      }
-      return await callOpenAI(config.deepseekKey, config.deepseekBase, model || config.deepseekModel, systemPrompt, userPrompt);
-    } else {
-      if (!config.geminiKey) {
-        throw new Error("Gemini API key is missing. Please add it in Settings under 'Personal AI Workspace' or in the Admin Panel.");
-      }
-      return await callGemini(config.geminiKey, config.geminiBase, model || config.geminiModel, systemPrompt, userPrompt);
+    if (!noteId) {
+      throw new Error('Save this note before using AI tools.');
+    }
+
+    try {
+      const apiRes = await notesApi.aiQuery(noteId, { systemPrompt, userPrompt });
+      const data = apiRes.data?.data || apiRes.data || {};
+      const resultText = typeof data === 'string' ? data : (data.result || data.text || data.summary || '');
+      if (resultText) return resultText;
+      throw new Error('The server AI provider returned an empty response.');
+    } catch (apiErr: any) {
+      throw new Error(apiErr.response?.data?.message || apiErr.message || 'Server AI request failed. Check Admin Panel AI settings.');
     }
   };
 
   useEffect(() => {
-    const checkKeys = async () => {
+    const loadAISettings = async () => {
       const config = await getAIConfig();
-      const hasOp = !!config.openaiKey;
-      const hasGem = !!config.geminiKey;
-      const hasDs = !!config.deepseekKey;
-      setHasOpenAI(hasOp);
-      setHasGemini(hasGem);
-      setHasDeepSeek(hasDs);
-      
-      if (hasDs) {
-        setSelectedProvider('deepseek');
-        setSelectedModel(config.deepseekModel || 'deepseek-chat');
-      } else if (hasOp) {
-        setSelectedProvider('openai');
-        setSelectedModel(config.openaiModel || 'gpt-4o-mini');
-      } else if (hasGem) {
-        setSelectedProvider('gemini');
-        setSelectedModel(config.geminiModel || 'gemini-1.5-flash');
-      }
+      setAiEnabled(config.enabled);
+      setSelectedProvider(config.provider);
+      setSelectedModel(
+        config.provider === 'openai'
+          ? config.openaiModel
+          : config.provider === 'gemini'
+            ? config.geminiModel
+            : config.deepseekModel
+      );
     };
-    checkKeys();
+    loadAISettings();
   }, []);
 
   const extractJSON = (text: string) => {
@@ -704,7 +591,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiLoading(true);
     setAiResult(null);
 
-    // 1. Try to call the backend AI Summary endpoint first if noteId is present (no frontend API keys needed)
+    // Use the backend AI endpoint so keys stay in Admin Panel settings.
     if (noteId) {
       try {
         const apiRes = await notesApi.aiSummary(noteId);
@@ -716,11 +603,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           return;
         }
       } catch (apiErr: any) {
-        console.warn("Backend AI summary failed, falling back to client-side direct AI call...", apiErr);
+        console.warn('Backend AI summary failed, trying server chat endpoint.', apiErr);
       }
     }
 
-    // 2. Fallback to client-side direct AI call using personal API keys
     const contentText = editor.getText() || 'Start typing notes to enable smart summarization.';
     try {
       const sysPrompt = "Create a structured, executive study summary of the text provided. Highlight the core theme, list 3 key highlights in a bulleted list, and finish with a summary outline. Respond with clean, beautiful HTML format using <h3>, <p>, and <ul> tags. CRITICAL: Output ONLY the direct HTML content. Absolutely NO introductory conversational remarks, preamble, greetings, or outro comments. Start directly with the first HTML tag.";
@@ -831,13 +717,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
-  const ToolButton = ({ onClick, active, children, title, className = '' }: any) => (
+  const ToolButton = ({ onClick, active, children, title, className = '', disabled = false }: any) => (
     <div className="relative group flex justify-center shrink-0">
       <button
         type="button"
         onClick={onClick}
+        disabled={disabled}
         onMouseDown={(e) => e.preventDefault()}
-        className={`p-2 sm:p-1.5 rounded-lg transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${className}`}
+        className={`p-2 sm:p-1.5 rounded-lg transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${disabled ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''} ${className}`}
       >
         {children}
       </button>
@@ -853,6 +740,14 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
+      <input
+        ref={imageUploadInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
+        className="hidden"
+        onChange={handleImageUpload}
+      />
+
       {/* Toolbar */}
       {editable && (
         <div className="shrink-0 flex flex-nowrap sm:flex-wrap items-center gap-0.5 px-2 sm:px-4 py-2 sm:py-3 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm z-10 sticky top-0 overflow-x-auto">
@@ -922,11 +817,12 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           <div className="w-px h-5 bg-slate-200/60 mx-1.5" />
 
           {/* Media */}
-          <ToolButton onClick={() => {
-            const url = window.prompt('Enter image URL:');
-            if (url) editor.chain().focus().setImage({ src: url }).run();
-          }} title="Insert Image" className="hover:bg-cyan-50 group">
-            <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
+          <ToolButton onClick={() => imageUploadInputRef.current?.click()} title="Upload Image" className="hover:bg-cyan-50 group" disabled={imageUploading}>
+            {imageUploading ? (
+              <span className="block h-4 w-4 rounded-full border-2 border-cyan-200 border-t-cyan-600 animate-spin" />
+            ) : (
+              <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
+            )}
           </ToolButton>
           <ToolButton onClick={() => {
             const url = window.prompt('Enter link URL:');
@@ -937,43 +833,16 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
           <div className="hidden sm:block flex-1 min-w-[10px]" />
 
-          {/* AI Model Selector */}
-          {(hasOpenAI || hasGemini || hasDeepSeek) && (
-            <div className="flex items-center gap-0.5 bg-indigo-50/70 border border-indigo-100/40 p-1 rounded-xl shrink-0 shadow-sm mr-1">
-              <Sparkles size={13} className="text-indigo-500 pl-1 shrink-0 animate-pulse" />
-              <select
-                value={`${selectedProvider}:${selectedModel}`}
-                onChange={(e) => {
-                  const [prov, mod] = e.target.value.split(':');
-                  setSelectedProvider(prov as 'openai' | 'gemini' | 'deepseek');
-                  setSelectedModel(mod);
-                }}
-                className="bg-transparent border-none outline-none text-[10px] font-bold text-indigo-700 py-0.5 pl-1 pr-6 cursor-pointer focus:ring-0 select-none max-w-[150px]"
-              >
-                {hasDeepSeek && (
-                  <optgroup label="DeepSeek Models">
-                    <option value="deepseek:deepseek-chat">DeepSeek Chat</option>
-                    <option value="deepseek:deepseek-coder">DeepSeek Coder</option>
-                  </optgroup>
-                )}
-                {hasOpenAI && (
-                  <optgroup label="OpenAI Models">
-                    <option value="openai:gpt-4o-mini">GPT 4o Mini</option>
-                    <option value="openai:gpt-4o">GPT 4o</option>
-                    <option value="openai:gpt-3.5-turbo">GPT 3.5 Turbo</option>
-                  </optgroup>
-                )}
-                {hasGemini && (
-                  <optgroup label="Gemini Models">
-                    <option value="gemini:gemini-1.5-flash">Gemini 1.5 Flash</option>
-                    <option value="gemini:gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  </optgroup>
-                )}
-              </select>
+          {/* Server AI Features Group */}
+          {aiEnabled && (
+            <div className="flex items-center gap-1 bg-indigo-50/70 border border-indigo-100/40 px-2.5 py-1.5 rounded-xl shrink-0 shadow-sm mr-1">
+              <Sparkles size={13} className="text-indigo-500 shrink-0" />
+              <span className="text-[10px] font-bold text-indigo-700 whitespace-nowrap capitalize">
+                {selectedProvider} {selectedModel && <span className="hidden sm:inline">/ {selectedModel}</span>}
+              </span>
             </div>
           )}
 
-          {/* Premium AI Features Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
             <ToolButton onClick={() => { setAiFeature('ask'); setAiResult(''); setAiPrompt(''); }} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
               <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
@@ -1098,13 +967,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               className="px-3 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-extrabold hover:bg-indigo-50 transition flex items-center gap-1 shrink-0"
             >
               <Share2 size={11} /> Copy Realtime Link
-            </button>
-            <button
-              onClick={runGuestSimulation}
-              disabled={collabGuestActive}
-              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-[10px] font-extrabold transition flex items-center gap-1 shrink-0 shadow-sm shadow-indigo-600/10"
-            >
-              <Bot size={11} className="animate-bounce" /> Simulate Guest co-author
             </button>
           </div>
         </div>

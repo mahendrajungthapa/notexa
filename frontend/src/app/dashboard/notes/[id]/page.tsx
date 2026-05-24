@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import api, { notesApi, friendsApi, filesApi } from '@/services/api';
+import { notesApi, friendsApi, filesApi } from '@/services/api';
 import { Note, Friend, NoteShare, FileItem, NoteVersion } from '@/types';
 import toast from 'react-hot-toast';
 import {

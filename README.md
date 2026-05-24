@@ -6,7 +6,7 @@ Notexa is a full-stack collaborative note-taking platform built with a Laravel A
 
 - User registration, login, SMTP password reset codes, profile updates, and Laravel Sanctum token authentication.
 - Rich note editor with headings, formatting, task lists, links, images, highlights, and code-friendly content.
-- Notes dashboard with create, edit, pin, archive, trash, restore, and permanent delete flows.
+- Notes dashboard with create, edit, pin, trash, restore, and permanent delete flows.
 - Version history for notes so important changes can be reviewed later.
 - Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
 - Note sharing through friends, permissions, collaborators, and share codes.

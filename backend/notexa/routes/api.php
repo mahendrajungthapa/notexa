@@ -55,7 +55,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Notes
     Route::get('/notes', [NoteController::class, 'index']);
     Route::post('/notes', [NoteController::class, 'store']);
-    Route::get('/notes/archived', [NoteController::class, 'archived']);
     Route::get('/notes/trashed', [NoteController::class, 'trashed']);
     Route::get('/notes/{note}', [NoteController::class, 'show']);
     Route::put('/notes/{note}', [NoteController::class, 'update']);
@@ -63,7 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notes/{note}/restore', [NoteController::class, 'restore']);
     Route::delete('/notes/{note}/permanent', [NoteController::class, 'permanentDelete']);
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin']);
-    Route::patch('/notes/{note}/archive', [NoteController::class, 'toggleArchive']);
     Route::get('/notes/{note}/versions', [NoteController::class, 'versions']);
 
     // Share code

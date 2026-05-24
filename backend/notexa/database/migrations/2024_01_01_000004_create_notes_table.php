@@ -14,13 +14,12 @@ return new class extends Migration {
             $table->text('plain_text')->nullable();
             $table->string('color', 7)->default('#ffffff');
             $table->boolean('is_pinned')->default(false);
-            $table->boolean('is_archived')->default(false);
             $table->boolean('is_trashed')->default(false);
             $table->string('share_code', 12)->unique()->nullable();
             $table->text('ai_summary')->nullable();
             $table->timestamp('trashed_at')->nullable();
             $table->timestamps();
-            $table->index(['user_id', 'is_trashed', 'is_archived']);
+            $table->index(['user_id', 'is_trashed']);
         });
     }
     public function down(): void { Schema::dropIfExists('notes'); }
