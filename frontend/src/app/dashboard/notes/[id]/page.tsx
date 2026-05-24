@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api, { notesApi, friendsApi, filesApi } from '@/services/api';
+import { createPreviewObjectUrl } from '@/lib/file-preview';
 import { Note, Friend, NoteShare, FileItem, NoteVersion } from '@/types';
 import toast from 'react-hot-toast';
 import {
@@ -478,20 +479,29 @@ export default function NoteDetailPage() {
       || /\.(txt|md|csv|json|xml|html|css|js|jsx|ts|tsx|php|py|java|dart|go|rs|sql|log|yml|yaml)$/i.test(name);
   };
 
-  // Fetch raw document using backend-supplied direct signed URL as Blob to bypass download disposition headers
+  // Fetch the signed preview as a Blob so cross-origin frame headers cannot block the modal.
   const handlePreviewPdf = async (file: FileItem) => {
     try {
       toast.loading('Loading file preview...', { id: 'pdf-preview' });
       const res = await filesApi.preview(file.id);
       const previewUrl = res.data?.preview_url;
       if (!previewUrl) throw new Error('Preview URL not found');
-      setPdfPreview({ title: file.original_name || 'File Preview', url: previewUrl });
+      const objectUrl = await createPreviewObjectUrl(previewUrl, file.mime_type || 'application/octet-stream');
+      setPdfPreview({ title: file.original_name || 'File Preview', url: objectUrl });
       toast.success('Preview loaded!', { id: 'pdf-preview' });
     } catch (err: any) {
       console.error('File preview failed:', err);
       toast.error(err.response?.data?.message || 'Preview unavailable for this file.', { id: 'pdf-preview' });
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreview?.url.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfPreview.url);
+      }
+    };
+  }, [pdfPreview?.url]);
 
   const handleDeleteFile = async (fileId: number) => {
     if (!confirm('Are you sure you want to permanently remove this attachment?')) return;

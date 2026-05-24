@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { filesApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import { FileItem } from '@/types';
+import { createPreviewObjectUrl } from '@/lib/file-preview';
 import toast from 'react-hot-toast';
 import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X } from 'lucide-react';
 
@@ -54,10 +55,11 @@ export default function FilesPage() {
       const res = await filesApi.preview(file.id);
       const rawUrl: string = res.data.preview_url;
       const previewType = res.data.preview_type;
+      const objectUrl = await createPreviewObjectUrl(rawUrl, file.mime_type || (previewType === 'pdf' ? 'application/pdf' : 'text/plain'));
 
       setViewerName(file.original_name);
       setViewerIsImage(previewType === 'image');
-      setViewerUrl(rawUrl);
+      setViewerUrl(objectUrl);
 
       toast.success(`Opening preview: ${file.original_name}`);
     } catch (error: any) {
@@ -76,6 +78,14 @@ export default function FilesPage() {
   };
 
   useEffect(() => { fetchFiles(); }, []);
+
+  useEffect(() => {
+    return () => {
+      if (viewerUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(viewerUrl);
+      }
+    };
+  }, [viewerUrl]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
