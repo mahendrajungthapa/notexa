@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const DEFAULT_API_URL = 'http://127.0.0.1:8000/api';
+const DEFAULT_API_URL = 'https://app.notexa.cloud/api';
 
 const normalizeApiUrl = (value?: string) => {
   const base = (value || DEFAULT_API_URL).trim().replace(/\/+$/, '');
@@ -8,13 +8,6 @@ const normalizeApiUrl = (value?: string) => {
 };
 
 const API_URL = normalizeApiUrl(process.env.NEXT_PUBLIC_API_URL);
-const API_ORIGIN = API_URL.replace(/\/api$/, '');
-
-export const resolveApiAssetUrl = (value?: string | null) => {
-  if (!value) return '';
-  if (/^https?:\/\//i.test(value)) return value;
-  return `${API_ORIGIN}${value.startsWith('/') ? value : `/${value}`}`;
-};
 
 const api = axios.create({
   baseURL: API_URL,
@@ -52,14 +45,12 @@ api.interceptors.response.use(
 export const authApi = {
   register: (d: any) => api.post('/register', d),
   login: (d: { login: string; password: string }) => api.post('/login', d),
-  forgotPassword: (email: string) => api.post('/forgot-password', { email }),
-  resetPassword: (d: { email: string; code: string; password: string; password_confirmation: string }) => api.post('/reset-password', d),
   logout: () => api.post('/logout'),
   me: () => api.get('/me'),
   updateProfile: (d: any) => api.put('/profile', d),
   changePassword: (d: any) => api.put('/change-password', d),
-  verifyEmailCode: (d: { email: string; code: string }) => api.post('/email/verify-code', d),
-  resendVerification: (email: string) => api.post('/email/verification-notification', { email }),
+  forgotPassword: (email: string) => api.post('/forgot-password', { email }),
+  resetPassword: (d: { email: string; code: string; password: string; password_confirmation: string }) => api.post('/reset-password', d),
 };
 
 export const notesApi = {
@@ -97,17 +88,12 @@ export const friendsApi = {
 
 export const filesApi = {
   list: (p?: any) => api.get('/files', { params: p }),
-  sharedWithMe: (p?: any) => api.get('/files/shared-with-me', { params: p }),
   upload: (file: File, noteId?: number) => {
     const fd = new FormData(); fd.append('file', file);
     if (noteId) fd.append('note_id', String(noteId));
     return api.post('/files/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   download: (id: number) => api.get(`/files/${id}/download`),
-  preview: (id: number) => api.get(`/files/${id}/preview`),
-  shares: (id: number) => api.get(`/files/${id}/shares`),
-  share: (id: number, d: { user_id: number }) => api.post(`/files/${id}/share`, d),
-  unshare: (id: number, userId: number) => api.delete(`/files/${id}/share/${userId}`),
   delete: (id: number) => api.delete(`/files/${id}`),
 };
 

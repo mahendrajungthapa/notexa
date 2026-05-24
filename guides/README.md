@@ -29,7 +29,7 @@ After running backend seeders, the default admin account is:
 ```text
 Email: admin@notexa.com
 Username: admin
-Password: password123
+Password: NotexaAdmin@2026
 ```
 
 Use this only for local development and change it in any deployed environment.

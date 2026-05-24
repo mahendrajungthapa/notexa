@@ -39,7 +39,7 @@ export interface Note {
   color: string;
   is_pinned: boolean;
   is_trashed: boolean;
-  share_code?: string | null;
+  share_code?: string;
   trashed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -68,7 +68,7 @@ export interface NoteVersion {
   plain_text: string | null;
   version_number: number;
   created_at: string;
-  user?: Pick<User, 'id' | 'name' | 'username'>;
+  user?: Pick<User, 'id' | 'name'>;
 }
 
 // ═══════════════════════════════════════════
@@ -92,7 +92,6 @@ export interface Friend {
   email: string;
   avatar: string | null;
   is_active?: boolean;
-  is_online?: boolean;
 }
 
 // ═══════════════════════════════════════════
@@ -111,18 +110,6 @@ export interface FileItem {
   r2_key: string;
   r2_url: string | null;
   created_at: string;
-  user?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
-  shares?: FileShare[];
-  pivot?: { shared_by: number; created_at: string };
-}
-
-export interface FileShare {
-  id: number;
-  file_id: number;
-  shared_by: number;
-  shared_with: number;
-  created_at: string;
-  recipient?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
 }
 
 // ═══════════════════════════════════════════

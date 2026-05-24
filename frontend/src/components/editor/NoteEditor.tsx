@@ -10,7 +10,6 @@ import ImageExt from '@tiptap/extension-image';
 import LinkExt from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import Collaboration from '@tiptap/extension-collaboration';
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading1, Heading2, List, ListOrdered, CheckSquare,
@@ -19,55 +18,35 @@ import {
   X, ChevronLeft, ChevronRight, Copy, RotateCw, Award, BookOpen, ArrowRight, Eye, Sparkles,
   Heart, Play, Square, Plus, Trash2, Users, FileText, Share2
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { publicApi, filesApi, notesApi, resolveApiAssetUrl } from '@/services/api';
-import { useAuthStore } from '@/contexts/authStore';
+import { filesApi, notesApi } from '@/services/api';
 
 interface NoteEditorProps {
   content: string;
   onChange: (content: string) => void;
   editable?: boolean;
   noteId?: number;
-  collaborationToken?: string | null;
-  forceContentVersion?: number;
+  collabToken?: string;
 }
 
-function roomSafe(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'room';
-}
-
-export default function NoteEditor({ content, onChange, editable = true, noteId, collaborationToken, forceContentVersion }: NoteEditorProps) {
-  const currentUser = useAuthStore((s) => s.user);
-
-  // Genuine real-time collaboration state (Yjs + WebRTC + Tiptap Collaboration).
+export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '' }: NoteEditorProps) {
+  // Real-time collaboration state
   const [collabActive, setCollabActive] = useState(false);
-  const [collabDoc, setCollabDoc] = useState<any>(null);
-  const [collabStatus, setCollabStatus] = useState<'idle' | 'connecting' | 'connected' | 'offline'>('idle');
+  const [collabStatus, setCollabStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
   const [collabPeers, setCollabPeers] = useState<any[]>([]);
   const [collabSharedLink, setCollabSharedLink] = useState('');
-  const collabSeededRoomRef = useRef('');
-  const collabColorRef = useRef('#6366f1');
-  const collabAutoStartedForRef = useRef<number | null>(null);
-
-  const collabRoomId = useMemo(() => {
-    const token = collaborationToken || `note-${noteId || 'draft'}`;
-    return `notexa-note-${roomSafe(String(noteId || 'draft'))}-${roomSafe(String(token))}`;
-  }, [collaborationToken, noteId]);
-
-  const buildCollabLink = () => {
-    if (typeof window === 'undefined') return '';
-    const url = new URL(window.location.href);
-    url.searchParams.set('collab', 'true');
-    if (collaborationToken) {
-      url.searchParams.set('collab_token', String(collaborationToken));
-    }
-    return url.toString();
-  };
+  const ydocRef = useRef<any>(null);
+  const providerRef = useRef<any>(null);
+  const sharedContentRef = useRef<any>(null);
+  const applyingRemoteRef = useRef(false);
+  const collabActiveRef = useRef(false);
+  const localClientIdRef = useRef(`notexa-${Math.random().toString(36).slice(2)}`);
+  const typingClearTimerRef = useRef<number | null>(null);
 
   const editor = useEditor({
     extensions: [
-      collabDoc ? StarterKit.configure({ history: false }) : StarterKit,
+      StarterKit,
       Placeholder.configure({ placeholder: 'Start writing your note...' }),
       Highlight,
       TaskList,
@@ -76,12 +55,27 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       LinkExt.configure({ openOnClick: false }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      ...(collabDoc ? [Collaboration.configure({ document: collabDoc, field: 'content' })] : []),
     ],
-    content: collabDoc ? undefined : content || '',
+    content: content || '',
     editable,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const nextHtml = editor.getHTML();
+      onChange(nextHtml);
+
+      if (collabActiveRef.current && sharedContentRef.current && !applyingRemoteRef.current) {
+        sharedContentRef.current.set('html', nextHtml);
+        sharedContentRef.current.set('updatedBy', localClientIdRef.current);
+        sharedContentRef.current.set('updatedAt', Date.now());
+      }
+
+      if (collabActiveRef.current && providerRef.current?.awareness) {
+        providerRef.current.awareness.setLocalStateField('editing', { at: Date.now() });
+        if (typingClearTimerRef.current) window.clearTimeout(typingClearTimerRef.current);
+        typingClearTimerRef.current = window.setTimeout(() => {
+          providerRef.current?.awareness?.setLocalStateField('editing', null);
+          typingClearTimerRef.current = null;
+        }, 1600);
+      }
 
       // ADHD Passive Cheerleader: Praise every 150 characters
       const text = editor.getText();
@@ -101,19 +95,13 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         if (trigger) trigger();
       }
     },
-  }, [collabDoc, editable]);
+  });
 
   useEffect(() => {
-    if (collabActive) return;
-    if (editor && editor.getHTML() !== (content || '')) {
-      editor.commands.setContent(content || '', false);
+    if (editor && content && !applyingRemoteRef.current && editor.getHTML() !== content) {
+      editor.commands.setContent(content, false);
     }
-  }, [collabActive, content, editor]);
-
-  useEffect(() => {
-    if (!editor || typeof forceContentVersion !== 'number') return;
-    editor.commands.setContent(content || '', false);
-  }, [editor, forceContentVersion]);
+  }, [content, editor]);
 
   useEffect(() => {
     if (editor) editor.setEditable(editable);
@@ -181,8 +169,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [pdfFilesLoading, setPdfFilesLoading] = useState(false);
   const [activePdfUrl, setActivePdfUrl] = useState<string | null>(null);
   const [activePdfName, setActivePdfName] = useState<string>('');
-  const imageUploadInputRef = useRef<HTMLInputElement>(null);
-  const [imageUploading, setImageUploading] = useState(false);
 
   const fetchPdfFiles = async () => {
     setPdfFilesLoading(true);
@@ -195,54 +181,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       console.warn("Failed loading files list", e);
     } finally {
       setPdfFilesLoading(false);
-    }
-  };
-
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-
-    if (!file || !editor) return;
-
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Upload a PNG, JPG, GIF, WebP, or BMP image.');
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be 10 MB or smaller.');
-      return;
-    }
-
-    setImageUploading(true);
-    toast.loading('Uploading image...', { id: 'editor-image-upload' });
-
-    try {
-      const res = await filesApi.upload(file, noteId);
-      const uploaded = res.data?.data || res.data || {};
-      let imageUrl = resolveApiAssetUrl(uploaded.preview_url || uploaded.r2_url);
-
-      if (!imageUrl && uploaded.id) {
-        const previewRes = await filesApi.preview(uploaded.id);
-        imageUrl = resolveApiAssetUrl(previewRes.data?.preview_url);
-      }
-
-      if (!imageUrl) {
-        throw new Error('The image uploaded, but no preview URL was returned.');
-      }
-
-      editor.chain().focus().setImage({
-        src: imageUrl,
-        alt: uploaded.original_name || file.name,
-        title: uploaded.original_name || file.name,
-      }).run();
-
-      toast.success('Image uploaded and inserted.', { id: 'editor-image-upload' });
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Image upload failed.', { id: 'editor-image-upload' });
-    } finally {
-      setImageUploading(false);
     }
   };
 
@@ -318,128 +256,142 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [aiResult, setAiResult] = useState<any>(null);
 
   useEffect(() => {
+    collabActiveRef.current = collabActive;
+    if (!collabActive) setCollabStatus('offline');
+  }, [collabActive]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('collab') === 'true') {
+    if (params.get('collab') === 'true' || params.has('collab_token') || params.has('token')) {
       setCollabActive(true);
     }
   }, []);
 
+  const buildCollabLink = () => {
+    if (typeof window === 'undefined') return '';
+    const url = new URL(window.location.href);
+    url.searchParams.set('collab', 'true');
+    if (collabToken) {
+      url.searchParams.set('collab_token', collabToken);
+    }
+    return url.toString();
+  };
+
   useEffect(() => {
-    if (!editable) {
-      setCollabActive(false);
-      collabAutoStartedForRef.current = null;
-      return;
+    if (collabActive) {
+      setCollabSharedLink(buildCollabLink());
     }
+  }, [collabActive, collabToken]);
 
-    if (noteId && collabAutoStartedForRef.current !== noteId) {
-      collabAutoStartedForRef.current = noteId;
-      setCollabActive(true);
-    }
-  }, [editable, noteId]);
-
-  // Real-time multi-collaborator editing. The WebRTC provider connects peers,
-  // while Tiptap's Collaboration extension binds editor transactions to Yjs.
+  // Real-time P2P collaboration: sync the editor document through a Yjs WebRTC room.
   useEffect(() => {
-    if (!collabActive || !noteId) {
-      setCollabDoc(null);
-      setCollabPeers([]);
-      setCollabStatus('idle');
-      return;
-    }
+    if (!collabActive || !editor || typeof window === 'undefined') return;
 
-    let cancelled = false;
-    let provider: any = null;
-    let doc: any = null;
-    let removeStatusListener: (() => void) | null = null;
-    let removeAwarenessListener: (() => void) | null = null;
-
+    const Y = require('yjs');
+    const { WebrtcProvider } = require('y-webrtc');
     setCollabStatus('connecting');
-    setCollabSharedLink(buildCollabLink());
+    const doc = new Y.Doc();
+    const sharedContent = doc.getMap('note');
+    const noteIdMatch = window.location.pathname.match(/\/notes\/(\d+)/);
+    const roomId = noteId ? `notexa-collab-room-${noteId}` : noteIdMatch ? `notexa-collab-room-${noteIdMatch[1]}` : 'notexa-collab-room-fallback';
+    const configuredSignaling = (process.env.NEXT_PUBLIC_YJS_SIGNALING_URLS || '')
+      .split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
 
-    (async () => {
-      try {
-        const Y = await import('yjs');
-        const { WebrtcProvider } = await import('y-webrtc');
+    const provider = new WebrtcProvider(roomId, doc, {
+      signaling: configuredSignaling.length ? configuredSignaling : ['wss://signaling.yjs.dev'],
+    });
 
-        if (cancelled) return;
+    ydocRef.current = doc;
+    providerRef.current = provider;
+    sharedContentRef.current = sharedContent;
 
-        doc = new Y.Doc();
-        const signaling = (process.env.NEXT_PUBLIC_YJS_SIGNALING_URLS || 'wss://signaling.yjs.dev')
-          .split(',')
-          .map((url) => url.trim())
-          .filter(Boolean);
+    let userName = 'Collaborator';
+    try {
+      const cachedUser = JSON.parse(localStorage.getItem('notexa_user') || '{}');
+      userName = cachedUser?.name || cachedUser?.username || userName;
+    } catch {}
 
-        provider = new WebrtcProvider(collabRoomId, doc, {
-          signaling,
-          password: String(collaborationToken || noteId),
-        });
-        setCollabDoc(doc);
+    provider.awareness.setLocalStateField('user', {
+      id: localClientIdRef.current,
+      name: userName,
+      color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0'),
+    });
+    const readyTimer = window.setTimeout(() => setCollabStatus('connected'), 800);
 
-        if (collabColorRef.current === '#6366f1') {
-          collabColorRef.current = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-        }
-
-        provider.awareness.setLocalStateField('user', {
-          id: currentUser?.id || 'guest',
-          name: currentUser?.name || currentUser?.username || 'Collaborator',
-          username: currentUser?.username || '',
-          color: collabColorRef.current,
-        });
-
-        const updatePeers = () => {
-          const states = Array.from(provider.awareness.getStates().values());
-          const active = states.map((s: any) => s.user).filter(Boolean);
-          setCollabPeers(active);
-        };
-
-        const updateStatus = ({ status }: { status: string }) => {
-          setCollabStatus(status === 'connected' ? 'connected' : 'offline');
-        };
-
-        provider.awareness.on('change', updatePeers);
-        provider.on('status', updateStatus);
-        removeAwarenessListener = () => provider.awareness.off('change', updatePeers);
-        removeStatusListener = () => provider.off('status', updateStatus);
-        updatePeers();
-
-        toast.success('Realtime collaboration is active for this note.');
-      } catch (error) {
-        console.error('Collaboration setup failed', error);
-        setCollabStatus('offline');
-        setCollabDoc(null);
-        toast.error('Realtime collaboration could not connect. Your note still saves normally.');
+    const seedTimer = window.setTimeout(() => {
+      if (!sharedContent.get('html')) {
+        const currentHtml = editor.getHTML();
+        sharedContent.set('html', currentHtml);
+        sharedContent.set('updatedBy', localClientIdRef.current);
+        sharedContent.set('updatedAt', Date.now());
       }
-    })();
+    }, 450);
+
+    const applyRemoteContent = () => {
+      const remoteHtml = sharedContent.get('html');
+      const updatedBy = sharedContent.get('updatedBy');
+      if (typeof remoteHtml !== 'string' || updatedBy === localClientIdRef.current || editor.getHTML() === remoteHtml) return;
+
+      applyingRemoteRef.current = true;
+      editor.commands.setContent(remoteHtml, false);
+      onChange(remoteHtml);
+      window.setTimeout(() => {
+        applyingRemoteRef.current = false;
+      }, 0);
+    };
+
+    const updatePeers = () => {
+      const now = Date.now();
+      const states = Array.from(provider.awareness.getStates().values());
+      const active = states
+        .map((s: any) => ({
+          ...(s.user || {}),
+          isEditing: !!s.editing?.at && now - Number(s.editing.at) < 2500,
+        }))
+        .filter((u: any) => u && u.id !== localClientIdRef.current);
+      setCollabPeers(active);
+    };
+    const updateStatus = (event: any) => {
+      if (event?.status === 'connected') {
+        setCollabStatus('connected');
+      } else {
+        setCollabStatus((current) => current === 'connected' ? current : 'connecting');
+      }
+    };
+
+    sharedContent.observe(applyRemoteContent);
+    provider.awareness.on('change', updatePeers);
+    provider.on?.('status', updateStatus);
+    const peerTimer = window.setInterval(updatePeers, 1000);
+    applyRemoteContent();
+    updatePeers();
+    setCollabSharedLink(buildCollabLink());
+    toast.success('Real-time collaboration is active.');
 
     return () => {
-      cancelled = true;
-      removeAwarenessListener?.();
-      removeStatusListener?.();
-      provider?.destroy();
-      doc?.destroy();
-      setCollabDoc(null);
-      setCollabPeers([]);
-      setCollabStatus('idle');
-    };
-  }, [collabActive, collabRoomId, collaborationToken, currentUser?.id, currentUser?.name, currentUser?.username, noteId]);
-
-  useEffect(() => {
-    if (!editor || !collabActive || !collabDoc || !content || collabSeededRoomRef.current === collabRoomId) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      const fragment = collabDoc.getXmlFragment('content');
-      if (fragment.length === 0 && editor.getHTML() !== content) {
-        editor.commands.setContent(content, false);
-        onChange(editor.getHTML());
+      window.clearTimeout(readyTimer);
+      window.clearTimeout(seedTimer);
+      window.clearInterval(peerTimer);
+      if (typingClearTimerRef.current) {
+        window.clearTimeout(typingClearTimerRef.current);
+        typingClearTimerRef.current = null;
       }
-      collabSeededRoomRef.current = collabRoomId;
-    }, 800);
-
-    return () => window.clearTimeout(timer);
-  }, [collabActive, collabDoc, collabRoomId, content, editor, onChange]);
+      provider.awareness.setLocalStateField('editing', null);
+      sharedContent.unobserve(applyRemoteContent);
+      provider.awareness.off('change', updatePeers);
+      provider.off?.('status', updateStatus);
+      provider.destroy();
+      doc.destroy();
+      sharedContentRef.current = null;
+      ydocRef.current = null;
+      providerRef.current = null;
+      setCollabPeers([]);
+      setCollabStatus('offline');
+    };
+  }, [collabActive, editor, noteId, onChange]);
 
   // Overlay Sub-states
   const [activeFlashcard, setActiveFlashcard] = useState(0);
@@ -451,64 +403,23 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [targetLanguage, setTargetLanguage] = useState('Spanish');
   const [ocrImageUrl, setOcrImageUrl] = useState('');
 
-  // Server-managed AI state. API keys and provider choices live only in the Admin Panel/backend.
-  const [aiEnabled, setAiEnabled] = useState(true);
-
-  const readSetting = (source: any, key: string, fallback: unknown = '') => {
-    if (Array.isArray(source)) {
-      return source.find((s: any) => s.key === key)?.value ?? fallback;
-    }
-    return source?.[key] ?? fallback;
-  };
-
-  const settingIsEnabled = (value: unknown) => {
-    return value === true || value === 1 || value === '1' || value === 'true' || value === undefined || value === null || value === '';
-  };
-
-  // Resolve only public server AI metadata. Keys are never read from browser storage.
-  const getAIConfig = async () => {
-    const config = { enabled: true };
-
-    try {
-      const res = await publicApi.settings();
-      const data = res.data?.data || res.data || {};
-      config.enabled = settingIsEnabled(readSetting(data, 'ai_enabled', true));
-    } catch (e) {
-      console.warn('Could not load public AI settings; backend AI endpoint will still enforce admin configuration.', e);
-    }
-
-    return config;
-  };
-
   const runAICall = async (systemPrompt: string, userPrompt: string) => {
-    const config = await getAIConfig();
-
-    if (!config.enabled) {
-      throw new Error('AI tools are disabled in the Admin Panel.');
-    }
-
     if (!noteId) {
-      throw new Error('Save this note before using AI tools.');
+      throw new Error('AI tools run through the backend. Please open a saved note first.');
     }
 
     try {
       const apiRes = await notesApi.aiQuery(noteId, { systemPrompt, userPrompt });
       const data = apiRes.data?.data || apiRes.data || {};
       const resultText = typeof data === 'string' ? data : (data.result || data.text || data.summary || '');
-      if (resultText) return resultText;
-      throw new Error('The server AI provider returned an empty response.');
+      if (!resultText) {
+        throw new Error('The backend AI endpoint returned an empty response.');
+      }
+      return resultText;
     } catch (apiErr: any) {
-      throw new Error(apiErr.response?.data?.message || apiErr.message || 'Server AI request failed. Check Admin Panel AI settings.');
+      throw new Error(apiErr.response?.data?.message || apiErr.message || 'Backend AI request failed. Check the admin AI settings.');
     }
   };
-
-  useEffect(() => {
-    const loadAISettings = async () => {
-      const config = await getAIConfig();
-      setAiEnabled(config.enabled);
-    };
-    loadAISettings();
-  }, []);
 
   const extractJSON = (text: string) => {
     try {
@@ -582,7 +493,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiLoading(true);
     setAiResult(null);
 
-    // Use the backend AI endpoint so keys stay in Admin Panel settings.
+    // 1. Try to call the backend AI Summary endpoint first if noteId is present (no frontend API keys needed)
     if (noteId) {
       try {
         const apiRes = await notesApi.aiSummary(noteId);
@@ -594,10 +505,11 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           return;
         }
       } catch (apiErr: any) {
-        console.warn('Backend AI summary failed, trying server chat endpoint.', apiErr);
+        console.warn("Backend AI summary failed, falling back to client-side direct AI call...", apiErr);
       }
     }
 
+    // 2. Fallback to client-side direct AI call using personal API keys
     const contentText = editor.getText() || 'Start typing notes to enable smart summarization.';
     try {
       const sysPrompt = "Create a structured, executive study summary of the text provided. Highlight the core theme, list 3 key highlights in a bulleted list, and finish with a summary outline. Respond with clean, beautiful HTML format using <h3>, <p>, and <ul> tags. CRITICAL: Output ONLY the direct HTML content. Absolutely NO introductory conversational remarks, preamble, greetings, or outro comments. Start directly with the first HTML tag.";
@@ -708,34 +620,21 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
-  const [toolbarTooltip, setToolbarTooltip] = useState<{ label: string; x: number; y: number } | null>(null);
-
-  const showToolbarTooltip = (event: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, label?: string) => {
-    if (!label || typeof window === 'undefined') return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.min(Math.max(rect.left + rect.width / 2, 56), window.innerWidth - 56);
-    const y = Math.min(rect.bottom + 8, window.innerHeight - 32);
-    setToolbarTooltip({ label, x, y });
-  };
-
-  const hideToolbarTooltip = () => setToolbarTooltip(null);
-
-  const ToolButton = ({ onClick, active, children, title, className = '', disabled = false }: any) => (
-    <div className="flex justify-center shrink-0">
+  const ToolButton = ({ onClick, active, children, title, className = '' }: any) => (
+    <div className="relative group flex justify-center">
       <button
         type="button"
         onClick={onClick}
-        disabled={disabled}
-        aria-label={title}
-        onMouseEnter={(e) => showToolbarTooltip(e, title)}
-        onMouseLeave={hideToolbarTooltip}
-        onFocus={(e) => showToolbarTooltip(e, title)}
-        onBlur={hideToolbarTooltip}
         onMouseDown={(e) => e.preventDefault()}
-        className={`h-9 w-9 sm:h-8 sm:w-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${disabled ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''} ${className}`}
+        className={`p-1.5 rounded-lg transition-all duration-100 ${active ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 hover:scale-105'} ${className}`}
       >
         {children}
       </button>
+      {title && (
+        <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
+          {title}
+        </span>
+      )}
     </div>
   );
 
@@ -743,25 +642,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
-      <input
-        ref={imageUploadInputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
-        className="hidden"
-        onChange={handleImageUpload}
-      />
-      {toolbarTooltip && (
-        <div
-          className="fixed z-[9999] px-2 py-1 bg-slate-900/95 text-white text-[10px] font-black rounded-lg shadow-xl whitespace-nowrap pointer-events-none select-none"
-          style={{ left: toolbarTooltip.x, top: toolbarTooltip.y, transform: 'translateX(-50%)' }}
-        >
-          {toolbarTooltip.label}
-        </div>
-      )}
-
       {/* Toolbar */}
       {editable && (
-        <div className="shrink-0 flex flex-nowrap sm:flex-wrap items-center gap-0.5 px-2 sm:px-4 py-2 sm:py-3 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm z-10 sticky top-0 overflow-x-auto">
+        <div className="shrink-0 flex flex-wrap items-center gap-0.5 px-4 py-3 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm z-10 sticky top-0">
           {/* Text Style */}
           <ToolButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Bold" className="hover:bg-blue-50 group">
             <Bold size={16} className={`transition-colors ${editor.isActive('bold') ? 'text-indigo-700' : 'text-blue-500 group-hover:text-blue-700'}`} />
@@ -828,12 +711,11 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           <div className="w-px h-5 bg-slate-200/60 mx-1.5" />
 
           {/* Media */}
-          <ToolButton onClick={() => imageUploadInputRef.current?.click()} title="Upload Image" className="hover:bg-cyan-50 group" disabled={imageUploading}>
-            {imageUploading ? (
-              <span className="block h-4 w-4 rounded-full border-2 border-cyan-200 border-t-cyan-600 animate-spin" />
-            ) : (
-              <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
-            )}
+          <ToolButton onClick={() => {
+            const url = window.prompt('Enter image URL:');
+            if (url) editor.chain().focus().setImage({ src: url }).run();
+          }} title="Insert Image" className="hover:bg-cyan-50 group">
+            <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
           </ToolButton>
           <ToolButton onClick={() => {
             const url = window.prompt('Enter link URL:');
@@ -842,9 +724,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             <Link size={16} className={`transition-colors ${editor.isActive('link') ? 'text-indigo-700' : 'text-cyan-500 group-hover:text-cyan-600'}`} />
           </ToolButton>
 
-          <div className="hidden sm:block flex-1 min-w-[10px]" />
+          <div className="flex-1 min-w-[10px]" />
 
-          {aiEnabled && (
+          {/* AI Features Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
             <ToolButton onClick={() => { setAiFeature('ask'); setAiResult(''); setAiPrompt(''); }} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
               <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
@@ -869,7 +751,6 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <BookOpen size={16} className="text-amber-500 group-hover:text-amber-600 group-hover:scale-110 transition-transform" />
             </ToolButton>
           </div>
-          )}
 
           {/* ADHD, PDF, & Real-Time Collaboration Boosters Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-rose-50/50 to-pink-50/50 p-1 rounded-xl border border-rose-100/30 ml-1.5 shadow-sm">
@@ -878,12 +759,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <button
                 type="button"
                 onClick={() => { setShowAdhdHub(!showAdhdHub); setShowPdfSidebar(false); }}
-                aria-label={adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub'}
-                onMouseEnter={(e) => showToolbarTooltip(e, adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub')}
-                onMouseLeave={hideToolbarTooltip}
-                onFocus={(e) => showToolbarTooltip(e, adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub')}
-                onBlur={hideToolbarTooltip}
-                className={`h-9 min-w-9 px-2 rounded-lg transition-all duration-100 flex items-center justify-center gap-1.5 hover:bg-rose-100 hover:scale-105 ${showAdhdHub ? 'bg-rose-200 text-rose-700 font-bold scale-105 shadow-sm' : 'text-rose-500 animate-pulse'}`}
+                className={`p-1.5 px-2 rounded-lg transition-all duration-100 flex items-center gap-1.5 hover:bg-rose-100 hover:scale-105 ${showAdhdHub ? 'bg-rose-200 text-rose-700 font-bold scale-105 shadow-sm' : 'text-rose-500 animate-pulse'}`}
               >
                 <Heart size={16} className={`fill-rose-400 ${adhdTimerActive ? 'animate-bounce' : ''}`} />
                 {adhdTimerActive && (
@@ -892,41 +768,40 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                   </span>
                 )}
               </button>
+              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
+                {adhdTimerActive ? `Focus Active (${Math.floor(adhdTimer / 60)}m left)` : 'DopaCompanion Focus Hub'}
+              </span>
             </div>
             <div className="w-px h-4 bg-rose-200/50 mx-0.5" />
             {/* Split Screen PDF Study Button */}
-            <div className="flex justify-center">
+            <div className="relative group flex justify-center">
               <button
                 type="button"
                 onClick={() => { setShowPdfSidebar(!showPdfSidebar); setShowAdhdHub(false); fetchPdfFiles(); }}
-                aria-label="Open Study PDF (Split Screen)"
-                onMouseEnter={(e) => showToolbarTooltip(e, 'Open Study PDF (Split Screen)')}
-                onMouseLeave={hideToolbarTooltip}
-                onFocus={(e) => showToolbarTooltip(e, 'Open Study PDF (Split Screen)')}
-                onBlur={hideToolbarTooltip}
-                className={`h-9 w-9 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-pink-100 hover:scale-110 ${showPdfSidebar ? 'bg-pink-200 text-pink-700 font-bold scale-105 shadow-sm' : 'text-pink-500'}`}
+                className={`p-1.5 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-pink-100 hover:scale-110 ${showPdfSidebar ? 'bg-pink-200 text-pink-700 font-bold scale-105 shadow-sm' : 'text-pink-500'}`}
               >
                 <FileText size={16} />
               </button>
+              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
+                Open Study PDF (Split Screen)
+              </span>
             </div>
             <div className="w-px h-4 bg-pink-200/50 mx-0.5" />
             {/* P2P Collaboration Button */}
-            <div className="flex justify-center">
+            <div className="relative group flex justify-center">
               <button
                 type="button"
                 onClick={() => { setCollabActive(!collabActive); }}
-                aria-label={collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration'}
-                onMouseEnter={(e) => showToolbarTooltip(e, collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration')}
-                onMouseLeave={hideToolbarTooltip}
-                onFocus={(e) => showToolbarTooltip(e, collabActive ? 'Stop realtime collaboration' : 'Start realtime collaboration')}
-                onBlur={hideToolbarTooltip}
-                className={`h-9 w-9 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-indigo-100 hover:scale-110 relative ${collabActive ? 'bg-indigo-200 text-indigo-700 font-bold scale-105 shadow-sm' : 'text-indigo-500'}`}
+                className={`p-1.5 rounded-lg transition-all duration-100 flex items-center justify-center hover:bg-indigo-100 hover:scale-110 relative ${collabActive ? 'bg-indigo-200 text-indigo-700 font-bold scale-105 shadow-sm' : 'text-indigo-500'}`}
               >
                 <Users size={16} />
                 {collabActive && (
-                  <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white shrink-0 animate-pulse ${collabStatus === 'connected' ? 'bg-emerald-500' : collabStatus === 'connecting' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white shrink-0 animate-pulse" />
                 )}
               </button>
+              <span className="absolute top-full mt-2 z-50 px-2 py-0.5 bg-slate-800/90 backdrop-blur-sm text-white text-[10px] font-black rounded-lg shadow-md whitespace-nowrap pointer-events-none transition-all duration-75 transform scale-95 group-hover:scale-100 opacity-0 group-hover:opacity-100 invisible group-hover:visible origin-top select-none">
+                Real-Time Collaboration (P2P)
+              </span>
             </div>
           </div>
 
@@ -945,21 +820,22 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {collabActive && (
         <div className="shrink-0 bg-indigo-50/70 border-b border-indigo-100/60 px-4 py-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 animate-in slide-in-from-top duration-300 z-10 select-none">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${collabStatus === 'connected' ? 'bg-emerald-100 text-emerald-700' : collabStatus === 'connecting' ? 'bg-amber-100 text-amber-700 animate-pulse' : 'bg-red-100 text-red-700'}`}>
-              <Users size={10} /> {collabStatus === 'connected' ? 'Realtime synced' : collabStatus === 'connecting' ? 'Connecting room' : 'Realtime offline'}
+            <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 ${collabStatus === 'connected' ? 'bg-emerald-100 text-emerald-700' : collabStatus === 'connecting' ? 'bg-amber-100 text-amber-700 animate-pulse' : 'bg-slate-100 text-slate-600'}`}>
+              <Users size={10} /> {collabStatus === 'connected' ? 'Realtime Ready' : collabStatus === 'connecting' ? 'Starting Realtime' : 'Realtime Fallback'}
             </span>
-            {collabPeers.length <= 1 ? (
-              <span className="text-[10px] font-bold text-slate-500">Waiting for another collaborator to join this note...</span>
+            {collabPeers.length === 0 ? (
+              <span className="text-[10px] font-bold text-slate-500">Share the link to co-edit. Live edits appear instantly when collaborators join.</span>
             ) : (
               <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] font-bold text-slate-500 mr-1">Collaborators online:</span>
+                <span className="text-[10px] font-bold text-slate-500 mr-1">Co-authors online:</span>
                 {collabPeers.map((p, i) => (
                   <span 
                     key={i} 
-                    className="px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0 shadow-sm"
+                    className="px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0 shadow-sm flex items-center gap-1"
                     style={{ backgroundColor: p.color || '#6366f1' }}
                   >
-                    {p.name}
+                    <span className={`w-1.5 h-1.5 rounded-full ${p.isEditing ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
+                    {p.name}{p.isEditing ? ' writing' : ''}
                   </span>
                 ))}
               </div>
@@ -971,7 +847,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               onClick={() => {
                 const link = collabSharedLink || buildCollabLink();
                 navigator.clipboard.writeText(link);
-                toast.success('Realtime link copied. Anyone logged in with this link can edit.');
+                toast.success(collabToken ? 'Realtime edit link copied.' : 'Realtime room link copied.');
               }}
               className="px-3 py-1 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-[10px] font-extrabold hover:bg-indigo-50 transition flex items-center gap-1 shrink-0"
             >
@@ -1025,10 +901,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       `}</style>
       
       {/* Split-Screen Workspace (PDF + Editor) */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 relative overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative overflow-hidden">
         {/* Left Side: PDF Study Reader */}
         {activePdfUrl && (
-          <div className="w-full h-1/2 md:w-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-200/80 bg-slate-100 flex flex-col overflow-hidden relative animate-in slide-in-from-left duration-300 z-10">
+          <div className="w-full h-[350px] lg:h-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-slate-200/80 bg-slate-100 flex flex-col overflow-hidden relative animate-in slide-in-from-left duration-300 z-10">
             <div className="shrink-0 flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200/80 shadow-sm">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5 truncate">
                 <FileText size={15} className="text-red-500 animate-pulse" /> {activePdfName}
@@ -1052,7 +928,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         {/* Right Side: Tiptap Editor */}
         <EditorContent 
           editor={editor} 
-          className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-8 md:px-10 md:py-10 custom-scrollbar relative prose prose-slate lg:prose-lg max-w-none [&>.ProseMirror]:min-h-full [&>.ProseMirror]:outline-none" 
+          className="flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10 custom-scrollbar relative prose prose-slate lg:prose-lg max-w-none [&>.ProseMirror]:min-h-full [&>.ProseMirror]:outline-none" 
         />
       </div>
 
@@ -1137,7 +1013,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                     <div className="h-2.5 w-2.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
                     <div className="h-2.5 w-2.5 bg-indigo-400 rounded-full animate-bounce" />
                   </div>
-                  <p className="text-xs text-indigo-700 font-bold animate-pulse">Drafting AI model output...</p>
+                  <p className="text-xs text-indigo-700 font-bold animate-pulse">Drafting AI output...</p>
                 </div>
               )}
 
@@ -1190,7 +1066,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
       {/* Overlay 2: Summarize Drawer */}
       {aiFeature === 'summarize' && (
-        <div className="absolute top-0 right-0 bottom-0 w-full sm:w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
+        <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1 custom-scrollbar">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-purple-900">
@@ -1597,7 +1473,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
       {/* Overlay 7: AI Dictionary / Word Meaning Drawer */}
       {aiFeature === 'meaning' && (
-        <div className="absolute top-0 right-0 bottom-0 w-full sm:w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
+        <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between animate-in slide-in-from-right duration-300">
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1 custom-scrollbar">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
               <h2 className="text-base font-extrabold flex items-center gap-1.5 text-amber-900 animate-pulse">
@@ -1651,7 +1527,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           />
           {/* Drawer Panel */}
           <div
-            className="absolute top-0 right-0 bottom-0 w-full sm:w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300"
+            className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300"
             onClick={(e) => e.stopPropagation()}
           >
           <div className="flex-1 flex flex-col min-h-0">
@@ -1829,7 +1705,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
       {/* Overlay 9: Study PDF Selection Drawer */}
       {showPdfSidebar && (
-        <div className="absolute top-0 right-0 bottom-0 w-full sm:w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
+        <div className="absolute top-0 right-0 bottom-0 w-80 bg-white/95 backdrop-blur-md border-l border-slate-200/80 shadow-2xl z-20 p-5 flex flex-col justify-between overflow-hidden animate-in slide-in-from-right duration-300">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">

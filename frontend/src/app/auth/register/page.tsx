@@ -22,10 +22,6 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [verificationEmail, setVerificationEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [resending, setResending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +44,6 @@ export default function RegisterPage() {
         username: form.username.toLowerCase()
       });
 
-      if (res.data?.email_verification_required || res.data?.data?.email_verification_required) {
-        setVerificationEmail(res.data?.email || res.data?.data?.email || form.email);
-        setVerificationCode('');
-        toast.success(res.data?.message || res.data?.data?.message || 'Verification code sent.');
-        return;
-      }
-
       const user = res.data?.data?.user || res.data?.user;
       const token = res.data?.data?.token || res.data?.token;
 
@@ -73,14 +62,6 @@ export default function RegisterPage() {
       router.push('/dashboard/notes');
     } catch (err: any) {
       const errors = err.response?.data?.errors;
-      const verificationRequired = err.response?.data?.email_verification_required;
-
-      if (verificationRequired) {
-        setVerificationEmail(err.response?.data?.email || form.email);
-        setVerificationCode('');
-        toast.error(err.response?.data?.message || 'Verification code could not be sent.');
-        return;
-      }
 
       if (errors) {
         Object.values(errors)
@@ -94,52 +75,10 @@ export default function RegisterPage() {
     }
   };
 
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!verificationEmail || verificationCode.length !== 6) {
-      toast.error('Enter the 6-digit code from your email');
-      return;
-    }
-
-    setVerifying(true);
-    try {
-      const res = await authApi.verifyEmailCode({ email: verificationEmail, code: verificationCode });
-      const user = res.data?.data?.user || res.data?.user;
-      const token = res.data?.data?.token || res.data?.token;
-
-      if (!user || !token) {
-        throw new Error('Invalid verification response');
-      }
-
-      setAuth(user, token);
-      toast.success(res.data?.message || 'Email verified successfully!');
-      router.push('/dashboard/notes');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || err.message || 'Verification failed');
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    if (!verificationEmail) return;
-
-    setResending(true);
-    try {
-      const res = await authApi.resendVerification(verificationEmail);
-      toast.success(res.data?.message || 'Verification code sent.');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Could not resend code');
-    } finally {
-      setResending(false);
-    }
-  };
-
   return (
     <main className="min-h-screen grid lg:grid-cols-2">
       {/* Left Side */}
-      <section className="relative overflow-hidden hidden lg:flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
+      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
         <div className="absolute inset-0 z-0">
           <img
             alt="Modern minimalist library interior with warm wood accents, large windows, and students focused on digital devices in soft natural light"
@@ -242,13 +181,10 @@ export default function RegisterPage() {
       </section>
 
       {/* Right Side */}
-      <section className="flex flex-col justify-center items-center px-5 sm:px-8 lg:px-20 py-10 sm:py-14 lg:py-0 bg-surface-container-lowest min-h-screen">
+      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center pt-8 lg:pt-0">
-            <div className="mb-5 lg:hidden">
-              <span className="text-3xl font-black text-primary font-headline">NotExA</span>
-            </div>
-            <h2 className="text-3xl font-headline font-bold text-on-surface mb-2">
+            <h2 className="text-3xl font-headline font-bold text-on-surface mb-2 tracking-tight">
               Create an Account
             </h2>
 
@@ -460,60 +396,6 @@ export default function RegisterPage() {
           </div>
         </div>
       </section>
-
-      {verificationEmail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-5 sm:p-7 shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto">
-            <div className="mb-5">
-              <h3 className="text-2xl font-headline font-bold text-on-surface">Verify Your Email</h3>
-              <p className="text-sm text-on-surface-variant mt-2">
-                We sent a 6-digit code to <span className="font-bold text-primary">{verificationEmail}</span>.
-              </p>
-            </div>
-
-            <form onSubmit={handleVerifyEmail} className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-widest text-outline mb-2">Verification Code</label>
-                <input
-                  autoFocus
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full rounded-2xl bg-surface-container-low px-5 py-4 text-center text-2xl sm:text-3xl font-black tracking-[0.25em] sm:tracking-[0.35em] text-on-surface outline-none focus:ring-4 focus:ring-primary/15"
-                  placeholder="000000"
-                />
-              </div>
-
-              <button
-                disabled={verifying}
-                type="submit"
-                className="w-full rounded-2xl bg-primary py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-primary/20 disabled:opacity-50"
-              >
-                {verifying ? 'Verifying...' : 'Verify Email'}
-              </button>
-
-              <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between gap-3 text-sm">
-                <button
-                  type="button"
-                  disabled={resending}
-                  onClick={handleResendCode}
-                  className="font-bold text-primary hover:underline disabled:opacity-50"
-                >
-                  {resending ? 'Sending...' : 'Resend code'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVerificationEmail('')}
-                  className="font-semibold text-outline hover:text-on-surface"
-                >
-                  Edit registration
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

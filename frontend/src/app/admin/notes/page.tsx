@@ -26,10 +26,10 @@ export default function AdminNotesPage() {
     <div className="pb-10 fade-in animate-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">System Notes</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">System Notes</h1>
           <p className="text-sm font-medium text-slate-500 mt-1">Audit and manage all platform content</p>
         </div>
-        <div className="relative group w-full sm:w-auto">
+        <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-500 transition-colors">
             <Search size={18} strokeWidth={2.5} />
           </div>

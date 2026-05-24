@@ -98,7 +98,7 @@ Seeded admin:
 
 ```text
 Email: admin@notexa.com
-Password: password123
+Password: NotexaAdmin@2026
 ```
 
 ## Troubleshooting

@@ -19,7 +19,8 @@ export default function SettingsPage() {
   const [changingPw, setChangingPw] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const accountInfoRef = useRef<HTMLDivElement>(null);
+  const displayNameInputRef = useRef<HTMLInputElement>(null);
 
   // Dynamic Stats State
   const [stats, setStats] = useState<{ notesCreated: number | null; notesShared: number | null }>({
@@ -95,22 +96,18 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchDynamicData = async () => {
       try {
-        // Fetch real data to populate stats and activity. Each call is allowed
-        // to fail independently so the profile page never breaks on a partial API outage.
-        const [createdResult, sharedResult] = await Promise.allSettled([
+        // Fetch real data to populate stats and activity
+        const [createdRes, sharedRes] = await Promise.all([
           notesApi.list(),
           notesApi.sharedWithMe()
         ]);
 
-        const createdRes = createdResult.status === 'fulfilled' ? createdResult.value : null;
-        const sharedRes = sharedResult.status === 'fulfilled' ? sharedResult.value : null;
-
         // Notes list is paginated: res.data.data.data = items, res.data.data.total = count
-        const createdNotes = createdRes?.data?.data?.data || createdRes?.data?.data || [];
-        const createdTotal = createdRes?.data?.data?.total ?? createdRes?.data?.meta?.total ?? createdNotes.length;
+        const createdNotes = createdRes.data?.data?.data || createdRes.data?.data || [];
+        const createdTotal = createdRes.data?.data?.total ?? createdRes.data?.meta?.total ?? createdNotes.length;
 
-        const sharedNotes = sharedRes?.data?.data?.data || sharedRes?.data?.data || [];
-        const sharedTotal = sharedRes?.data?.data?.total ?? sharedRes?.data?.meta?.total ?? sharedNotes.length;
+        const sharedNotes = sharedRes.data?.data?.data || sharedRes.data?.data || [];
+        const sharedTotal = sharedRes.data?.data?.total ?? sharedRes.data?.meta?.total ?? sharedNotes.length;
 
         setStats({
           notesCreated: createdTotal,
@@ -145,6 +142,7 @@ export default function SettingsPage() {
         }
 
       } catch (error) {
+        console.error("Failed to fetch dynamic stats", error);
         setStats({ notesCreated: 0, notesShared: 0 });
         setRecentActivity([]);
       }
@@ -187,31 +185,6 @@ export default function SettingsPage() {
     } finally { setChangingPw(false); }
   };
 
-  const handleShareProfile = async () => {
-    if (typeof window === 'undefined') return;
-    const handle = username ? `@${username}` : user?.email || '';
-    const text = `Add me on Notexa: ${name || user?.name || 'Notexa user'}${handle ? ` (${handle})` : ''}`;
-    const url = `${window.location.origin}/dashboard/friends`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Notexa profile', text, url });
-        toast.success('Profile shared');
-        return;
-      }
-
-      await navigator.clipboard.writeText(`${text}\n${url}`);
-      toast.success('Profile details copied');
-    } catch (error: any) {
-      if (error?.name !== 'AbortError') toast.error('Unable to share profile');
-    }
-  };
-
-  const handleEditProfile = () => {
-    document.getElementById('account-info')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => nameInputRef.current?.focus(), 250);
-  };
-
   const triggerImageUpload = () => {
     fileInputRef.current?.click();
   };
@@ -222,8 +195,39 @@ export default function SettingsPage() {
     }
   };
 
+  const handleShareProfile = async () => {
+    if (typeof window === 'undefined') return;
+
+    const profileName = user?.name || 'Notexa user';
+    const profileUsername = username ? `@${username}` : '';
+    const shareText = `${profileName}${profileUsername ? ` (${profileUsername})` : ''} on Notexa`;
+    const shareUrl = window.location.origin;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: profileName, text: shareText, url: shareUrl });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      toast.success('Profile share details copied');
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') {
+        toast.error('Unable to share profile');
+      }
+    }
+  };
+
+  const handleEditProfileClick = () => {
+    accountInfoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      displayNameInputRef.current?.focus();
+      displayNameInputRef.current?.select();
+    }, 350);
+  };
+
   return (
-    <div className="h-full w-full flex flex-col gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 lg:overflow-hidden">
+    <div className="w-full flex flex-col gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Top Header Card */}
       <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm flex flex-col sm:flex-row items-center gap-6 relative overflow-hidden">
@@ -316,7 +320,7 @@ export default function SettingsPage() {
           </button>
           <button
             type="button"
-            onClick={handleEditProfile}
+            onClick={handleEditProfileClick}
             className="w-full px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-md shadow-primary/20 hover:bg-[#291eb0] transition-colors flex items-center justify-center gap-2"
           >
             <Pencil size={16} /> Edit Profile
@@ -328,10 +332,10 @@ export default function SettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 flex-1 min-h-0">
 
         {/* Left Column (Span 2) */}
-        <div className="lg:col-span-2 flex flex-col gap-4 sm:gap-6 lg:h-full lg:overflow-hidden">
+        <div className="lg:col-span-2 flex flex-col gap-4 sm:gap-6">
 
           {/* Account Information */}
-          <div id="account-info" className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm scroll-mt-6">
+          <div ref={accountInfoRef} id="account-info" className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm scroll-mt-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2.5 bg-primary-fixed rounded-xl text-primary"><User size={20} /></div>
               <h2 className="text-xl font-headline font-bold text-on-surface">Account Information</h2>
@@ -344,8 +348,7 @@ export default function SettingsPage() {
                   <div className="relative">
                     <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-outline" />
                     <input
-                      ref={nameInputRef}
-                      id="display-name"
+                      ref={displayNameInputRef}
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}

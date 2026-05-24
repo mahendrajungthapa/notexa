@@ -36,7 +36,7 @@ Laravel handles validation, permissions, storage, and JSON API responses. Import
 | `FileController.php` | Upload, preview, share, and download files |
 | `AdminController.php` | Admin stats, users, notes, settings, and logs |
 | `MailSettingsService.php` | Applies SMTP settings from the database |
-| `DeepSeekService.php` | External or fallback note summaries |
+| `AiService.php` | Backend-managed AI note tools |
 | `R2StorageService.php` | File storage |
 
 ## Frontend
@@ -89,7 +89,7 @@ Important files:
 2. User clicks Summary, Ask AI, Flashcards, Quiz, or Clean Notes.
 3. Frontend saves dirty content first.
 4. Backend checks permission and `ai_enabled`.
-5. Backend calls the configured OpenAI, Gemini, or DeepSeek provider.
+5. Backend calls the configured OpenAI-compatible or Gemini provider.
 6. Summary responses are saved on the note and returned to the client; prompt responses are returned without exposing provider API keys.
 
 ## File Preview and Sharing Flow

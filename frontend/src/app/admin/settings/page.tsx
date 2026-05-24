@@ -39,8 +39,7 @@ export default function AdminSettingsPage() {
       const aiKeys = [
         'ai_enabled', 'ai_provider',
         'openai_api_key', 'openai_base_url', 'openai_model',
-        'gemini_api_key', 'gemini_base_url', 'gemini_model',
-        'deepseek_api_key', 'deepseek_base_url', 'deepseek_model'
+        'gemini_api_key', 'gemini_base_url', 'gemini_model'
       ];
       const groupSettings = settings
         .filter((s) => s.group === group || (group === 'ai' && aiKeys.includes(s.key)))
@@ -48,7 +47,7 @@ export default function AdminSettingsPage() {
           key: s.key,
           value: s.value || '',
           type: s.type,
-          group: aiKeys.includes(s.key) ? 'ai' : s.group
+          group: aiKeys.includes(s.key) ? 'general' : s.group
         }));
       await adminApi.updateSettings(groupSettings);
       toast.success('Settings saved!');
@@ -76,16 +75,16 @@ export default function AdminSettingsPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Site Settings</h1>
 
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 overflow-x-auto">
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6 flex-wrap">
         {tabs.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex shrink-0 items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition whitespace-nowrap ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
+            className={`flex items-center gap-2 py-2 px-4 rounded-lg text-sm font-medium transition ${tab === t.key ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>
             <t.icon size={16} /> {t.label}
           </button>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
         {tab === 'general' && (
           <div className="space-y-4">
             <div>
@@ -113,7 +112,7 @@ export default function AdminSettingsPage() {
 
         {tab === 'smtp' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
                 <input type="text" value={getValue('smtp_host')} onChange={(e) => setValue('smtp_host', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="smtp.gmail.com" /></div>
@@ -121,7 +120,7 @@ export default function AdminSettingsPage() {
                 <input type="text" value={getValue('smtp_port')} onChange={(e) => setValue('smtp_port', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="587" /></div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input type="text" value={getValue('smtp_username')} onChange={(e) => setValue('smtp_username', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
@@ -129,7 +128,7 @@ export default function AdminSettingsPage() {
                 <input type="password" value={getValue('smtp_password')} onChange={(e) => setValue('smtp_password', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
                 <select value={getValue('smtp_encryption')} onChange={(e) => setValue('smtp_encryption', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
@@ -139,14 +138,14 @@ export default function AdminSettingsPage() {
                 <input type="email" value={getValue('smtp_from_address')} onChange={(e) => setValue('smtp_from_address', e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="flex flex-col lg:flex-row gap-3">
+            <div className="flex gap-3">
               <button onClick={() => handleSave('smtp')} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                 <Save size={16} /> Save SMTP
               </button>
-              <div className="flex flex-col sm:flex-row gap-2 lg:ml-auto">
+              <div className="flex gap-2 ml-auto">
                 <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-full sm:w-48" placeholder="test@email.com" />
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-48" placeholder="test@email.com" />
                 <button onClick={handleTestSmtp}
                   className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800">
                   <Send size={14} /> Test
@@ -158,7 +157,7 @@ export default function AdminSettingsPage() {
 
         {tab === 'email' && (
           <div className="space-y-4">
-            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4 bg-gray-50 rounded-xl p-4">
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
               <div>
                 <p className="font-medium text-gray-900">Email Verification</p>
                 <p className="text-sm text-gray-500">Require users to verify email after registration</p>
@@ -204,7 +203,7 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-gray-500">Configure keys to power AI tools like summarizers, card builders, quizzes and more across the platform.</p>
             </div>
 
-            <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-center justify-between gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border border-gray-100 shadow-sm">
               <div>
                 <p className="font-medium text-gray-900">Enable Smart AI Assistant</p>
                 <p className="text-sm text-gray-500">Allow users to access AI features on their notes dashboard</p>
@@ -224,7 +223,6 @@ export default function AdminSettingsPage() {
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-semibold text-sm transition bg-white cursor-pointer">
                 <option value="openai">OpenAI (GPT-4o-mini)</option>
                 <option value="gemini">Google Gemini (Gemini 1.5 Flash)</option>
-                <option value="deepseek">DeepSeek (deepseek-chat)</option>
               </select>
             </div>
 
@@ -271,30 +269,6 @@ export default function AdminSettingsPage() {
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
                   <input type="text" value={getValue('gemini_model')} onChange={(e) => setValue('gemini_model', e.target.value, 'ai')}
                     placeholder="gemini-1.5-flash"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100/60 space-y-4">
-              <h4 className="text-sm font-bold text-gray-900">DeepSeek Workspace</h4>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">DeepSeek API Key</label>
-                <input type="password" value={getValue('deepseek_api_key')} onChange={(e) => setValue('deepseek_api_key', e.target.value, 'ai')}
-                  placeholder="sk-..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 font-mono text-sm bg-white" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">API Base URL</label>
-                  <input type="text" value={getValue('deepseek_base_url')} onChange={(e) => setValue('deepseek_base_url', e.target.value, 'ai')}
-                    placeholder="https://api.deepseek.com"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Model Name</label>
-                  <input type="text" value={getValue('deepseek_model')} onChange={(e) => setValue('deepseek_model', e.target.value, 'ai')}
-                    placeholder="deepseek-chat"
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium" />
                 </div>
               </div>

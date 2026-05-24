@@ -29,7 +29,7 @@ Notexa is a collaborative note-taking system that allows users to create rich no
 | Database | SQLite locally, MySQL/PostgreSQL-ready migrations |
 | Files | Local storage or R2-compatible configuration |
 | Mail | SMTP settings stored in admin settings |
-| AI | Admin-configured OpenAI, Gemini, or DeepSeek provider |
+| AI | Admin-configured OpenAI-compatible or Gemini provider |
 
 ## Functional Modules
 
@@ -51,7 +51,7 @@ Users can upload files, attach files to notes, preview PDFs/text/code/images saf
 
 ### AI Tools
 
-Users can generate summaries and run prompt-based tools from note content. The backend uses the configured OpenAI, Gemini, or DeepSeek provider without exposing provider API keys to clients.
+Users can generate summaries and run prompt-based tools from note content. The backend uses the configured OpenAI-compatible or Gemini provider without exposing provider API keys to clients.
 
 ### Admin
 

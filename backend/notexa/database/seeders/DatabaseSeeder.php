@@ -13,10 +13,10 @@ class DatabaseSeeder extends Seeder
     {
         // Admin
         User::create([
-            'name' => 'Admin',
+            'name' => 'Notexa Admin',
             'username' => 'admin',
             'email' => 'admin@notexa.com',
-            'password' => Hash::make('password123'),
+            'password' => Hash::make('NotexaAdmin@2026'),
             'role' => 'admin',
             'email_verified_at' => now(),
         ]);
@@ -50,17 +50,14 @@ class DatabaseSeeder extends Seeder
             ['key'=>'r2_endpoint','value'=>'','type'=>'string','group'=>'storage'],
             ['key'=>'r2_public_url','value'=>'','type'=>'string','group'=>'storage'],
 
-            // DeepSeek AI
-            ['key'=>'ai_provider','value'=>'deepseek','type'=>'string','group'=>'ai'],
+            // AI
+            ['key'=>'ai_provider','value'=>'openai','type'=>'string','group'=>'ai'],
             ['key'=>'openai_api_key','value'=>'','type'=>'string','group'=>'ai'],
             ['key'=>'openai_base_url','value'=>'https://api.openai.com/v1','type'=>'string','group'=>'ai'],
             ['key'=>'openai_model','value'=>'gpt-4o-mini','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_api_key','value'=>'','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_base_url','value'=>'https://generativelanguage.googleapis.com/v1beta','type'=>'string','group'=>'ai'],
             ['key'=>'gemini_model','value'=>'gemini-1.5-flash','type'=>'string','group'=>'ai'],
-            ['key'=>'deepseek_api_key','value'=>'','type'=>'string','group'=>'ai'],
-            ['key'=>'deepseek_base_url','value'=>'https://api.deepseek.com','type'=>'string','group'=>'ai'],
-            ['key'=>'deepseek_model','value'=>'deepseek-chat','type'=>'string','group'=>'ai'],
             ['key'=>'ai_enabled','value'=>'true','type'=>'boolean','group'=>'ai'],
         ];
 

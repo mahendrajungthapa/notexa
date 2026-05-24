@@ -41,10 +41,10 @@ export default function AdminUsersPage() {
     <div className="pb-10 fade-in animate-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">User Management</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">User Management</h1>
           <p className="text-sm font-medium text-slate-500 mt-1">Monitor accounts, roles, and platform activity</p>
         </div>
-        <div className="relative group w-full sm:w-auto">
+        <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
             <Search size={18} strokeWidth={2.5} />
           </div>
@@ -78,7 +78,7 @@ export default function AdminUsersPage() {
                             {u.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-800 flex items-center gap-1.5">{u.name}</p>
+                            <p className="font-bold text-slate-800">{u.name}</p>
                             <p className="text-xs font-medium text-slate-500">{u.email}</p>
                           </div>
                         </div>

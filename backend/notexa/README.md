@@ -47,7 +47,7 @@ php artisan test
 ```text
 Email: admin@notexa.com
 Username: admin
-Password: password123
+Password: NotexaAdmin@2026
 ```
 
 Change this account before using the app outside local development.

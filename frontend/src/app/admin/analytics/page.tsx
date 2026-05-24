@@ -41,7 +41,7 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="pb-10 fade-in animate-in slide-in-from-bottom-4 duration-700">
       <div className="mb-10">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">System Analytics</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">System Analytics</h1>
         <p className="text-slate-500 mt-1 font-medium">Real-time overview of platform statistics and metrics</p>
       </div>
       
@@ -59,7 +59,7 @@ export default function AdminAnalyticsPage() {
             </div>
             
             <div className="relative z-10">
-               <p className="text-3xl sm:text-4xl font-black text-slate-800 group-hover:text-slate-900 transition-colors break-words">{card.value}</p>
+               <p className="text-4xl font-black text-slate-800 tracking-tight group-hover:text-slate-900 transition-colors">{card.value}</p>
             </div>
           </div>
         ))}

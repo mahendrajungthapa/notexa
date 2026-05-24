@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notesApi } from '@/services/api';
 import { Note } from '@/types';
 import toast from 'react-hot-toast';
-import { Pin, Trash2, Zap, Star, MoreHorizontal, Info, X, Search, Filter, ArrowDownUp } from 'lucide-react';
+import { Pin, Zap, Star, MoreHorizontal, Info, X, Search, Filter, ArrowDownUp, GripVertical, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -34,22 +34,6 @@ const DEFAULT_TAGS = [
   { label: 'LITERATURE', bg: 'bg-slate-100', text: 'text-slate-600', icon: Star },
   { label: 'SYNTHESIS', bg: 'bg-indigo-50', text: 'text-indigo-600', icon: Zap },
 ];
-
-function safeJson<T>(value: string | null, fallback: T): T {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function extractNotes(payload: any): Note[] {
-  const data = payload?.data?.data ?? payload?.data;
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  return [];
-}
 
 // Activity log panel component
 function ActivityLogPanel({ note, onClose }: { note: Note; onClose: () => void }) {
@@ -86,7 +70,7 @@ function ActivityLogPanel({ note, onClose }: { note: Note; onClose: () => void }
 
   return (
     <div
-      className="fixed left-3 right-3 top-20 sm:absolute sm:left-auto sm:right-0 sm:top-0 sm:w-72 bg-white rounded-[1.25rem] shadow-2xl border border-slate-100 z-50 overflow-hidden max-h-[70vh]"
+      className="absolute top-0 right-0 w-72 bg-white rounded-[1.25rem] shadow-2xl border border-slate-100 z-50 overflow-hidden"
       onClick={e => e.stopPropagation()}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
@@ -122,11 +106,10 @@ function ActivityLogPanel({ note, onClose }: { note: Note; onClose: () => void }
   );
 }
 
-function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode }: { note: Note, tag: any, onPin: any, onTrash: any, viewMode: 'grid'|'list', activeSortMode?: string }) {
+function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode }: { note: Note, tag: any, onPin: any, onTrash: any, viewMode: 'grid' | 'list', activeSortMode?: string }) {
   const router = useRouter();
   const [showActivity, setShowActivity] = useState(false);
-  
-  // Only enable drag if we're in custom sort mode, otherwise dragging breaks auto-sorting flow
+
   const {
     attributes,
     listeners,
@@ -140,7 +123,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 50 : showActivity ? 30 : 'auto',
-    opacity: isDragging ? 0.8 : 1,
+    opacity: isDragging ? 0.75 : 1,
   };
 
   const Icon = tag.icon || Hash;
@@ -170,7 +153,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
           src={c.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=${['6366f1', '3b82f6', '8b5cf6'][i % 3]}&color=fff&size=64`}
           alt={c.name}
           title={c.name}
-          className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-white object-cover shadow-sm"
+          className="w-6 h-6 rounded-full border-2 border-white object-cover shadow-sm"
         />
       ))}
     </div>
@@ -184,10 +167,20 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      onClick={() => { if (!showActivity) router.push(`/dashboard/notes/${note.id}`); }}
-      className={`bg-white/90 backdrop-blur-sm rounded-2xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] border ${note.is_pinned ? 'border-indigo-200 bg-indigo-50/10' : 'border-slate-100/60'} flex hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative group ${activeSortMode === 'custom' ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${isDragging ? 'shadow-2xl cursor-grabbing scale-[1.04]' : ''} ${viewMode === 'grid' ? 'flex-col min-h-[190px] sm:h-[320px] p-3 sm:p-6' : 'flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 h-auto sm:h-28 p-4 sm:p-6'}`}
+      onClick={() => { if (!showActivity && !isDragging) router.push(`/dashboard/notes/${note.id}`); }}
+      className={`bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] border ${note.is_pinned ? 'border-indigo-200 bg-indigo-50/10' : 'border-slate-100/60'} flex hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.1)] hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 relative group cursor-pointer ${isDragging ? 'shadow-2xl scale-[1.04] rotate-1 ring-2 ring-indigo-400/40' : ''} ${viewMode === 'grid' ? 'flex-col h-[320px]' : 'flex-row items-center gap-4 sm:gap-6 h-auto sm:h-28'}`}
     >
+      {/* Drag handle — only visible in custom sort mode */}
+      {activeSortMode === 'custom' && (
+        <div
+          {...listeners}
+          onClick={e => e.stopPropagation()}
+          className={`absolute ${viewMode === 'grid' ? 'top-3 left-3' : 'left-2 top-1/2 -translate-y-1/2'} p-1.5 rounded-lg text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 cursor-grab active:cursor-grabbing transition-all opacity-0 group-hover:opacity-100 z-10`}
+          title="Drag to reorder"
+        >
+          <GripVertical size={16} strokeWidth={2} />
+        </div>
+      )}
       {note.is_pinned && (
         <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-md border-2 border-white z-20">
           <Pin size={14} className="fill-indigo-600" />
@@ -196,47 +189,47 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
 
       {viewMode === 'grid' ? (
         <>
-          <div className="flex justify-between items-start gap-2 sm:gap-3 mb-3 sm:mb-5">
-            <span className={`text-[9px] sm:text-[10px] font-bold tracking-wider px-2 sm:px-3 py-1 rounded-full border border-current/10 truncate max-w-[82px] sm:max-w-none ${tag.bg} ${tag.text}`}>
+          <div className="flex justify-between items-center mb-5">
+            <span className={`text-[10px] font-bold tracking-wider px-3 py-1 rounded-full border border-current/10 ${tag.bg} ${tag.text}`}>
               {tag.label}
             </span>
-            <div className="flex items-center justify-end gap-1 sm:gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
               <button
                 onClick={e => { e.stopPropagation(); setShowActivity(v => !v); }}
-                className="text-slate-300 hover:text-indigo-500 transition-colors bg-white hover:bg-slate-50 p-1 rounded-md"
+                className="text-slate-300 hover:text-indigo-500 transition-colors bg-white hover:bg-slate-50 p-1.5 rounded-md"
                 title="Activity log"
               >
-                <Info size={15} />
+                <Info size={16} />
               </button>
-              <button 
+              <button
                 onClick={e => { e.stopPropagation(); onPin(note); }}
-                className={`p-1 rounded-md transition-colors ${note.is_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
+                className={`p-1.5 rounded-md transition-colors ${note.is_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
                 title={note.is_pinned ? "Unpin" : "Pin note"}
               >
-                 <Pin size={15} />
+                <Pin size={16} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onTrash(note); }}
-                className="text-slate-300 hover:text-red-600 transition-colors bg-white hover:bg-red-50 p-1 rounded-md"
+                className="p-1.5 rounded-md text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                 title="Move to trash"
               >
-                <Trash2 size={15} />
+                <Trash2 size={16} />
               </button>
             </div>
           </div>
 
           <div className="flex-1 overflow-hidden">
-            <h3 className="text-sm sm:text-xl leading-snug font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2 sm:mb-2.5 line-clamp-2">
+            <h3 className="text-xl leading-snug font-bold text-slate-800 group-hover:text-indigo-600 transition-colors mb-2.5 line-clamp-2">
               {note.title}
             </h3>
-            <p className="text-[11px] sm:text-[13px] text-slate-500 line-clamp-3 sm:line-clamp-4 leading-relaxed font-medium">
+            <p className="text-[13px] text-slate-500 line-clamp-4 leading-relaxed font-medium">
               {note.plain_text || 'No text content available...'}
             </p>
           </div>
 
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 flex items-center justify-between gap-2 sm:gap-3">
-            <span className={`text-[9px] sm:text-[11px] font-bold flex items-center gap-1 sm:gap-1.5 truncate ${isRecent ? 'text-indigo-600 bg-indigo-50 px-1.5 sm:px-2 py-1 rounded-md' : 'text-slate-400 group-hover:text-slate-500 transition-colors'}`}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <span className={`text-[11px] font-bold flex items-center gap-1.5 ${isRecent ? 'text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md' : 'text-slate-400 group-hover:text-slate-500 transition-colors'}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               {relativeTime}
             </span>
             <CollaboratorAvatars />
@@ -269,7 +262,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
           <div className="flex items-center gap-4 sm:gap-6 shrink-0 pl-4 border-l border-slate-100">
             <div className="hidden md:block">
               <span className={`text-[11px] font-bold flex items-center gap-1.5 ${isRecent ? 'text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md' : 'text-slate-400 group-hover:text-slate-500 transition-colors'}`}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                 {relativeTime}
               </span>
             </div>
@@ -282,16 +275,16 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
               >
                 <Info size={16} />
               </button>
-              <button 
+              <button
                 onClick={e => { e.stopPropagation(); onPin(note); }}
                 className={`p-2 rounded-lg transition-colors ${note.is_pinned ? 'text-indigo-600 bg-indigo-50' : 'text-slate-300 hover:text-indigo-500 hover:bg-slate-50'}`}
                 title={note.is_pinned ? "Unpin" : "Pin note"}
               >
-                 <Pin size={16} />
+                <Pin size={16} />
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onTrash(note); }}
-                className="text-slate-300 hover:text-red-600 bg-white hover:bg-red-50 p-2 rounded-lg transition-colors"
+                className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
                 title="Move to trash"
               >
                 <Trash2 size={16} />
@@ -309,14 +302,15 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
 }
 
 export default function NotesPage() {
-  const [viewMode, setViewMode] = useState<'grid'|'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newColor, setNewColor] = useState('#ffffff');
-  
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   // Tag States
   const [availableTags, setAvailableTags] = useState<any[]>(DEFAULT_TAGS);
   const [selectedTag, setSelectedTag] = useState<any>(DEFAULT_TAGS[0]);
@@ -326,16 +320,18 @@ export default function NotesPage() {
 
   // Filter and Sort states
   const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'custom'|'recent'|'oldest'|'alphabetical'>('recent');
+  const [sortBy, setSortBy] = useState<'custom' | 'recent' | 'oldest' | 'alphabetical'>('custom');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedTags = localStorage.getItem('notexa_custom_tags');
-      const parsedTags = safeJson<any[]>(storedTags, []);
-      setAvailableTags([...DEFAULT_TAGS, ...parsedTags.filter(Boolean)]);
-
+      if (storedTags) {
+        setAvailableTags([...DEFAULT_TAGS, ...JSON.parse(storedTags)]);
+      }
       const storedMap = localStorage.getItem('notexa_note_tags');
-      setNoteTagMap(safeJson<Record<number, string>>(storedMap, {}));
+      if (storedMap) {
+        setNoteTagMap(JSON.parse(storedMap));
+      }
     }
   }, []);
 
@@ -353,10 +349,9 @@ export default function NotesPage() {
   const fetchNotes = useCallback(async () => {
     try {
       const res = await notesApi.list();
-      setNotes(extractNotes(res.data));
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to load notes');
-      setNotes([]);
+      setNotes(res.data.data?.data || []);
+    } catch {
+      toast.error('Failed to load notes');
     } finally {
       setLoading(false);
     }
@@ -372,7 +367,7 @@ export default function NotesPage() {
     if (!newTitle.trim()) return;
     try {
       const res = await notesApi.create({ title: newTitle, color: newColor, category: selectedTag?.label } as any);
-      
+
       const newNote = res.data?.data || res.data;
       if (newNote?.id && selectedTag) {
         const storedMap = JSON.parse(localStorage.getItem('notexa_note_tags') || '{}');
@@ -398,8 +393,8 @@ export default function NotesPage() {
     }
     const label = newTagInput.trim().toUpperCase();
     if (availableTags.find(t => t.label === label)) {
-       toast.error('Tag already exists!');
-       return;
+      toast.error('Tag already exists!');
+      return;
     }
     const colorSets = [
       { bg: 'bg-orange-50', text: 'text-orange-600' },
@@ -409,13 +404,13 @@ export default function NotesPage() {
     ];
     const color = colorSets[Math.floor(Math.random() * colorSets.length)];
     const newTag = { label, ...color, icon: Hash };
-    
+
     const updatedTags = [...availableTags, newTag];
     setAvailableTags(updatedTags);
-    
+
     const customOnly = updatedTags.filter(t => !DEFAULT_TAGS.find(d => d.label === t.label));
     localStorage.setItem('notexa_custom_tags', JSON.stringify(customOnly));
-    
+
     setSelectedTag(newTag);
     setIsAddingTag(false);
     setNewTagInput('');
@@ -424,10 +419,10 @@ export default function NotesPage() {
   const handleRemoveCustomTag = (label: string) => {
     const updatedTags = availableTags.filter(t => t.label !== label);
     setAvailableTags(updatedTags);
-    
+
     const customOnly = updatedTags.filter(t => !DEFAULT_TAGS.find(d => d.label === t.label));
     localStorage.setItem('notexa_custom_tags', JSON.stringify(customOnly));
-    
+
     if (selectedTag?.label === label) {
       setSelectedTag(DEFAULT_TAGS[0]);
     }
@@ -466,7 +461,10 @@ export default function NotesPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'n' && e.target instanceof HTMLElement && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
         setShowCreate(true);
+        // Delay focus so the 'n' keypress fires before the input is mounted/focused
+        setTimeout(() => titleInputRef.current?.focus(), 50);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -475,19 +473,17 @@ export default function NotesPage() {
 
   // Compute filtered and sorted list
   const filteredNotes = notes.filter((n) => {
-    const title = (n.title || '').toLowerCase();
-    const body = (n.plain_text || '').toLowerCase();
-    if (search && !title.includes(search.toLowerCase()) && !body.includes(search.toLowerCase())) return false;
+    if (search && !n.title.toLowerCase().includes(search.toLowerCase()) && !(n.plain_text || '').toLowerCase().includes(search.toLowerCase())) return false;
     if (filterCategory !== 'all') {
       const tagLabel = noteTagMap[n.id] || DEFAULT_TAGS[n.id % DEFAULT_TAGS.length].label;
       if (tagLabel.toLowerCase() !== filterCategory.toLowerCase()) return false;
     }
     return true;
   }).sort((a, b) => {
-    switch(sortBy) {
+    switch (sortBy) {
       case 'recent': return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
       case 'oldest': return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
-      case 'alphabetical': return (a.title || '').localeCompare(b.title || '');
+      case 'alphabetical': return a.title.localeCompare(b.title);
       default: return 0; // 'custom' keeps array order
     }
   });
@@ -496,68 +492,68 @@ export default function NotesPage() {
   const unpinnedNotes = filteredNotes.filter(n => !n.is_pinned);
 
   return (
-      <div className="w-full pb-20 fade-in animate-in slide-in-from-bottom-4 duration-500">
-      
+    <div className="w-full pb-20 fade-in animate-in slide-in-from-bottom-4 duration-500">
+
       {/* Dynamic Header & Filters Area */}
       <div className="mb-10 lg:mb-12">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 sm:gap-6">
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">My Workspace</h1>
             <p className="text-slate-500 text-sm mt-2 font-medium">
               Your active synthesis space. {notes.length} entries across {availableTags.length} categories.
             </p>
           </div>
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             {/* Search */}
-            <div className="relative group flex-1 sm:flex-none w-full">
+            <div className="relative group flex-1 sm:flex-none">
               <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search notes..." 
+              <input
+                type="text"
+                placeholder="Search notes..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full sm:w-64 pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm"
               />
             </div>
 
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-3">
               {/* Filter */}
-              <div className="relative w-full sm:w-auto">
-                <select 
+              <div className="relative">
+                <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="appearance-none w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm cursor-pointer"
+                  className="appearance-none pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm cursor-pointer"
                 >
                   <option value="all">All Category</option>
                   {availableTags.map(t => <option key={t.label} value={t.label.toLowerCase()}>{t.label}</option>)}
                 </select>
                 <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </div>
               </div>
 
               {/* Sort */}
-              <div className="relative w-full sm:w-auto">
-                <select 
+              <div className="relative">
+                <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm cursor-pointer"
+                  className="appearance-none pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all shadow-sm cursor-pointer"
                 >
-                  <option value="custom">Custom Order</option>
+                  <option value="custom">Custom Order ✦</option>
                   <option value="recent">Recently Updated</option>
                   <option value="oldest">Oldest First</option>
                   <option value="alphabetical">Alphabetical</option>
                 </select>
                 <ArrowDownUp size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </div>
               </div>
 
               {/* View Toggle */}
-              <div className="hidden sm:flex bg-slate-100 p-1 rounded-xl shadow-inner shrink-0">
+              <div className="flex bg-slate-100 p-1 rounded-xl shadow-inner shrink-0 hidden sm:flex">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-colors duration-300 ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -576,22 +572,22 @@ export default function NotesPage() {
 
       {/* Floating Action Button */}
       <button
-        onClick={() => setShowCreate(true)}
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 sm:bottom-8 sm:right-8 w-14 h-14 sm:w-16 sm:h-16 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(79,70,229,0.3)] hover:-translate-y-1 hover:scale-105 transition-all z-40 focus:ring-4 focus:ring-indigo-500/30"
+        onClick={() => { setShowCreate(true); setTimeout(() => titleInputRef.current?.focus(), 50); }}
+        className="fixed bottom-8 right-8 w-16 h-16 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-[0_8px_30px_rgb(79,70,229,0.3)] hover:-translate-y-1 hover:scale-105 transition-all z-40 focus:ring-4 focus:ring-indigo-500/30"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
       </button>
 
       {/* Create modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-5 sm:p-8 animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md p-8 animate-in zoom-in-95 duration-200">
             <h2 className="text-xl font-bold text-slate-800 mb-6">Create New Notebook</h2>
             <form onSubmit={handleCreate} className="space-y-6">
               <div>
                 <label className="block text-[11px] font-bold tracking-wider text-slate-500 mb-2 uppercase">Title</label>
                 <input
-                  autoFocus
+                  ref={titleInputRef}
                   type="text"
                   placeholder="E.g., Phenomenology of Digital Spaces..."
                   value={newTitle}
@@ -640,16 +636,16 @@ export default function NotesPage() {
                   })}
                   {isAddingTag ? (
                     <div className="flex items-center">
-                       <input 
-                          autoFocus 
-                          type="text" 
-                          value={newTagInput} 
-                          onChange={e=>setNewTagInput(e.target.value)} 
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomTag(); } else if (e.key === 'Escape') { setIsAddingTag(false); } }} 
-                          onBlur={handleAddCustomTag} 
-                          className="px-3 py-1.5 text-[10px] tracking-wider font-bold border-2 border-indigo-600 rounded-full w-24 outline-none uppercase" 
-                          placeholder="TAG NAME" 
-                       />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={newTagInput}
+                        onChange={e => setNewTagInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomTag(); } else if (e.key === 'Escape') { setIsAddingTag(false); } }}
+                        onBlur={handleAddCustomTag}
+                        className="px-3 py-1.5 text-[10px] tracking-wider font-bold border-2 border-indigo-600 rounded-full w-24 outline-none uppercase"
+                        placeholder="TAG NAME"
+                      />
                     </div>
                   ) : (
                     <button type="button" onClick={() => setIsAddingTag(true)} className="px-3 py-1.5 rounded-full text-[10px] tracking-wider font-bold transition-all border-2 border-dashed border-slate-300 bg-slate-50 text-slate-500 hover:border-slate-400 hover:bg-slate-100 uppercase">
@@ -658,7 +654,7 @@ export default function NotesPage() {
                   )}
                 </div>
               </div>
-              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-2">
+              <div className="flex gap-3 justify-end pt-2">
                 <button type="button" onClick={() => setShowCreate(false)}
                   className="px-6 py-3 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                   Cancel
@@ -690,11 +686,11 @@ export default function NotesPage() {
               <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <Pin size={16} /> Pinned
               </h2>
-              <div className={viewMode === 'grid' ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
+              <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
                 <SortableContext items={pinnedNotes.map(n => n.id)} strategy={rectSortingStrategy}>
                   {pinnedNotes.map((note) => {
                     const mappedTagLabel = noteTagMap[note.id];
-                    const tagObj = mappedTagLabel ? availableTags.find(t=>t.label===mappedTagLabel) || availableTags[0] : DEFAULT_TAGS[note.id % DEFAULT_TAGS.length];
+                    const tagObj = mappedTagLabel ? availableTags.find(t => t.label === mappedTagLabel) || availableTags[0] : DEFAULT_TAGS[note.id % DEFAULT_TAGS.length];
                     return (
                       <SortableNoteCard
                         key={note.id}
@@ -714,25 +710,25 @@ export default function NotesPage() {
 
           {/* All/Remaining Section */}
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-             {pinnedNotes.length > 0 && (
-                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">All Notes</h2>
-             )}
-            <div className={viewMode === 'grid' ? "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6" : "flex flex-col gap-4"}>
-              
+            {pinnedNotes.length > 0 && (
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">All Notes</h2>
+            )}
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+
               {/* Only show 'Create New' card if not filtering heavily by search */}
               {!search && (
-                 <button
-                 onClick={() => setShowCreate(true)}
-                 className={`group rounded-2xl border-2 border-dashed border-slate-300 bg-white/40 hover:bg-indigo-50/50 hover:border-indigo-300 flex items-center justify-center transition-all duration-300 cursor-pointer ${viewMode === 'grid' ? "flex-col h-[190px] sm:h-[320px] px-3" : "flex-row h-24 sm:h-28 gap-4 px-6 justify-start"}`}
-               >
-                 <div className={`rounded-full bg-white text-slate-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm ${viewMode === 'grid' ? "w-11 h-11 sm:w-14 sm:h-14 mb-3 sm:mb-4 group-hover:scale-110" : "w-12 h-12"}`}>
-                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                 </div>
-                 <div className={viewMode === 'grid' ? "text-center" : "text-left"}>
-                   <h3 className="font-bold text-sm sm:text-base text-slate-700 mb-1 group-hover:text-indigo-900 transition-colors">Create New Notebook</h3>
-                   <p className="text-[9px] sm:text-[10px] font-bold tracking-widest text-slate-400 uppercase">Press N to start</p>
-                 </div>
-               </button>
+                <button
+                  onClick={() => { setShowCreate(true); setTimeout(() => titleInputRef.current?.focus(), 50); }}
+                  className={`group rounded-2xl border-2 border-dashed border-slate-300 bg-white/40 hover:bg-indigo-50/50 hover:border-indigo-300 flex items-center justify-center transition-all duration-300 cursor-pointer ${viewMode === 'grid' ? "flex-col h-[320px]" : "flex-row h-24 sm:h-28 gap-4 px-6 justify-start"}`}
+                >
+                  <div className={`rounded-full bg-white text-slate-400 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300 shadow-sm ${viewMode === 'grid' ? "w-14 h-14 mb-4 group-hover:scale-110" : "w-12 h-12"}`}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
+                  </div>
+                  <div className={viewMode === 'grid' ? "text-center" : "text-left"}>
+                    <h3 className="font-bold text-slate-700 mb-1 group-hover:text-indigo-900 transition-colors">Create New Notebook</h3>
+                    <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Press N to start</p>
+                  </div>
+                </button>
               )}
 
               <SortableContext
@@ -741,7 +737,7 @@ export default function NotesPage() {
               >
                 {unpinnedNotes.map((note) => {
                   const mappedTagLabel = noteTagMap[note.id];
-                  const tagObj = mappedTagLabel ? availableTags.find(t=>t.label===mappedTagLabel) || availableTags[0] : DEFAULT_TAGS[note.id % DEFAULT_TAGS.length];
+                  const tagObj = mappedTagLabel ? availableTags.find(t => t.label === mappedTagLabel) || availableTags[0] : DEFAULT_TAGS[note.id % DEFAULT_TAGS.length];
                   return (
                     <SortableNoteCard
                       key={note.id}
@@ -756,15 +752,15 @@ export default function NotesPage() {
                 })}
               </SortableContext>
             </div>
-            
+
             {!loading && filteredNotes.length === 0 && search && (
-               <div className="py-20 text-center">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                     <Search size={24} className="text-slate-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-2">No notes found</h3>
-                  <p className="text-slate-500">We couldn't find anything matching "{search}"</p>
-               </div>
+              <div className="py-20 text-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search size={24} className="text-slate-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">No notes found</h3>
+                <p className="text-slate-500">We couldn't find anything matching "{search}"</p>
+              </div>
             )}
           </div>
 

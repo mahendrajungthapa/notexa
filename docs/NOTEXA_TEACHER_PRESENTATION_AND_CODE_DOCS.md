@@ -28,7 +28,7 @@ Flutter App
 | `FileController.php` | Upload, preview, share, and download files |
 | `AdminController.php` | Admin dashboard, users, notes, settings, logs |
 | `MailSettingsService.php` | Applies SMTP settings from database |
-| `AiService.php` | Calls OpenAI-compatible providers, Gemini, or DeepSeek |
+| `AiService.php` | Calls backend-managed OpenAI-compatible or Gemini providers |
 | `R2StorageService.php` | Stores and serves files |
 
 ## Frontend Code Map

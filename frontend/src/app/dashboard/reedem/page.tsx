@@ -55,7 +55,7 @@ export default function RedeemPage() {
         </div>
         
         <div className="text-center sm:text-left min-w-0 flex-1">
-          <h1 className="text-2xl font-headline font-black text-slate-900">
+          <h1 className="text-2xl font-headline font-black text-slate-900 tracking-tight">
             Redeem Share Code
           </h1>
           <p className="text-slate-500 font-medium mt-1 leading-relaxed text-sm">
@@ -90,7 +90,7 @@ export default function RedeemPage() {
                   disabled={loading}
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                  className="w-full px-4 py-5 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none text-center font-mono text-2xl sm:text-3xl font-black tracking-[0.18em] sm:tracking-[0.25em] uppercase transition-all placeholder:text-slate-300 shadow-inner"
+                  className="w-full px-4 py-5 bg-slate-50/50 border border-slate-200/80 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none text-center font-mono text-3xl font-black tracking-[0.25em] uppercase transition-all placeholder:text-slate-300 shadow-inner"
                   placeholder="ABCD1234"
                 />
               </div>

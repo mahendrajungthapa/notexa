@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { notesApi, friendsApi, filesApi } from '@/services/api';
+import api, { notesApi, friendsApi, filesApi } from '@/services/api';
 import { Note, Friend, NoteShare, FileItem, NoteVersion } from '@/types';
 import toast from 'react-hot-toast';
 import {
@@ -45,6 +45,7 @@ export default function NoteDetailPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [lastSaved, setLastSaved] = useState({ title: '', content: '' });
+  const [lastCloudUpdatedAt, setLastCloudUpdatedAt] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const [saving, setSaving] = useState(false);
@@ -55,7 +56,7 @@ export default function NoteDetailPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [collaborators, setCollaborators] = useState<NoteShare[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<number | null>(null);
-  const [sharePerm, setSharePerm] = useState<'view' | 'edit'>('view');
+  const [sharePerm, setSharePerm] = useState<'view' | 'edit'>('edit');
   const [shareCode, setShareCode] = useState('');
 
   // History State
@@ -63,7 +64,6 @@ export default function NoteDetailPage() {
   const [versions, setVersions] = useState<NoteVersion[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [previewingVersionId, setPreviewingVersionId] = useState<number | null>(null);
-  const [editorContentVersion, setEditorContentVersion] = useState(0);
 
   // AI & Attachments
   const [aiLoading, setAiLoading] = useState(false);
@@ -77,13 +77,23 @@ export default function NoteDetailPage() {
   const isOwner = permission === 'owner';
   const canEdit = permission === 'owner' || permission === 'edit';
   const draftKey = `notexa_draft_${noteId}`;
+  const titleRef = useRef('');
+  const contentRef = useRef('');
+  const dirtyRef = useRef(false);
+  const savingRef = useRef(false);
+  const lastCloudUpdatedAtRef = useRef('');
+
+  useEffect(() => { titleRef.current = title; }, [title]);
+  useEffect(() => { contentRef.current = content; }, [content]);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  useEffect(() => { savingRef.current = saving; }, [saving]);
+  useEffect(() => { lastCloudUpdatedAtRef.current = lastCloudUpdatedAt; }, [lastCloudUpdatedAt]);
 
   const fetchNote = useCallback(async () => {
     try {
-      const collabToken = typeof window !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('collab_token') || new URLSearchParams(window.location.search).get('token')
-        : null;
-      const response = await notesApi.get(noteId, collabToken ? { collab_token: collabToken } : undefined);
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const urlCollabToken = params.get('collab_token') || params.get('token') || '';
+      const response = await notesApi.get(noteId, urlCollabToken ? { collab_token: urlCollabToken } : undefined);
       const data = response.data.data;
       const cloudTitle = data.title || '';
       const cloudContent = data.content || '';
@@ -110,21 +120,17 @@ export default function NoteDetailPage() {
       setTitle(nextTitle);
       setContent(nextContent);
       setLastSaved({ title: cloudTitle, content: cloudContent });
+      setLastCloudUpdatedAt(data.updated_at || '');
       setDirty(hasLocalDraft);
       setSaveState(hasLocalDraft ? 'dirty' : 'saved');
       setAiSummary(data.ai_summary || '');
       setFiles(data.files || []);
       setCollaborators(data.shares || []);
-    } catch (error: any) {
-      const isCollabLink = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('collab') === 'true';
-      const status = error.response?.status;
-      if (status === 403) {
-        toast.error(isCollabLink
-          ? 'Ask the owner to share this note with you as an editor before using the realtime link.'
-          : 'You do not have access to this note.');
-      } else {
-        toast.error('Note not found');
-      }
+      setShareCode(data.share_code || urlCollabToken || '');
+    } catch {
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const isCollabLink = params.has('collab_token') || params.has('token') || params.get('collab') === 'true';
+      toast.error(isCollabLink ? 'Collaboration link is invalid, expired, or you need to log in first.' : 'Note not found');
       router.push('/dashboard/notes');
     } finally {
       setLoading(false);
@@ -134,6 +140,52 @@ export default function NoteDetailPage() {
   useEffect(() => {
     fetchNote();
   }, [fetchNote]);
+
+  useEffect(() => {
+    if (!note || !canEdit || typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const collabToken = params.get('collab_token') || params.get('token') || '';
+    const isRealtimeLink = params.get('collab') === 'true' || !!collabToken;
+    if (!isRealtimeLink) return;
+
+    const pullRemoteChanges = async () => {
+      if (savingRef.current || dirtyRef.current) return;
+
+      try {
+        const response = await notesApi.get(noteId, collabToken ? { collab_token: collabToken } : undefined);
+        const data = response.data.data;
+        const remoteTitle = data.title || '';
+        const remoteContent = data.content || '';
+        const remoteUpdatedAt = data.updated_at || '';
+        const remoteTime = new Date(remoteUpdatedAt).getTime();
+        const localTime = new Date(lastCloudUpdatedAtRef.current || 0).getTime();
+
+        if (
+          remoteUpdatedAt &&
+          remoteTime > localTime &&
+          (remoteTitle !== titleRef.current || remoteContent !== contentRef.current)
+        ) {
+          setNote(data);
+          setTitle(remoteTitle);
+          setContent(remoteContent);
+          setLastSaved({ title: remoteTitle, content: remoteContent });
+          setLastCloudUpdatedAt(remoteUpdatedAt);
+          setDirty(false);
+          setSaveState('saved');
+          setAiSummary(data.ai_summary || '');
+          setFiles(data.files || []);
+          setCollaborators(data.shares || []);
+          setShareCode(data.share_code || collabToken || '');
+        }
+      } catch (error) {
+        console.warn('Realtime backend fallback sync failed', error);
+      }
+    };
+
+    const interval = window.setInterval(pullRemoteChanges, 1500);
+    return () => window.clearInterval(interval);
+  }, [canEdit, note, noteId]);
 
   const handleSave = useCallback(
     async (silent = false) => {
@@ -151,6 +203,7 @@ export default function NoteDetailPage() {
         setTitle(savedTitle);
         setContent(savedContent);
         setLastSaved({ title: savedTitle, content: savedContent });
+        setLastCloudUpdatedAt(saved.updated_at || new Date().toISOString());
         setDirty(false);
         setSaveState('saved');
         localStorage.removeItem(draftKey);
@@ -192,9 +245,7 @@ export default function NoteDetailPage() {
       ]);
       setFriends(friendsResponse.data.data || []);
       setCollaborators(collaboratorsResponse.data.data || []);
-      const currentCode = codeResponse.data.share_code || '';
-      setShareCode(currentCode);
-      setNote((current) => current && currentCode ? { ...current, share_code: currentCode } : current);
+      setShareCode(codeResponse.data.share_code || '');
     } catch {
       toast.error('Unable to load sharing options');
     }
@@ -239,42 +290,61 @@ export default function NoteDetailPage() {
     toast.success('Share code copied to clipboard!');
   };
 
+  const handleCopyCollabLink = async () => {
+    try {
+      let code = shareCode || note?.share_code || '';
+      if (!code) {
+        const response = await notesApi.getShareCode(noteId);
+        code = response.data.share_code || '';
+        setShareCode(code);
+      }
+      if (!code) {
+        toast.error('Unable to create collaboration link');
+        return;
+      }
+
+      const url = new URL(`/dashboard/notes/${noteId}`, window.location.origin);
+      url.searchParams.set('collab', 'true');
+      url.searchParams.set('collab_token', code);
+      await navigator.clipboard.writeText(url.toString());
+      toast.success('Realtime collaboration link copied');
+    } catch {
+      toast.error('Failed to copy collaboration link');
+    }
+  };
+
   const handleRegenCode = async () => {
     try {
       const response = await notesApi.regenerateCode(noteId);
-      const nextCode = response.data.share_code;
-      setShareCode(nextCode);
-      setNote((current) => current ? { ...current, share_code: nextCode } : current);
+      setShareCode(response.data.share_code);
       toast.success('New share code generated!');
     } catch {
       toast.error('Failed to generate new code');
     }
   };
 
-  // Restore version handler
+  // Revert version handler
   const handleRevertVersion = async (version: NoteVersion) => {
-    if (!confirm(`Restore Version #${version.version_number}? This will replace your current note editor content.`)) return;
+    if (!confirm(`Are you sure you want to revert to Version #${version.version_number}? This will replace your current note editor content.`)) return;
     try {
-      toast.loading(`Restoring Version #${version.version_number}...`, { id: 'revert-loading' });
+      toast.loading(`Reverting to Version #${version.version_number}...`, { id: 'revert-loading' });
       
-      const response = await notesApi.update(noteId, { title, content: version.content });
-      const saved = response.data?.data;
-      const savedTitle = saved?.title || title;
-      const savedContent = saved?.content || version.content;
+      // Save it as current active draft on server
+      await notesApi.update(noteId, { title, content: version.content });
       
-      setNote(saved || note);
-      setTitle(savedTitle);
-      setContent(savedContent);
-      setLastSaved({ title: savedTitle, content: savedContent });
-      setEditorContentVersion((value) => value + 1);
+      // Update local states
+      setContent(version.content);
+      setLastSaved((prev) => ({ ...prev, content: version.content }));
       setDirty(false);
       setSaveState('saved');
-      localStorage.removeItem(draftKey);
       
-      toast.success(`Restored Version #${version.version_number}`, { id: 'revert-loading' });
+      toast.success(`Successfully reverted note to Version #${version.version_number}!`, { id: 'revert-loading' });
       setShowHistory(false);
+      
+      // Fetch fresh note details to fully synchronize everything
+      await fetchNote();
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to restore version', { id: 'revert-loading' });
+      toast.error(error.response?.data?.message || 'Failed to revert version', { id: 'revert-loading' });
     }
   };
 
@@ -308,33 +378,29 @@ export default function NoteDetailPage() {
     return `User #${val.user_id}`;
   };
 
-  const getVersionSnippet = (html: string) => {
-    if (typeof window !== 'undefined') {
-      const element = document.createElement('div');
-      element.innerHTML = html || '';
-      return (element.textContent || element.innerText || '').replace(/\s+/g, ' ').trim();
-    }
-    return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-  };
-
   const openHistoryModal = async () => {
     setShowHistory(true);
     setHistoryLoading(true);
     setPreviewingVersionId(null);
     try {
       const response = await notesApi.versions(noteId);
-      const payload = response.data?.data ?? response.data;
-      const list = Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload)
-          ? payload
-          : Array.isArray(response.data?.versions)
-            ? response.data.versions
-            : Array.isArray(response.data?.history)
-              ? response.data.history
-              : [];
-      setVersions([...list].sort((a, b) => (b.version_number || 0) - (a.version_number || 0)));
+      console.log('Versions API Response:', response.data);
+      
+      let list = [];
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          list = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          list = response.data.data;
+        } else if (response.data.versions && Array.isArray(response.data.versions)) {
+          list = response.data.versions;
+        } else if (response.data.history && Array.isArray(response.data.history)) {
+          list = response.data.history;
+        }
+      }
+      setVersions(list);
     } catch (error: any) {
+      console.error('Failed to load version history:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to load version history');
     } finally {
       setHistoryLoading(false);
@@ -481,14 +547,14 @@ export default function NoteDetailPage() {
   const SaveIcon = saveStatus.icon;
 
   return (
-    <div className={`w-full flex flex-col fade-in animate-in slide-in-from-bottom-4 duration-500 min-h-[calc(100dvh-96px)] lg:min-h-0 lg:overflow-hidden lg:h-[calc(100vh-100px)] ${isZoomed ? 'note-zoomed' : ''}`}>
+    <div className={`w-full flex flex-col fade-in animate-in slide-in-from-bottom-4 duration-500 lg:overflow-hidden h-auto lg:h-[calc(100vh-100px)] ${isZoomed ? 'note-zoomed' : ''}`}>
       {/* Top bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3 sm:gap-4 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4 shrink-0">
         <button onClick={() => router.push('/dashboard/notes')}
-          className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm border border-transparent hover:border-slate-200/60 transition-all duration-300 w-full sm:w-fit">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm border border-transparent hover:border-slate-200/60 transition-all duration-300 w-fit">
           <ArrowLeft size={18} strokeWidth={2.5} /> Back
         </button>
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest border shadow-sm transition-all duration-300 ${saveStatus.className}`}>
             <SaveIcon size={13} className={saveStatus.spin ? 'animate-spin' : ''} strokeWidth={2.5} /> {saveStatus.label}
           </span>
@@ -503,18 +569,18 @@ export default function NoteDetailPage() {
             </span>
           )}
           <button onClick={handleAiSummary} disabled={aiLoading}
-            className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
             {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} strokeWidth={2.5} />} AI Summary
           </button>
           {isOwner && (
             <button onClick={handleDeleteNote}
-              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-white border border-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow">
+              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow">
               <Trash2 size={16} strokeWidth={2.5} /> Delete Note
             </button>
           )}
           {isOwner && (
             <button onClick={openShareModal}
-              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm hover:shadow">
+              className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 text-indigo-600 rounded-xl text-sm font-bold hover:bg-indigo-50 hover:border-indigo-200 transition-all duration-300 shadow-sm hover:shadow">
               <Share2 size={16} strokeWidth={2.5} /> Share
             </button>
           )}
@@ -529,7 +595,7 @@ export default function NoteDetailPage() {
           )}
           {canEdit && (
             <button onClick={() => handleSave(false)} disabled={saving || !dirty}
-              className="flex flex-1 min-[420px]:flex-none items-center justify-center gap-2 px-3 sm:px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all duration-300 shadow-[0_4px_15px_-3px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all duration-300 shadow-[0_4px_15px_-3px_rgba(79,70,229,0.4)] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
               <Save size={16} strokeWidth={2.5} /> Save Note
             </button>
           )}
@@ -537,9 +603,9 @@ export default function NoteDetailPage() {
       </div>
 
       {/* Main Workspace Layout split into Editor & Panels */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_300px] flex-1 min-h-0 lg:overflow-hidden mb-4">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 lg:overflow-hidden mb-4">
         {/* Left Column: Title, Editor */}
-        <section className="flex flex-col min-w-0 h-[calc(100dvh-230px)] min-h-[540px] lg:h-full lg:min-h-0 overflow-hidden">
+        <section className="flex flex-col min-w-0 flex-1 h-[550px] lg:h-full lg:overflow-hidden">
 
           {/* Title Area */}
           <div className="relative group flex items-center gap-3 mb-3 border-b border-transparent focus-within:border-slate-200 transition-colors pb-1 shrink-0">
@@ -553,7 +619,7 @@ export default function NoteDetailPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               readOnly={!canEdit}
-              className="flex-1 w-full text-2xl lg:text-3xl font-extrabold text-slate-900 border-none outline-none bg-transparent placeholder:text-slate-300 tracking-tight focus:ring-0 px-0"
+              className="note-title-input flex-1 w-full text-2xl lg:text-3xl font-extrabold text-slate-900 border-none outline-none bg-transparent placeholder:text-slate-300 tracking-tight focus:ring-0 px-0"
               placeholder="Untitled Notebook..."
             />
           </div>
@@ -565,14 +631,13 @@ export default function NoteDetailPage() {
               onChange={setContent}
               editable={canEdit}
               noteId={noteId}
-              collaborationToken={note?.share_code}
-              forceContentVersion={editorContentVersion}
+              collabToken={shareCode || note?.share_code || ''}
             />
           </div>
         </section>
 
         {/* Right Column: Files & Collaboration Sidebars */}
-        <aside className="space-y-4 sm:space-y-6 lg:overflow-y-auto lg:max-h-full lg:pr-1 shrink-0 w-full lg:w-[300px] custom-scrollbar">
+        <aside className="space-y-6 overflow-y-auto lg:h-full pr-1 shrink-0 w-full lg:w-[300px] custom-scrollbar">
           {/* Files Panel */}
           <div className="bg-white/85 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
@@ -686,7 +751,7 @@ export default function NoteDetailPage() {
       {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-6 border border-slate-100 relative animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 border border-slate-100 relative overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-5 shrink-0">
               <h2 className="text-lg font-headline font-black text-slate-900 flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-sm">
@@ -709,8 +774,8 @@ export default function NoteDetailPage() {
                   <RefreshCw size={12} strokeWidth={2.5} /> New Code
                 </button>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center font-mono text-lg sm:text-xl font-black tracking-[0.18em] sm:tracking-[0.25em] text-indigo-700 shadow-inner overflow-hidden">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center font-mono text-xl font-black tracking-[0.25em] text-indigo-700 shadow-inner">
                   {shareCode || '--------'}
                 </div>
                 <button onClick={handleCopyCode} className="p-3 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl hover:shadow-lg hover:shadow-indigo-500/25 active:scale-95 transition-all duration-200 shrink-0">
@@ -718,8 +783,15 @@ export default function NoteDetailPage() {
                 </button>
               </div>
               <p className="mt-2 text-[10px] text-slate-400 font-semibold leading-relaxed">
-                Codes add view-only access. Use friend sharing for edit permissions.
+                Codes add view-only access. Direct collaboration links grant edit access to signed-in users.
               </p>
+              <button
+                type="button"
+                onClick={handleCopyCollabLink}
+                className="mt-3 w-full px-3 py-2 bg-white border border-indigo-200 text-indigo-700 rounded-xl text-xs font-extrabold hover:bg-indigo-50 transition flex items-center justify-center gap-1.5"
+              >
+                <Share2 size={13} strokeWidth={2.4} /> Copy Direct Realtime Collaboration Link
+              </button>
             </div>
 
             {/* Add collaborator */}
@@ -727,7 +799,7 @@ export default function NoteDetailPage() {
               <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Share with Friend
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-2">
                 <select
                   value={selectedFriend || ''}
                   onChange={(e) => setSelectedFriend(Number(e.target.value) || null)}
@@ -747,7 +819,7 @@ export default function NoteDetailPage() {
                   <option value="edit">Edit</option>
                 </select>
                 <button onClick={handleShareFriend} disabled={!selectedFriend}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 transition-all duration-200">
+                  className="px-4 py-2.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-50 transition-all duration-200">
                   Share
                 </button>
               </div>
@@ -830,22 +902,16 @@ export default function NoteDetailPage() {
                   <p className="text-xs text-slate-400 font-semibold">No version history recorded yet.</p>
                 </div>
               ) : (
-                versions.map((v, index) => {
+                versions.map((v) => {
                   const isPreviewing = previewingVersionId === v.id;
-                  const snippet = getVersionSnippet(v.content);
                   return (
                     <div key={v.id} className="border border-slate-100 bg-slate-50/50 rounded-2xl p-4 hover:bg-white hover:border-slate-200 hover:shadow-sm transition-all duration-300">
-                      <div className="flex flex-col min-[420px]:flex-row min-[420px]:items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
                             <span className="px-2.5 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-md text-[10px] font-black tracking-wide">
-                              Version #{v.version_number}
+                              Draft #{v.version_number}
                             </span>
-                            {index === 0 && (
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
-                                Latest edit
-                              </span>
-                            )}
                             <span className="text-xs font-bold text-slate-700">
                               by {getVersionAuthorName(v)}
                             </span>
@@ -853,12 +919,9 @@ export default function NoteDetailPage() {
                           <p className="text-[11px] text-slate-400 font-semibold">
                             {new Date(v.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                           </p>
-                          <p className="text-xs text-slate-500 font-medium line-clamp-2 max-w-[260px]">
-                            {snippet || 'Empty note content'}
-                          </p>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0 self-end min-[420px]:self-auto">
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => setPreviewingVersionId(isPreviewing ? null : v.id)}
                             className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-sm"
@@ -869,7 +932,7 @@ export default function NoteDetailPage() {
                             onClick={() => handleRevertVersion(v)}
                             className="px-3 py-1.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-xs font-bold hover:shadow-md hover:shadow-indigo-500/20 active:scale-95 transition-all duration-200"
                           >
-                            Restore
+                            Revert
                           </button>
                         </div>
                       </div>
@@ -891,8 +954,8 @@ export default function NoteDetailPage() {
 
       {/* PDF Preview Modal */}
       {pdfPreview && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in" onClick={() => setPdfPreview(null)}>
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl h-[90vh] sm:h-[85vh] flex flex-col border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={() => setPdfPreview(null)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
               <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2 min-w-0">
                 <FileText size={16} className="text-indigo-500 shrink-0" strokeWidth={2.5} />
@@ -921,7 +984,7 @@ export default function NoteDetailPage() {
                 Are you sure you want to delete <strong className="text-slate-700">"{title || 'Untitled Note'}"</strong>? This notebook will be moved to the trash folder and can be restored later.
               </p>
             </div>
-            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+            <div className="flex gap-3 pt-2">
               <button 
                 onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 py-3 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider transition"
