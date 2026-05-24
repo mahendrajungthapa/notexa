@@ -16,7 +16,20 @@ class NotesListScreen extends StatefulWidget {
 }
 
 class _NotesListScreenState extends State<NotesListScreen> {
-  static const _palette = ['#fff7d6', '#ffffff', '#dbeafe', '#dcfce7', '#fde2e2', '#f3e8ff'];
+  static const _palette = [
+    '#fff7d6', // yellow
+    '#ffffff', // white
+    '#dbeafe', // blue
+    '#dcfce7', // green
+    '#fde2e2', // red
+    '#f3e8ff', // purple
+    '#ffedd5', // orange
+    '#fce7f3', // pink
+    '#e0f2fe', // sky
+    '#f0fdf4', // mint
+    '#fef9c3', // light yellow
+    '#f1f5f9', // slate
+  ];
 
   final _searchCtrl = TextEditingController();
   List<Map<String, dynamic>> _notes = [];
@@ -25,6 +38,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
   bool _syncing = false;
   String _search = '';
   Timer? _searchTimer;
+  int _iconIndex = 0;
 
   @override
   void initState() {
@@ -37,6 +51,29 @@ class _NotesListScreenState extends State<NotesListScreen> {
     _searchTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  final List<IconData> _icons = [
+    Icons.sync, // sync
+    Icons.wb_sunny, // sun
+    Icons.cloud, // cloud
+    Icons.nightlight, // moon
+  ];
+
+  void _changeIcon() {
+    int count = 0;
+
+    Timer.periodic(const Duration(milliseconds: 150), (timer) {
+      setState(() {
+        _iconIndex = (_iconIndex + 1) % _icons.length;
+      });
+
+      count++;
+
+      if (count >= 4) {
+        timer.cancel();
+      }
+    });
   }
 
   Future<void> _fetch() async {
@@ -59,7 +96,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
     try {
       setState(() => _syncing = true);
       final sync = await LocalNoteStorage.syncDirtyNotes();
-      final query = _search.isNotEmpty ? '?search=${Uri.encodeQueryComponent(_search)}' : '';
+      final query = _search.isNotEmpty
+          ? '?search=${Uri.encodeQueryComponent(_search)}'
+          : '';
       final response = await ApiService.get('/notes$query');
       final cloudNotes = List<dynamic>.from(response['data']?['data'] ?? []);
       await LocalNoteStorage.syncFromCloud(cloudNotes);
@@ -72,21 +111,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
       if ((sync['synced'] ?? 0) > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${sync['synced']} offline change${sync['synced'] == 1 ? '' : 's'} synced'),
+          content: Text(
+              '${sync['synced']} offline change${sync['synced'] == 1 ? '' : 's'} synced'),
           backgroundColor: const Color(0xFF047857),
           duration: const Duration(seconds: 2),
         ));
       }
       if ((sync['failed'] ?? 0) > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${sync['failed']} offline change${sync['failed'] == 1 ? '' : 's'} could not be synced. Try again.'),
-          backgroundColor: const Color(0xFFB45309),
-          duration: const Duration(seconds: 3),
-        ));
-      }
-      if ((sync['file_failed'] ?? 0) > 0 && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Note synced. ${sync['file_failed']} local attachment${sync['file_failed'] == 1 ? '' : 's'} could not upload.'),
+          content: Text(
+              '${sync['failed']} offline change${sync['failed'] == 1 ? '' : 's'} could not sync. Try again.'),
           backgroundColor: const Color(0xFFB45309),
           duration: const Duration(seconds: 3),
         ));
@@ -102,7 +136,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
         error,
         context: context,
         stackTrace: stackTrace,
-        fallback: 'Cloud sync failed. Showing local notes. ${AppErrorHandler.messageFor(error)}',
+        fallback:
+            'Cloud sync failed. Showing local notes. ${AppErrorHandler.messageFor(error)}',
       );
     } finally {
       if (mounted) {
@@ -125,7 +160,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
     final authenticated = context.read<AuthService>().isAuthenticated;
 
     if (!authenticated) {
-      final localId = await LocalNoteStorage.createDraft(title: cleanTitle, color: color);
+      final localId =
+          await LocalNoteStorage.createDraft(title: cleanTitle, color: color);
       if (!mounted) return;
       await _fetch();
       await Navigator.push(
@@ -137,16 +173,19 @@ class _NotesListScreenState extends State<NotesListScreen> {
     }
 
     try {
-      final response = await ApiService.post('/notes', body: {'title': cleanTitle, 'color': color});
+      final response = await ApiService.post('/notes',
+          body: {'title': cleanTitle, 'color': color});
       if (!mounted) return;
       await _fetch();
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: response['data']['id'])),
+        MaterialPageRoute(
+            builder: (_) => NoteEditorScreen(noteId: response['data']['id'])),
       );
     } catch (error, stackTrace) {
       AppErrorHandler.report(error, stackTrace, source: 'Create cloud note');
-      final localId = await LocalNoteStorage.createDraft(title: cleanTitle, color: color);
+      final localId =
+          await LocalNoteStorage.createDraft(title: cleanTitle, color: color);
       if (!mounted) return;
       await _fetch();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -169,7 +208,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) => AlertDialog(
-          title: const Text('New note', style: TextStyle(fontWeight: FontWeight.w800)),
+          title: const Text('New note',
+              style: TextStyle(fontWeight: FontWeight.w800)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +239,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
                         color: _color(color),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: active ? const Color(0xFF111827) : const Color(0xFFE5E7EB),
+                          color: active
+                              ? const Color(0xFF111827)
+                              : const Color(0xFFE5E7EB),
                           width: active ? 2 : 1,
                         ),
                       ),
@@ -210,7 +252,9 @@ class _NotesListScreenState extends State<NotesListScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
@@ -226,7 +270,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   void _showRedeem() {
     if (!context.read<AuthService>().isAuthenticated) {
-      _showCloudPrompt('Sign in to redeem share codes and open notes from friends.');
+      _showCloudPrompt(
+          'Sign in to redeem share codes and open notes from friends.');
       return;
     }
 
@@ -234,21 +279,26 @@ class _NotesListScreenState extends State<NotesListScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Redeem share code', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text('Redeem share code',
+            style: TextStyle(fontWeight: FontWeight.w800)),
         content: TextField(
           controller: ctrl,
           textCapitalization: TextCapitalization.characters,
           maxLength: 8,
-          style: const TextStyle(letterSpacing: 4, fontWeight: FontWeight.w800, fontSize: 22),
+          style: const TextStyle(
+              letterSpacing: 4, fontWeight: FontWeight.w800, fontSize: 22),
           textAlign: TextAlign.center,
-          decoration: const InputDecoration(hintText: 'ABCD1234', counterText: ''),
+          decoration:
+              const InputDecoration(hintText: 'ABCD1234', counterText: ''),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               try {
-                final response = await ApiService.post('/notes/redeem-code', body: {'code': ctrl.text.toUpperCase()});
+                final response = await ApiService.post('/notes/redeem-code',
+                    body: {'code': ctrl.text.toUpperCase()});
                 if (!mounted) return;
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -258,7 +308,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
                 _fetch();
               } catch (error, stackTrace) {
                 if (!mounted) return;
-                AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
+                AppErrorHandler.show(error,
+                    context: context, stackTrace: stackTrace);
               }
             },
             child: const Text('Redeem'),
@@ -270,12 +321,14 @@ class _NotesListScreenState extends State<NotesListScreen> {
 
   Future<void> _uploadFile() async {
     if (!context.read<AuthService>().isAuthenticated) {
-      _showCloudPrompt('Sign in to upload files to cloud storage. Local PDFs can be attached inside a note.');
+      _showCloudPrompt(
+          'Sign in to upload files to cloud storage. Local PDFs can be attached inside a note.');
       return;
     }
 
     if (_offline) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cloud file uploads need an internet connection.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Cloud file uploads need an internet connection.')));
       return;
     }
 
@@ -288,7 +341,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
     try {
       await ApiService.uploadFile('/files/upload', result.files.single.path!);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File uploaded'), backgroundColor: Color(0xFF047857)));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('File uploaded'), backgroundColor: Color(0xFF047857)));
     } catch (error, stackTrace) {
       if (!mounted) return;
       AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
@@ -306,23 +360,29 @@ class _NotesListScreenState extends State<NotesListScreen> {
   }
 
   String _preview(Map<String, dynamic> note) {
-    final text = (note['plain_text'] ?? LocalNoteStorage.htmlToPlain(note['content'])).toString().trim();
+    final text =
+        (note['plain_text'] ?? LocalNoteStorage.htmlToPlain(note['content']))
+            .toString()
+            .trim();
     return text.isEmpty ? 'No additional text' : text;
   }
 
   void _showCloudPrompt(String message) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Cloud account needed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            const Text('Cloud account needed',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             const SizedBox(height: 8),
-            Text(message, style: TextStyle(color: Colors.grey.shade600, height: 1.45)),
+            Text(message,
+                style: TextStyle(color: Colors.grey.shade600, height: 1.45)),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -331,7 +391,8 @@ class _NotesListScreenState extends State<NotesListScreen> {
                 label: const Text('Sign in or register'),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                  Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()));
                 },
               ),
             ),
@@ -339,6 +400,56 @@ class _NotesListScreenState extends State<NotesListScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(dynamic noteId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Note'),
+        content: const Text(
+            'Are you sure you want to delete this note? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final authenticated = context.read<AuthService>().isAuthenticated;
+
+      if (authenticated) {
+        await ApiService.delete('/notes/$noteId');
+      } else {
+        await LocalNoteStorage.deleteNote(noteId);
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Note deleted'),
+          backgroundColor: Color(0xFF047857),
+        ),
+      );
+
+      _fetch();
+    } catch (error, stackTrace) {
+      if (!mounted) return;
+      AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
+    }
   }
 
   @override
@@ -351,17 +462,41 @@ class _NotesListScreenState extends State<NotesListScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Notes', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
+            const Text('Notexa',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
             Text(
-              _offline && !context.watch<AuthService>().isAuthenticated ? 'Local mode' : _offline ? 'Offline mode' : '${_notes.length} note${_notes.length == 1 ? '' : 's'}',
-              style: TextStyle(fontSize: 12, color: _offline ? const Color(0xFFB45309) : Colors.grey.shade500),
+              _offline && !context.watch<AuthService>().isAuthenticated
+                  ? 'Local mode'
+                  : _offline
+                      ? 'Offline mode'
+                      : '${_notes.length} note${_notes.length == 1 ? '' : 's'}',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: _offline
+                      ? const Color(0xFFB45309)
+                      : Colors.grey.shade500),
             ),
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.sync), onPressed: _syncing ? null : _fetch, tooltip: 'Sync'),
-          IconButton(icon: const Icon(Icons.attach_file), onPressed: _uploadFile, tooltip: 'Upload file'),
-          IconButton(icon: const Icon(Icons.key_outlined), onPressed: _showRedeem, tooltip: 'Redeem share code'),
+          IconButton(
+            icon: Icon(_icons[_iconIndex]),
+            onPressed: _syncing
+                ? null
+                : () {
+                    _changeIcon();
+                    _fetch();
+                  },
+            tooltip: 'Sync',
+          ),
+          IconButton(
+              icon: const Icon(Icons.attach_file),
+              onPressed: _uploadFile,
+              tooltip: 'Upload file'),
+          IconButton(
+              icon: const Icon(Icons.key_outlined),
+              onPressed: _showRedeem,
+              tooltip: 'Redeem share code'),
           const SizedBox(width: 8),
         ],
       ),
@@ -397,27 +532,39 @@ class _NotesListScreenState extends State<NotesListScreen> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                 decoration: BoxDecoration(
-                  color: _offline ? const Color(0xFFFFFBEB) : const Color(0xFFEFF6FF),
+                  color: _offline
+                      ? const Color(0xFFFFFBEB)
+                      : const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _offline ? const Color(0xFFFDE68A) : const Color(0xFFBFDBFE)),
+                  border: Border.all(
+                      color: _offline
+                          ? const Color(0xFFFDE68A)
+                          : const Color(0xFFBFDBFE)),
                 ),
                 child: Row(
                   children: [
-                    Icon(_offline ? Icons.cloud_off : Icons.sync, size: 16, color: _offline ? const Color(0xFFB45309) : const Color(0xFF2563EB)),
+                    Icon(_offline ? Icons.cloud_off : Icons.sync,
+                        size: 16,
+                        color: _offline
+                            ? const Color(0xFFB45309)
+                            : const Color(0xFF2563EB)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _offline && !context.read<AuthService>().isAuthenticated
-                            ? 'No account needed. Notes and local PDFs stay on this device.'
+                            ? 'Create notes instantly , sign in anytime for more features.'
                             : _offline
                                 ? 'You can keep writing. Changes are saved on this device.'
                                 : 'Checking for offline changes...',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _offline ? const Color(0xFF92400E) : const Color(0xFF1D4ED8),
+                          color: _offline
+                              ? const Color(0xFF92400E)
+                              : const Color(0xFF1D4ED8),
                         ),
                       ),
                     ),
@@ -435,14 +582,23 @@ class _NotesListScreenState extends State<NotesListScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.sticky_note_2_outlined, size: 64, color: Colors.grey.shade300),
+                              Icon(Icons.sticky_note_2_outlined,
+                                  size: 64, color: Colors.grey.shade300),
                               const SizedBox(height: 14),
-                              Text('No notes yet', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                              Text('No notes yet',
+                                  style: theme.textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800)),
                               const SizedBox(height: 6),
-                              Text('Create lecture notes, tasks, ideas, and shared study material in one place.',
-                                  textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500)),
+                              Text(
+                                  'Create lecture notes, tasks, ideas, and shared study material in one place.',
+                                  textAlign: TextAlign.center,
+                                  style:
+                                      TextStyle(color: Colors.grey.shade500)),
                               const SizedBox(height: 18),
-                              ElevatedButton.icon(onPressed: _showCreate, icon: const Icon(Icons.add), label: const Text('Create note')),
+                              ElevatedButton.icon(
+                                  onPressed: _showCreate,
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Create note')),
                             ],
                           ),
                         ),
@@ -451,11 +607,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
                         onRefresh: _fetch,
                         child: LayoutBuilder(
                           builder: (context, constraints) {
-                            final columns = constraints.maxWidth > 760 ? 3 : constraints.maxWidth > 520 ? 2 : 1;
+                            final columns = constraints.maxWidth > 760
+                                ? 3
+                                : constraints.maxWidth > 520
+                                    ? 2
+                                    : 1;
                             return GridView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.fromLTRB(20, 8, 20, 96),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: columns,
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
@@ -465,13 +626,16 @@ class _NotesListScreenState extends State<NotesListScreen> {
                               itemBuilder: (_, index) {
                                 final note = _notes[index];
                                 final dirty = note['_dirty'] == true;
-                                final local = LocalNoteStorage.isLocalId(note['id']);
+                                final local =
+                                    LocalNoteStorage.isLocalId(note['id']);
                                 return InkWell(
                                   borderRadius: BorderRadius.circular(8),
                                   onTap: () async {
                                     await Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: note['id'])),
+                                      MaterialPageRoute(
+                                          builder: (_) => NoteEditorScreen(
+                                              noteId: note['id'])),
                                     );
                                     _fetch();
                                   },
@@ -480,34 +644,76 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                     decoration: BoxDecoration(
                                       color: _color(note['color']),
                                       borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                                      border: Border.all(
+                                          color: const Color(0xFFE5E7EB)),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.035),
+                                          color:
+                                              Colors.black.withOpacity(0.035),
                                           blurRadius: 18,
                                           offset: const Offset(0, 8),
                                         ),
                                       ],
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Expanded(
                                               child: Text(
-                                                note['title'] ?? 'Untitled Note',
+                                                note['title'] ??
+                                                    'Untitled Note',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 16),
                                               ),
                                             ),
-                                            if (note['is_pinned'] == true) const Icon(Icons.push_pin, size: 15, color: Color(0xFFD97706)),
+                                            if (note['is_pinned'] == true)
+                                              const Icon(Icons.push_pin,
+                                                  size: 15,
+                                                  color: Color(0xFFD97706)),
                                             if (dirty || local)
                                               const Padding(
-                                                padding: EdgeInsets.only(left: 6),
-                                                child: Icon(Icons.cloud_upload_outlined, size: 16, color: Color(0xFFB45309)),
+                                                padding:
+                                                    EdgeInsets.only(left: 6),
+                                                child: Icon(
+                                                    Icons.cloud_upload_outlined,
+                                                    size: 16,
+                                                    color: Color(0xFFB45309)),
                                               ),
+                                            PopupMenuButton<String>(
+                                              icon: const Icon(Icons.more_horiz,
+                                                  size: 18),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              color: Colors.white,
+                                              elevation: 6,
+                                              onSelected: (value) async {
+                                                if (value == 'delete') {
+                                                  _confirmDelete(note['id']);
+                                                }
+                                              },
+                                              itemBuilder: (context) => [
+                                                const PopupMenuItem(
+                                                  value: 'delete',
+                                                  child: Row(
+                                                    children: [
+                                                      Icon(Icons.delete_outline,
+                                                          color: Colors.red,
+                                                          size: 18),
+                                                      SizedBox(width: 10),
+                                                      Text('Delete'),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            )
                                           ],
                                         ),
                                         const SizedBox(height: 8),
@@ -516,19 +722,31 @@ class _NotesListScreenState extends State<NotesListScreen> {
                                             _preview(note),
                                             maxLines: columns == 1 ? 2 : 6,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(fontSize: 13.5, color: Colors.grey.shade700, height: 1.45),
+                                            style: TextStyle(
+                                                fontSize: 13.5,
+                                                color: Colors.grey.shade700,
+                                                height: 1.45),
                                           ),
                                         ),
                                         const SizedBox(height: 10),
                                         Row(
                                           children: [
                                             Text(
-                                              (note['updated_at'] ?? '').toString().split('T').first,
-                                              style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+                                              (note['updated_at'] ?? '')
+                                                  .toString()
+                                                  .split('T')
+                                                  .first,
+                                              style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  color: Colors.grey.shade500),
                                             ),
                                             const Spacer(),
-                                            if (note['share_code'] != null && !local)
-                                              Icon(Icons.link, size: 14, color: Colors.indigo.shade400),
+                                            if (note['share_code'] != null &&
+                                                !local)
+                                              Icon(Icons.link,
+                                                  size: 14,
+                                                  color:
+                                                      Colors.indigo.shade400),
                                           ],
                                         ),
                                       ],

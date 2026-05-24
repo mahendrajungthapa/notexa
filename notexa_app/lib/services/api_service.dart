@@ -1,29 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static String get baseUrl {
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api';
-    }
-    return 'http://127.0.0.1:8000/api';
-  }
-
+  static const String baseUrl = 'https://app.notexa.cloud/api';
   static const Duration _timeout = Duration(seconds: 30);
-
-  static Uri resolveUrl(String url) {
-    final trimmed = url.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      return Uri.parse(trimmed);
-    }
-
-    final origin = baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
-    final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
-    return Uri.parse('$origin$path');
-  }
 
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -87,13 +69,9 @@ class ApiService {
     });
   }
 
-  static Future<Map<String, dynamic>> patch(String path, {Map<String, dynamic>? body}) async {
+  static Future<Map<String, dynamic>> patch(String path) async {
     return _send(() async {
-      return http.patch(
-        Uri.parse('$baseUrl$path'),
-        headers: await _headers(),
-        body: body == null ? null : jsonEncode(body),
-      );
+      return http.patch(Uri.parse('$baseUrl$path'), headers: await _headers());
     });
   }
 
@@ -146,7 +124,6 @@ class ApiService {
       statusCode: response.statusCode,
       message: body['message'] ?? body['error'] ?? _defaultMessage(response.statusCode),
       errors: body['errors'],
-      body: body,
     );
   }
 
@@ -176,10 +153,8 @@ class ApiException implements Exception {
   final int statusCode;
   final dynamic message;
   final dynamic errors;
-  final Map<String, dynamic> body;
 
-  ApiException({required this.statusCode, this.message, this.errors, Map<String, dynamic>? body})
-      : body = body ?? <String, dynamic>{};
+  ApiException({required this.statusCode, this.message, this.errors});
 
   String get userMessage {
     final validation = _validationErrors();

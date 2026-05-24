@@ -1,46 +1,17 @@
-# Notexa App
+# notexa_app
 
-This is the Flutter client for Notexa. It connects to the Laravel API and provides access to authentication, SMTP password reset, notes, files, friends, sharing, AI tools, offline drafts, and settings across mobile, desktop, and web targets.
+A new Flutter project.
 
-## Setup
+## Getting Started
 
-```powershell
-flutter pub get
-```
+This project is a starting point for a Flutter application.
 
-## Run
+A few resources to get you started if this is your first Flutter project:
 
-```powershell
-flutter run
-```
+- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
+- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
 
-## API URL
-
-The API base URL is currently configured in:
-
-```text
-lib/services/api_service.dart
-```
-
-Default behavior:
-
-```dart
-// Android emulator: http://10.0.2.2:8000/api
-// Other local targets: http://127.0.0.1:8000/api
-```
-
-The app chooses the Android emulator URL automatically.
-
-## Test
-
-```powershell
-flutter test
-```
-
-## More Documentation
-
-See:
-
-```text
-../guides/app/README.md
-```
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.

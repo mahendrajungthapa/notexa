@@ -1,5 +1,5 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_service.dart';
 import '../../services/error_handler.dart';
@@ -7,7 +7,6 @@ import 'pdf_viewer_screen.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
-
   @override
   State<FilesScreen> createState() => _FilesScreenState();
 }
@@ -16,7 +15,6 @@ class _FilesScreenState extends State<FilesScreen> {
   List<dynamic> _files = [];
   bool _loading = true;
   bool _uploading = false;
-  int? _deletingId;
 
   @override
   void initState() {
@@ -24,220 +22,210 @@ class _FilesScreenState extends State<FilesScreen> {
     _fetch();
   }
 
-  Map<String, dynamic> _map(dynamic value) {
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) return value.map((key, val) => MapEntry(key.toString(), val));
-    return <String, dynamic>{};
-  }
-
-  List<dynamic> _filesFromResponse(Map<String, dynamic> response) {
-    final data = response['data'];
-    if (data is Map && data['data'] is List) return List<dynamic>.from(data['data']);
-    if (data is List) return List<dynamic>.from(data);
-    return <dynamic>[];
-  }
-
-  Future<void> _fetch({bool showSpinner = true}) async {
-    if (showSpinner && mounted) setState(() => _loading = true);
+  Future<void> _fetch() async {
     try {
-      final response = await ApiService.get('/files');
-      if (mounted) setState(() => _files = _filesFromResponse(response));
+      final r = await ApiService.get('/files');
+      if (mounted) setState(() => _files = r['data']?['data'] ?? []);
     } catch (error, stackTrace) {
-      if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
+      if (mounted)
+        AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _upload() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'txt'],
-    );
+    final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.single.path == null) return;
-
     setState(() => _uploading = true);
     try {
       await ApiService.uploadFile('/files/upload', result.files.single.path!);
-      _message('File uploaded.', const Color(0xFF047857));
-      await _fetch(showSpinner: false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Uploaded!'), backgroundColor: Colors.green));
+      _fetch();
     } catch (error, stackTrace) {
-      if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
+      if (mounted)
+        AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
   }
 
-  Future<void> _openFile(Map<String, dynamic> file) async {
+  void _openFile(Map<String, dynamic> f) async {
+    final mime = f['mime_type'] ?? '';
+    final name = (f['original_name'] ?? '') as String;
+    final ext = name.split('.').last.toLowerCase();
+
     try {
-      final response = await ApiService.get('/files/${file['id']}/download');
-      final url = response['download_url']?.toString();
-      if (url == null || url.trim().isEmpty) {
-        throw ApiException(statusCode: 0, message: 'The server did not return a download URL.');
-      }
+      final r = await ApiService.get('/files/${f['id']}/download');
+      final url = r['download_url'] as String;
 
-      final uri = ApiService.resolveUrl(url);
-      if (_isPdf(file) && mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PdfViewerScreen(title: file['original_name'] ?? 'PDF', url: uri.toString()),
-          ),
-        );
-        return;
-      }
+      if (!mounted) return;
 
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!opened) throw ApiException(statusCode: 0, message: 'Could not open the download link.');
+      final isPdf = mime.contains('pdf') || ext == 'pdf';
+      final isImage = mime.startsWith('image/') ||
+          ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
+
+      if (isPdf) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PdfViewerScreen(title: name, url: url),
+            ));
+      } else if (isImage) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => _ImageViewerScreen(title: name, url: url),
+            ));
+      } else {
+        await launchUrl(Uri.parse(url));
+      }
     } catch (error, stackTrace) {
-      if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
+      if (mounted)
+        AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
     }
   }
 
-  Future<void> _deleteFile(Map<String, dynamic> file) async {
-    final id = int.tryParse(file['id']?.toString() ?? '');
-    if (id == null) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete file?'),
-        content: Text('Delete "${file['original_name'] ?? 'this file'}"?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Color(0xFFB91C1C))),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    setState(() => _deletingId = id);
-    try {
-      await ApiService.delete('/files/$id');
-      _message('File deleted.', const Color(0xFFB45309));
-      await _fetch(showSpinner: false);
-    } catch (error, stackTrace) {
-      if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
-    } finally {
-      if (mounted) setState(() => _deletingId = null);
-    }
+  String _fmtSize(int b) {
+    if (b >= 1048576) return '${(b / 1048576).toStringAsFixed(1)} MB';
+    if (b >= 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
+    return '$b B';
   }
 
-  void _message(String text, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
-  }
-
-  String _fmtSize(dynamic value) {
-    final bytes = int.tryParse(value?.toString() ?? '') ?? 0;
-    if (bytes >= 1048576) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
-    if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
-    return '$bytes B';
-  }
-
-  IconData _fileIcon(Map<String, dynamic> file) {
-    final mime = (file['mime_type'] ?? '').toString().toLowerCase();
-    final name = (file['original_name'] ?? '').toString().toLowerCase();
-    if (mime.startsWith('image/') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) return Icons.image_outlined;
-    if (_isPdf(file)) return Icons.picture_as_pdf_outlined;
-    if (name.endsWith('.doc') || name.endsWith('.docx')) return Icons.description_outlined;
-    return Icons.insert_drive_file_outlined;
-  }
-
-  bool _isPdf(Map<String, dynamic> file) {
-    final mime = (file['mime_type'] ?? '').toString().toLowerCase();
-    final name = (file['original_name'] ?? '').toString().toLowerCase();
-    return mime.contains('pdf') || name.endsWith('.pdf');
+  IconData _fileIcon(String mime) {
+    if (mime.startsWith('image/')) return Icons.image;
+    if (mime.contains('pdf')) return Icons.picture_as_pdf;
+    return Icons.insert_drive_file;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Files', style: TextStyle(fontWeight: FontWeight.w800)),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.sync),
-            onPressed: _loading ? null : () => _fetch(showSpinner: false),
-          ),
-          IconButton(
-            tooltip: 'Upload',
-            icon: _uploading
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.upload_file_outlined),
-            onPressed: _uploading ? null : _upload,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+          title: const Text('My Files',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          actions: [
+            IconButton(
+                icon: _uploading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.upload),
+                onPressed: _uploading ? null : _upload)
+          ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _files.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.folder_outlined, size: 68, color: Colors.grey.shade300),
-                        const SizedBox(height: 12),
-                        const Text('No files yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 6),
-                        Text('Upload PDFs, documents, images, and text files for your notes.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500)),
-                        const SizedBox(height: 18),
-                        ElevatedButton.icon(onPressed: _upload, icon: const Icon(Icons.upload_file), label: const Text('Upload file')),
-                      ],
-                    ),
-                  ),
-                )
+              ? const Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.folder_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text('No files')
+                ]))
               : RefreshIndicator(
-                  onRefresh: () => _fetch(showSpinner: false),
+                  onRefresh: _fetch,
                   child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                    itemCount: _files.length,
-                    itemBuilder: (_, i) {
-                      final file = _map(_files[i]);
-                      final id = int.tryParse(file['id']?.toString() ?? '');
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          leading: Container(
-                            width: 42,
-                            height: 42,
-                            decoration: BoxDecoration(color: const Color(0xFFE0E7FF), borderRadius: BorderRadius.circular(8)),
-                            child: Icon(_fileIcon(file), color: const Color(0xFF4F46E5)),
-                          ),
-                          title: Text(file['original_name'] ?? 'Untitled file', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text('${_fmtSize(file['size'])} · ${file['created_at']?.toString().split('T').first ?? ''}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                          onTap: () => _openFile(file),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: _isPdf(file) ? 'View' : 'Open',
-                                icon: Icon(_isPdf(file) ? Icons.visibility_outlined : Icons.open_in_new, size: 20),
-                                onPressed: () => _openFile(file),
-                              ),
-                              IconButton(
-                                tooltip: 'Delete',
-                                icon: _deletingId == id
-                                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                    : const Icon(Icons.delete_outline, size: 20, color: Color(0xFFB91C1C)),
-                                onPressed: _deletingId == id ? null : () => _deleteFile(file),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _files.length,
+                      itemBuilder: (_, i) {
+                        final f = _files[i];
+                        return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              onTap: () => _openFile(
+                                  Map<String, dynamic>.from(f)), // ← added
+                              leading: Icon(_fileIcon(f['mime_type'] ?? ''),
+                                  color: Colors.indigo),
+                              title: Text(f['original_name'] ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14)),
+                              subtitle: Text(
+                                  '${_fmtSize(f['size'] ?? 0)} · ${f['created_at']?.toString().substring(0, 10) ?? ''}',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade500)),
+                              trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                        icon: const Icon(Icons.download,
+                                            size: 20),
+                                        onPressed: () async {
+                                          try {
+                                            final r = await ApiService.get(
+                                                '/files/${f['id']}/download');
+                                            final opened = await launchUrl(
+                                                Uri.parse(r['download_url']));
+                                            if (!opened)
+                                              throw Exception(
+                                                  'Could not open the download link.');
+                                          } catch (error, stackTrace) {
+                                            if (mounted)
+                                              AppErrorHandler.show(error,
+                                                  context: context,
+                                                  stackTrace: stackTrace);
+                                          }
+                                        }),
+                                    IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 20, color: Colors.red),
+                                        onPressed: () async {
+                                          try {
+                                            await ApiService.delete(
+                                                '/files/${f['id']}');
+                                            _fetch();
+                                          } catch (error, stackTrace) {
+                                            if (mounted)
+                                              AppErrorHandler.show(error,
+                                                  context: context,
+                                                  stackTrace: stackTrace);
+                                          }
+                                        }),
+                                  ]),
+                            ));
+                      })),
+    );
+  }
+}
+
+class _ImageViewerScreen extends StatelessWidget {
+  final String title;
+  final String url;
+
+  const _ImageViewerScreen({required this.title, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(title,
+            style: const TextStyle(color: Colors.white),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis),
+      ),
+      body: InteractiveViewer(
+        child: Center(
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (_, child, progress) => progress == null
+                ? child
+                : const Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image, color: Colors.white, size: 64),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

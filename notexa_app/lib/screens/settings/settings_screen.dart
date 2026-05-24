@@ -5,6 +5,7 @@ import '../../services/api_service.dart';
 import '../../services/error_handler.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
+import '../../services/pookie_mode.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _name;
   late TextEditingController _username;
-  late TextEditingController _institution;
   final _curPw = TextEditingController();
   final _newPw = TextEditingController();
   final _confirmPw = TextEditingController();
@@ -24,18 +24,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final u = context.read<AuthService>().user;
     _name = TextEditingController(text: u?['name'] ?? '');
     _username = TextEditingController(text: u?['username'] ?? '');
-    _institution = TextEditingController(text: u?['institution'] ?? '');
-  }
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _username.dispose();
-    _institution.dispose();
-    _curPw.dispose();
-    _newPw.dispose();
-    _confirmPw.dispose();
-    super.dispose();
   }
 
   @override
@@ -94,9 +82,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _InfoRow(icon: Icons.offline_pin_outlined, title: 'Local notes', subtitle: 'Saved on this device and available without internet.'),
-            _InfoRow(icon: Icons.picture_as_pdf_outlined, title: 'PDF attachments', subtitle: 'Attach and open PDFs directly from local notes.'),
-            _InfoRow(icon: Icons.ios_share_outlined, title: 'Cloud sharing', subtitle: 'Requires an account so notes and files can be shared safely.'),
+            const _InfoRow(icon: Icons.offline_pin_outlined, title: 'Local notes', subtitle: 'Saved on this device and available without internet.'),
+            const _InfoRow(icon: Icons.picture_as_pdf_outlined, title: 'PDF attachments', subtitle: 'Attach and open PDFs directly from local notes.'),
+            const _InfoRow(icon: Icons.ios_share_outlined, title: 'Cloud sharing', subtitle: 'Requires an account so notes and files can be shared safely.'),
           ],
         ),
       );
@@ -111,11 +99,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-            Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              Text(auth.user?['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              if (auth.isPremium) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.workspace_premium, size: 16, color: Colors.amber)),
             ]),
             Text('@${auth.user?['username'] ?? ''}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-            if ((auth.user?['institution'] ?? '').toString().isNotEmpty)
-              Text(auth.user?['institution'] ?? '', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
             Text(auth.user?['email'] ?? '', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
           ])),
         ]))),
@@ -128,12 +115,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
           const SizedBox(height: 12),
           TextField(controller: _username, decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.alternate_email))),
-          const SizedBox(height: 12),
-          TextField(controller: _institution, decoration: const InputDecoration(labelText: 'Institution', prefixIcon: Icon(Icons.school_outlined))),
           const SizedBox(height: 16),
           SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async {
             try {
-              await auth.updateProfile(name: _name.text, username: _username.text, institution: _institution.text);
+              await auth.updateProfile(name: _name.text, username: _username.text);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Updated!'), backgroundColor: Colors.green));
             } catch (error, stackTrace) {
               if (mounted) AppErrorHandler.show(error, context: context, stackTrace: stackTrace);
@@ -165,6 +150,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
             }, child: const Text('Change Password'))),
         ]))),
         const SizedBox(height: 24),
+          // Pookie Mode toggle
+        Consumer<PookieMode>(
+          builder: (context, pookie, _) => Card(
+            child: ListTile(
+              leading: Icon(
+                Icons.favorite,
+                color: pookie.enabled ? Colors.pink : Colors.grey,
+              ),
+              title: const Text('Pookie Mode',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(pookie.enabled
+                  ? '🌸 Stay cute, study hard! ✨'
+                  : 'Activate for a cute pink theme'),
+              trailing: Switch(
+                value: pookie.enabled,
+                activeColor: Colors.pink,
+                onChanged: (_) async {
+                  await pookie.toggle();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(pookie.enabled
+                          ? '🎀 Pookie Mode Activated! Stay cute, study hard! ✨🧸'
+                          : '🧸 Pookie Mode Deactivated'),
+                      backgroundColor: Colors.pink,
+                      duration: const Duration(seconds: 3),
+                    ));
+                  }
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
 
         // Logout
         SizedBox(width: double.infinity, child: OutlinedButton.icon(
