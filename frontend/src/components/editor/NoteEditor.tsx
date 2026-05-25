@@ -1319,12 +1319,12 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {/* Overlay 1: Ask AI */}
       {aiFeature === 'ask' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="z-20 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4 md:px-6 shrink-0">
+          <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg h-[calc(100dvh-1.5rem)] sm:h-[90dvh] lg:max-h-[760px] flex flex-col overflow-hidden">
+            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4 md:px-6 shrink-0">
               <h2 className="min-w-0 truncate text-base sm:text-lg font-extrabold flex items-center gap-2 text-indigo-900">
                 <Bot size={22} className="text-indigo-600" /> Smart AI Writer
               </h2>
-              <button onClick={() => setAiFeature(null)} className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition" aria-label="Close AI writer">
+              <button type="button" onClick={() => setAiFeature(null)} className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition" aria-label="Close AI writer">
                 <X size={18} />
               </button>
             </div>
@@ -1402,11 +1402,11 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                 <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">GENERATED CONTENT</p>
-                    <button onClick={() => { navigator.clipboard.writeText(aiResult); toast.success('Copied!'); }} className="text-slate-400 hover:text-slate-700 transition flex items-center gap-1 text-xs font-bold">
+                    <button type="button" onClick={() => { navigator.clipboard.writeText(aiResult); toast.success('Copied!'); }} className="text-slate-400 hover:text-slate-700 transition flex items-center gap-1 text-xs font-bold">
                       <Copy size={12} /> Copy
                     </button>
                   </div>
-                  <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                  <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap break-words">
                     {aiResult}
                   </div>
                 </div>
@@ -1415,8 +1415,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
             {/* Footer Buttons */}
             {aiResult && (
-              <div className="flex flex-col sm:flex-row gap-3 border-t border-slate-100 p-4 md:px-6 shrink-0 bg-white">
+              <div className="sticky bottom-0 z-20 flex flex-col sm:flex-row gap-3 border-t border-slate-100 p-4 md:px-6 shrink-0 bg-white">
                 <button
+                  type="button"
                   onClick={() => {
                     if (!aiResultApplied) writeAiResultToNote(String(aiResult), true);
                     else setAiFeature(null);
@@ -1427,6 +1428,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                   {aiResultApplied ? 'Written to Note' : (editor.state.selection.empty ? 'Insert at Cursor' : 'Replace Selection')} <ArrowRight size={14} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => { editor.chain().focus().setContent(aiResult).run(); setAiFeature(null); toast.success('Replaced Note!'); }}
                   className="px-4 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-bold transition"
                 >
@@ -1436,13 +1438,16 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             )}
 
             {!aiResult && !aiLoading && (
-              <button
-                onClick={handleAskAI}
-                disabled={!aiPrompt.trim()}
-                className="w-[calc(100%-2.5rem)] mx-5 mb-5 md:w-[calc(100%-3rem)] md:mx-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md disabled:opacity-50 transition shrink-0"
-              >
-                Compose Prompt
-              </button>
+              <div className="sticky bottom-0 z-20 border-t border-slate-100 bg-white p-4 md:px-6 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleAskAI}
+                  disabled={!aiPrompt.trim()}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-md disabled:opacity-50 transition"
+                >
+                  Compose Prompt
+                </button>
+              </div>
             )}
           </div>
         </div>
