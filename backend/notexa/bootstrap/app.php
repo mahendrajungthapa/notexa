@@ -4,7 +4,26 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
-return Application::configure(basePath: dirname(__DIR__))
+$basePath = dirname(__DIR__);
+$compiledViewPath = $basePath . '/storage/framework/views';
+
+foreach ([
+    $basePath . '/storage/framework/cache/data',
+    $basePath . '/storage/framework/sessions',
+    $compiledViewPath,
+    $basePath . '/storage/logs',
+    $basePath . '/bootstrap/cache',
+] as $path) {
+    if (! is_dir($path)) {
+        @mkdir($path, 0775, true);
+    }
+}
+
+putenv('VIEW_COMPILED_PATH=' . $compiledViewPath);
+$_ENV['VIEW_COMPILED_PATH'] = $compiledViewPath;
+$_SERVER['VIEW_COMPILED_PATH'] = $compiledViewPath;
+
+return Application::configure(basePath: $basePath)
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
