@@ -1008,8 +1008,28 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     return items;
   }, []);
 
+  const openAiWriter = () => {
+    setAiFeature('ask');
+    setAiResult('');
+    setAiPrompt('');
+    setAiResultApplied(false);
+  };
+
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
+      {editable && !aiFeature && (
+        <button
+          type="button"
+          onClick={openAiWriter}
+          className="fixed bottom-5 right-5 z-[90] flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-2xl shadow-indigo-600/30 ring-1 ring-white/60 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+          aria-label="Open AI writer"
+          title="Open AI writer"
+        >
+          <Bot size={18} strokeWidth={2.5} />
+          <span>AI Writer</span>
+        </button>
+      )}
+
       {/* Toolbar */}
       {editable && (
         <div className="shrink-0 flex flex-wrap items-center gap-0.5 px-4 py-3 border-b border-slate-200/60 bg-white/50 backdrop-blur-sm z-10 sticky top-0">
@@ -1108,7 +1128,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
           {/* AI Features Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
-            <ToolButton onClick={() => { setAiFeature('ask'); setAiResult(''); setAiPrompt(''); }} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
+            <ToolButton onClick={openAiWriter} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
               <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
             </ToolButton>
             <div className="w-px h-4 bg-indigo-200/50 mx-0.5" />
@@ -1318,15 +1338,21 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
       {/* Overlay 1: Ask AI */}
       {aiFeature === 'ask' && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4 animate-in fade-in duration-200">
+          <button
+            type="button"
+            onClick={() => setAiFeature(null)}
+            className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-800 shadow-2xl ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+            aria-label="Close AI writer"
+            title="Close AI writer"
+          >
+            <X size={22} strokeWidth={2.5} />
+          </button>
           <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg h-[calc(100dvh-1.5rem)] sm:h-[90dvh] lg:max-h-[760px] flex flex-col overflow-hidden">
-            <div className="relative sticky top-0 z-20 flex items-center border-b border-slate-100 bg-white px-5 py-4 pr-16 md:px-6 md:pr-16 shrink-0">
+            <div className="sticky top-0 z-20 flex items-center border-b border-slate-100 bg-white px-5 py-4 pr-16 md:px-6 md:pr-16 shrink-0">
               <h2 className="min-w-0 truncate text-base sm:text-lg font-extrabold flex items-center gap-2 text-indigo-900">
                 <Bot size={22} className="text-indigo-600" /> Smart AI Writer
               </h2>
-              <button type="button" onClick={() => setAiFeature(null)} className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950" aria-label="Close AI writer">
-                <X size={18} />
-              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-5 py-4 md:px-6 custom-scrollbar">
