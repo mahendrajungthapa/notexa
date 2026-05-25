@@ -1834,19 +1834,25 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       )}
 
       {/* Overlay 6: Translation & Proofreading */}
-      {aiFeature === 'translate' && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-cyan-100 rounded-3xl shadow-2xl w-full max-w-lg p-5 md:p-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white pb-3 mb-4 shrink-0">
+      {portalTarget && aiFeature === 'translate' && createPortal((
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4 animate-in fade-in duration-200">
+          <button
+            type="button"
+            onClick={() => setAiFeature(null)}
+            className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full bg-white text-slate-800 shadow-2xl ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-4 focus:ring-cyan-500/30"
+            aria-label="Close grammar and translation hub"
+            title="Close grammar and translation hub"
+          >
+            <X size={22} strokeWidth={2.5} />
+          </button>
+          <div className="bg-white border border-cyan-100 rounded-3xl shadow-2xl w-full max-w-lg h-[calc(100dvh-1.5rem)] sm:h-[90dvh] lg:max-h-[760px] flex flex-col overflow-hidden">
+            <div className="sticky top-0 z-20 flex items-center border-b border-slate-100 bg-white px-5 py-4 pr-16 md:px-6 md:pr-16 shrink-0">
               <h2 className="text-lg font-extrabold flex items-center gap-2 text-cyan-900">
                 <Languages size={22} className="text-cyan-600" /> Grammar & translation Hub
               </h2>
-              <button onClick={() => setAiFeature(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition">
-                <X size={16} />
-              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 py-1 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-4 px-5 py-4 md:px-6 custom-scrollbar">
               <div className="flex items-center gap-3">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">TARGET LANGUAGE</label>
                 <select
@@ -1878,7 +1884,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                       <Copy size={12} /> Copy
                     </button>
                   </div>
-                  <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
+                  <div className="prose prose-sm max-w-none text-slate-700 font-medium leading-relaxed whitespace-pre-wrap break-words">
                     {aiResult}
                   </div>
                 </div>
@@ -1886,14 +1892,16 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             </div>
 
             {aiResult && !aiLoading && (
-              <div className="flex gap-3 border-t border-slate-100 pt-4 mt-4 shrink-0">
+              <div className="sticky bottom-0 z-20 flex gap-3 border-t border-slate-100 bg-white p-4 md:px-6 shrink-0">
                 <button
+                  type="button"
                   onClick={() => { editor.chain().focus().insertContent(aiResult).run(); setAiFeature(null); toast.success(editor.state.selection.empty ? 'Translation inserted!' : 'Selection Replaced!'); }}
                   className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold shadow-md shadow-cyan-600/10 flex items-center justify-center gap-2 transition"
                 >
                   {editor.state.selection.empty ? 'Insert at Cursor' : 'Replace Selection'} <ArrowRight size={14} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => { editor.chain().focus().setContent(aiResult).run(); setAiFeature(null); toast.success('Text replaced!'); }}
                   className="px-4 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-bold transition"
                 >
@@ -1903,16 +1911,19 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             )}
 
             {!aiResult && !aiLoading && (
-              <button
-                onClick={handleTranslate}
-                className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold shadow-md transition mt-4"
-              >
-                Translate Note
-              </button>
+              <div className="sticky bottom-0 z-20 border-t border-slate-100 bg-white p-4 md:px-6 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleTranslate}
+                  className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-sm font-bold shadow-md transition"
+                >
+                  Translate Note
+                </button>
+              </div>
             )}
           </div>
         </div>
-      )}
+      ), portalTarget)}
 
       {/* Overlay 7: AI Dictionary / Word Meaning Drawer */}
       {aiFeature === 'meaning' && (
