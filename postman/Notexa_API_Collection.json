@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "notexa-api-v2",
-    "name": "Notexa API - Complete Collection",
-    "description": "Notexa API collection for the current Laravel backend.\n\nBase URL: http://127.0.0.1:8000/api\n\nAuth: Bearer Token from /login or /register.\n\nEmail verification: when enabled in Admin Settings, registration sends a 6-digit SMTP code and users verify with /email/verify-code.\n\nPassword reset: /forgot-password sends a 6-digit SMTP code and /reset-password applies it with a new password.\n\nNotes: archive is removed; use trash, restore, permanent delete, pin, share codes, collaborators, and version history restore.\n\nRealtime collaboration: the Next.js editor uses Yjs WebRTC plus backend presence heartbeat endpoints so joined/writing status works even when peer discovery is unavailable.\n\nAI: /notes/{note}/ai-summary and /notes/{note}/ai-query use admin-configured backend API keys only. DeepSeek V4 Flash/Pro, OpenAI-compatible endpoints, and Gemini are configured in Admin Settings.\n\nFiles: supported previews use signed URLs for PDFs, text/code, and images; unsafe executable preview is blocked.\n\nAdmin: admin@notexa.com / NotexaAdmin@2026",
+    "_postman_id": "notexa-api-current",
+    "name": "Notexa API - Complete Backend Collection",
+    "description": "Complete Postman collection generated from the current Laravel backend routes.\n\nDefault local base URL: http://127.0.0.1:8000/api\nProduction API example: https://app.notexa.cloud/api\n\nAuth: Sanctum Bearer token. Use Login/Register to fill {{token}} manually, and Login as Admin for {{admin_token}}.\n\nRemoved: subscription, premium, upgrade, billing, payment gateway, archive, personal browser AI workspace, and folder APIs are not included because they are not part of the current backend.\n\nEmail verification: if enabled in Admin Settings, register/resend sends a 6-digit SMTP code and verify-code returns a token.\nForgot password: forgot-password sends a 6-digit SMTP code and reset-password applies it.\n\nAI endpoints use backend/admin configured providers only. OpenAI-compatible, Gemini, and DeepSeek settings are managed through Admin Settings.\n\nFiles use local storage by default unless admin settings enable Cloudflare R2. Upload is documented with the JSON/base64 PUT payload used by the frontend, plus legacy multipart POST.\n\nCollaboration uses note share codes for link access plus /presence heartbeat endpoints for online/joined/typing status.\n\nAdmin credential helper variables are included for local seeded installs: {{admin_login}} / {{admin_password}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -19,7 +19,43 @@
       "value": ""
     },
     {
+      "key": "admin_login",
+      "value": "admin@notexa.com"
+    },
+    {
+      "key": "admin_password",
+      "value": "NotexaAdmin@2026"
+    },
+    {
+      "key": "name",
+      "value": "Ram Sharma"
+    },
+    {
+      "key": "username",
+      "value": "ramsharma"
+    },
+    {
+      "key": "email",
+      "value": "ram@example.com"
+    },
+    {
+      "key": "password",
+      "value": "password123"
+    },
+    {
+      "key": "verification_code",
+      "value": "123456"
+    },
+    {
+      "key": "reset_code",
+      "value": "123456"
+    },
+    {
       "key": "note_id",
+      "value": "1"
+    },
+    {
+      "key": "version_id",
       "value": "1"
     },
     {
@@ -39,8 +75,16 @@
       "value": "ABCD1234"
     },
     {
-      "key": "reset_code",
-      "value": "123456"
+      "key": "collab_client_id",
+      "value": "postman-client-1"
+    },
+    {
+      "key": "signed_file_content_url",
+      "value": "http://127.0.0.1:8000/api/files/1/content?expires=0&signature=replace_me"
+    },
+    {
+      "key": "signed_file_preview_url",
+      "value": "http://127.0.0.1:8000/api/files/1/preview-content?expires=0&signature=replace_me"
     }
   ],
   "auth": {
@@ -55,7 +99,7 @@
   },
   "item": [
     {
-      "name": "🔓 Auth",
+      "name": "01 Public Auth and Settings",
       "item": [
         {
           "name": "Register",
@@ -63,17 +107,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
+                "key": "Accept",
                 "value": "application/json"
               },
               {
-                "key": "Accept",
+                "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ram Sharma\",\n  \"username\": \"ramsharma\",\n  \"email\": \"ram@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+              "raw": "{\n  \"name\": \"{{name}}\",\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/register",
@@ -83,57 +127,31 @@
               "path": [
                 "register"
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Creates a user. If email verification is enabled, no token is returned until /email/verify-code succeeds."
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "Created",
-              "code": 201,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Registration successful.\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"avatar\": null,\n    \"role\": \"user\",\n    \"storage_used\": 0,\n    \"storage_limit\": 52428800,\n    \"is_active\": true,\n    \"created_at\": \"2026-04-03T10:00:00.000000Z\"\n  },\n  \"token\": \"1|abc123def456ghi789jkl012mno345pqr678stu901vwx\"\n}"
-            },
-            {
-              "name": "Fail - Username taken",
-              "status": "Unprocessable Entity",
-              "code": 422,
-              "body": "{\n  \"message\": \"The username has already been taken.\",\n  \"errors\": {\n    \"username\": [\"The username has already been taken.\"]\n  }\n}"
-            },
-            {
-              "name": "Fail - Validation",
-              "status": "Unprocessable Entity",
-              "code": 422,
-              "body": "{\n  \"message\": \"The password field must be at least 8 characters.\",\n  \"errors\": {\n    \"password\": [\"The password field must be at least 8 characters.\"],\n    \"email\": [\"The email has already been taken.\"]\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Login",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "if(json.token) pm.collectionVariables.set('token', json.token);"
-                ]
-              }
-            }
-          ],
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
+                "key": "Accept",
                 "value": "application/json"
               },
               {
-                "key": "Accept",
+                "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"login\": \"ramsharma\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"login\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/login",
@@ -143,28 +161,47 @@
               "path": [
                 "login"
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Login accepts either email or username in the login field. Returns token and email_verification_required flag."
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"role\": \"user\",\n    \"is_active\": true\n  },\n  \"token\": \"2|xyz789abc012def345ghi678jkl901mno234pqr567stu\"\n}"
+          "response": []
+        },
+        {
+          "name": "Login as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{admin_login}}\",\n  \"password\": \"{{admin_password}}\"\n}"
             },
-            {
-              "name": "Fail - Wrong credentials",
-              "status": "Unauthorized",
-              "code": 401,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid credentials.\"\n}"
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
             },
-            {
-              "name": "Fail - Account deactivated",
-              "status": "Forbidden",
-              "code": 403,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Account deactivated.\"\n}"
-            }
-          ]
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Use the returned token as {{admin_token}} for Admin endpoints."
+          },
+          "response": []
         },
         {
           "name": "Forgot Password - Send Code",
@@ -172,17 +209,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
+                "key": "Accept",
                 "value": "application/json"
               },
               {
-                "key": "Accept",
+                "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"ram@example.com\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/forgot-password",
@@ -192,16 +229,13 @@
               "path": [
                 "forgot-password"
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Sends a 6-digit reset code by SMTP when SMTP is configured."
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"email\": \"ram@example.com\",\n  \"message\": \"A 6-digit password reset code was sent to your email.\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Reset Password with Code",
@@ -209,17 +243,17 @@
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
+                "key": "Accept",
                 "value": "application/json"
               },
               {
-                "key": "Accept",
+                "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"ram@example.com\",\n  \"code\": \"{{reset_code}}\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"{{reset_code}}\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/reset-password",
@@ -229,75 +263,197 @@
               "path": [
                 "reset-password"
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Password reset successfully. Please sign in with your new password.\"\n}"
-            },
-            {
-              "name": "Fail - Invalid code",
-              "status": "Unprocessable Entity",
-              "code": 422,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid or expired reset code.\"\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Login as Admin",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "if(json.token) pm.collectionVariables.set('admin_token', json.token);"
-                ]
-              }
-            }
-          ],
+          "name": "Resend Email Verification Code",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
+                "key": "Accept",
                 "value": "application/json"
               },
               {
-                "key": "Accept",
+                "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"login\": \"admin@notexa.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/login",
+              "raw": "{{base_url}}/email/verification-notification",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "login"
+                "email",
+                "verification-notification"
               ]
-            }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Sends a new 6-digit verification code when email verification is enabled."
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 1,\n    \"name\": \"Admin\",\n    \"username\": \"admin\",\n    \"email\": \"admin@notexa.com\",\n    \"role\": \"admin\"\n  },\n  \"token\": \"3|admin_token_here\"\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Get My Profile",
+          "name": "Verify Email Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"{{verification_code}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/email/verify-code",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "email",
+                "verify-code"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Verifies email and returns an auth token."
+          },
+          "response": []
+        },
+        {
+          "name": "Public Settings",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/settings/public",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "settings",
+                "public"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Public Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/profiles/{{username}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "profiles",
+                "{{username}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Returns public profile card data for an active username. @ prefix is allowed."
+          },
+          "response": []
+        },
+        {
+          "name": "Signed File Content URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{signed_file_content_url}}",
+              "host": [
+                "{{signed_file_content_url}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Use the signed URL returned by /files/{file}/download. This route requires a valid expires/signature pair."
+          },
+          "response": []
+        },
+        {
+          "name": "Signed File Preview URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{signed_file_preview_url}}",
+              "host": [
+                "{{signed_file_preview_url}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Use the signed URL returned by /files/{file}/preview. This route requires a valid expires/signature pair."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Authenticated User",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/me",
               "host": [
@@ -306,22 +462,56 @@
               "path": [
                 "me"
               ]
+            },
+            "description": "Returns current user and stats. Also self-heals legacy storage limit to 1 GB."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "logout"
+              ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "status": "OK",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"user\": {\n    \"id\": 2,\n    \"name\": \"Ram Sharma\",\n    \"username\": \"ramsharma\",\n    \"email\": \"ram@example.com\",\n    \"storage_used\": 1048576,\n    \"storage_limit\": 52428800\n  },\n  \"stats\": {\n    \"notes_count\": 5,\n    \"friends_count\": 3,\n    \"shared_with_me\": 2,\n    \"files_count\": 1,\n    \"storage_used_mb\": 1.0,\n    \"storage_limit_mb\": 50.0\n  }\n}"
+          "response": []
+        },
+        {
+          "name": "Complete Study Streak",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/streak/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "streak",
+                "complete"
+              ]
             },
-            {
-              "name": "Fail - Unauthenticated",
-              "status": "Unauthorized",
-              "code": 401,
-              "body": "{\n  \"message\": \"Unauthenticated.\"\n}"
-            }
-          ]
+            "description": "Marks today as completed and updates streak_count."
+          },
+          "response": []
         },
         {
           "name": "Update Profile",
@@ -329,13 +519,17 @@
             "method": "PUT",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Ram K. Sharma\",\n  \"username\": \"ramksharma\"\n}"
+              "raw": "{\n  \"name\": \"Ram Sharma\",\n  \"username\": \"{{username}}\",\n  \"institution\": \"Notexa College\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/profile",
@@ -347,13 +541,7 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"user\": { \"id\": 2, \"name\": \"Ram K. Sharma\", \"username\": \"ramksharma\" }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Change Password",
@@ -361,13 +549,17 @@
             "method": "PUT",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"newpassword456\",\n  \"password_confirmation\": \"newpassword456\"\n}"
+              "raw": "{\n  \"current_password\": \"{{password}}\",\n  \"password\": \"newpassword123\",\n  \"password_confirmation\": \"newpassword123\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/change-password",
@@ -379,90 +571,25 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Password changed.\"\n}"
-            },
-            {
-              "name": "Fail",
-              "code": 400,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Current password incorrect.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Logout",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/logout",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "logout"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Logged out.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Verify Email Code",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"ram@example.com\",\n  \"code\": \"123456\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/email/verify-code",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "email",
-                "verify-code"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Email verified successfully.\",\n  \"user\": { \"id\": 2, \"email\": \"ram@example.com\" },\n  \"token\": \"2|verified_token\"\n}"
-            },
-            {
-              "name": "Fail - Invalid or expired",
-              "code": 422,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid verification code.\"\n}"
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "📝 Notes",
+      "name": "03 Notes",
       "item": [
         {
           "name": "List Notes",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/notes?search=&page=1&per_page=20",
+              "raw": "{{base_url}}/notes?search=&color=&page=1&per_page=20",
               "host": [
                 "{{base_url}}"
               ],
@@ -472,6 +599,10 @@
               "query": [
                 {
                   "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "color",
                   "value": ""
                 },
                 {
@@ -485,13 +616,7 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      {\n        \"id\": 1,\n        \"user_id\": 2,\n        \"title\": \"My First Note\",\n        \"content\": \"<p>Hello world</p>\",\n        \"plain_text\": \"Hello world\",\n        \"color\": \"#ffffff\",\n        \"is_pinned\": false,\n        \"is_trashed\": false,\n        \"share_code\": \"XK7M2NPA\",\n        \"ai_summary\": null,\n        \"created_at\": \"2026-04-03T10:00:00.000000Z\",\n        \"updated_at\": \"2026-04-03T10:00:00.000000Z\"\n      }\n    ],\n    \"current_page\": 1,\n    \"last_page\": 1,\n    \"total\": 1\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Create Note",
@@ -499,13 +624,17 @@
             "method": "POST",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Sprint Planning Q4\",\n  \"content\": \"<h1>Sprint Planning</h1><p>Key priorities for Q4...</p>\",\n  \"color\": \"#dbeafe\"\n}"
+              "raw": "{\n  \"title\": \"Postman Note\",\n  \"content\": \"<p>Hello from Postman</p>\",\n  \"color\": \"#ffffff\",\n  \"is_pinned\": false\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes",
@@ -517,23 +646,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 201,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Sprint Planning Q4\",\n    \"content\": \"<h1>Sprint Planning</h1><p>Key priorities for Q4...</p>\",\n    \"color\": \"#dbeafe\",\n    \"share_code\": \"XK7M2NPA\",\n    \"ai_summary\": null\n  }\n}"
-            },
-            {
-              "name": "Fail - Validation",
-              "code": 422,
-              "body": "{\n  \"message\": \"The title field is required.\",\n  \"errors\": { \"title\": [\"The title field is required.\"] }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Get Single Note",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}",
               "host": [
@@ -545,18 +669,37 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 1,\n    \"title\": \"Sprint Planning Q4\",\n    \"content\": \"<h1>Sprint Planning</h1><p>Key priorities...</p>\",\n    \"share_code\": \"XK7M2NPA\",\n    \"ai_summary\": \"Focus on mobile launch and onboarding improvements for Q4.\",\n    \"user\": { \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\" },\n    \"shares\": [],\n    \"files\": []\n  },\n  \"permission\": \"owner\"\n}"
+          "response": []
+        },
+        {
+          "name": "Get Single Note with Collaboration Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}?collab_token={{share_code}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}"
+              ],
+              "query": [
+                {
+                  "key": "collab_token",
+                  "value": "{{share_code}}"
+                }
+              ]
             },
-            {
-              "name": "Fail - Unauthorized",
-              "code": 403,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Unauthorized\"\n}"
-            }
-          ]
+            "description": "If the token matches the note share code, backend grants edit access to the logged-in opener."
+          },
+          "response": []
         },
         {
           "name": "Update Note",
@@ -564,13 +707,17 @@
             "method": "PUT",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Updated Title\",\n  \"content\": \"<p>Updated content here</p>\",\n  \"color\": \"#fef3c7\"\n}"
+              "raw": "{\n  \"title\": \"Updated Postman Note\",\n  \"content\": \"<p>Updated content</p>\",\n  \"color\": \"#ffffff\",\n  \"is_pinned\": true\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}",
@@ -583,18 +730,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"title\": \"Updated Title\" }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Delete Note (Trash)",
+          "name": "Delete Note to Trash",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}",
               "host": [
@@ -606,18 +753,47 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Moved to trash.\"\n}"
+          "response": []
+        },
+        {
+          "name": "Trashed Notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notes/trashed?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "trashed"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
             }
-          ]
+          },
+          "response": []
         },
         {
           "name": "Restore Note",
           "request": {
             "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/restore",
               "host": [
@@ -630,18 +806,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Permanent Delete",
+          "name": "Permanent Delete Note",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/permanent",
               "host": [
@@ -654,18 +830,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Toggle Pin",
           "request": {
             "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/pin",
               "host": [
@@ -678,18 +854,75 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"is_pinned\": true }\n}"
+          "response": []
+        },
+        {
+          "name": "Note Versions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/versions?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "versions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Shows version_number, editor user, change_summary, word_count, and restorable version content."
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Note Version",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/versions/{{version_id}}/restore",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "versions",
+                "{{version_id}}",
+                "restore"
+              ]
             }
-          ]
+          },
+          "response": []
         },
         {
           "name": "Get Share Code",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/share-code",
               "host": [
@@ -702,18 +935,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"share_code\": \"XK7M2NPA\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Regenerate Share Code",
           "request": {
             "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/regenerate-code",
               "host": [
@@ -726,13 +959,7 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"share_code\": \"P9QR4TUV\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Redeem Share Code",
@@ -740,13 +967,17 @@
             "method": "POST",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"XK7M2NPA\"\n}"
+              "raw": "{\n  \"code\": \"{{share_code}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/redeem-code",
@@ -759,33 +990,23 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success - View Only",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Note 'Sprint Planning Q4' added to your shared notes.\",\n  \"data\": { \"id\": 1, \"title\": \"Sprint Planning Q4\", \"user\": { \"id\": 2, \"username\": \"ramsharma\" } }\n}"
-            },
-            {
-              "name": "Fail - Invalid code",
-              "code": 404,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Invalid code.\"\n}"
-            },
-            {
-              "name": "Fail - Own note",
-              "code": 400,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"This is your own note.\"\n}"
-            },
-            {
-              "name": "Fail - Already shared",
-              "code": 400,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Already shared with you.\"\n}"
-            }
-          ]
-        },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 Realtime Collaboration Presence",
+      "item": [
         {
-          "name": "Collaboration Presence",
+          "name": "Collaboration Presence List",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/presence?collab_token={{share_code}}",
               "host": [
@@ -802,15 +1023,10 @@
                   "value": "{{share_code}}"
                 }
               ]
-            }
+            },
+            "description": "Returns active collaborators and typing state. Only call while collaboration mode is active."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"client_id\": \"browser-client\", \"name\": \"Ram Sharma\", \"is_typing\": true }\n  ]\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Collaboration Heartbeat",
@@ -818,13 +1034,17 @@
             "method": "POST",
             "header": [
               {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"client_id\": \"postman-client\",\n  \"collab_token\": \"{{share_code}}\",\n  \"is_typing\": true,\n  \"color\": \"#6366f1\"\n}"
+              "raw": "{\n  \"client_id\": \"{{collab_client_id}}\",\n  \"is_typing\": true,\n  \"color\": \"#6366f1\",\n  \"collab_token\": \"{{share_code}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/presence",
@@ -836,20 +1056,26 @@
                 "{{note_id}}",
                 "presence"
               ]
-            }
+            },
+            "description": "Send every few seconds while editing. is_typing true shows live writing indicator."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"client_id\": \"postman-client\", \"name\": \"Ram Sharma\", \"is_typing\": true }\n  ]\n}"
-            }
-          ]
-        },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 AI",
+      "item": [
         {
           "name": "AI Summary",
           "request": {
             "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/ai-summary",
               "host": [
@@ -860,31 +1086,20 @@
                 "{{note_id}}",
                 "ai-summary"
               ]
-            }
+            },
+            "description": "Summarizes the note using admin-configured backend AI provider."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"summary\": \"This note outlines Q4 sprint priorities: mobile app launch and onboarding flow improvements.\"\n}"
-            },
-            {
-              "name": "Fail - Disabled",
-              "code": 403,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"AI summaries are disabled in admin settings.\"\n}"
-            },
-            {
-              "name": "Fail - Too short",
-              "code": 400,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Note is too short to summarize.\"\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "AI Query",
+          "name": "AI Query / Writer / Translation / Quiz Prompt",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -892,7 +1107,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"systemPrompt\": \"You are a helpful academic study assistant.\",\n  \"userPrompt\": \"Create 5 flashcards from this note.\"\n}"
+              "raw": "{\n  \"systemPrompt\": \"You are a helpful academic writing assistant.\",\n  \"userPrompt\": \"Create concise study notes from this topic: Photosynthesis.\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/ai-query",
@@ -904,78 +1119,20 @@
                 "{{note_id}}",
                 "ai-query"
               ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"result\": \"Flashcard content generated by the configured server AI provider.\"\n  }\n}"
             },
-            {
-              "name": "Fail - Not configured",
-              "code": 503,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"No server AI provider is configured. Add an API key in Admin Settings.\"\n}"
-            }
-          ]
+            "description": "General backend AI endpoint used by writer, grammar/translation, flashcards, dictionary, and similar frontend tools."
+          },
+          "response": []
         },
         {
-          "name": "Trashed Notes",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/notes/trashed",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "notes",
-                "trashed"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"data\": [], \"total\": 0 } }"
-            }
-          ]
-        },
-        {
-          "name": "Note Versions",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/notes/{{note_id}}/versions",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "notes",
-                "{{note_id}}",
-                "versions"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      { \"id\": 1, \"version_number\": 1, \"user\": { \"id\": 2, \"name\": \"Ram\" }, \"created_at\": \"2026-04-03T10:00:00Z\" }\n    ]\n  }\n}"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "🤝 Sharing",
-      "item": [
-        {
-          "name": "Share Note with Friend",
+          "name": "AI OCR Image",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -983,7 +1140,77 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": 3,\n  \"permission\": \"edit\"\n}"
+              "raw": "{\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/ai-ocr",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "ai-ocr"
+              ]
+            },
+            "description": "OCR endpoint for uploaded image data URLs. Max string length is 12,000,000 characters."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 Note Sharing",
+      "item": [
+        {
+          "name": "Shared Notes With Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/shared-with-me?page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "shared-with-me"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Share Note With Friend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"permission\": \"edit\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/share",
@@ -995,31 +1222,20 @@
                 "{{note_id}}",
                 "share"
               ]
-            }
+            },
+            "description": "Owner only. Target must be an accepted friend."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Shared with @sita.\",\n  \"data\": { \"id\": 1, \"permission\": \"edit\", \"recipient\": { \"id\": 3, \"name\": \"Sita\", \"username\": \"sita\" } }\n}"
-            },
-            {
-              "name": "Fail - Not owner",
-              "code": 403,
-              "body": "{ \"status\": \"error\", \"message\": \"Only owner can share.\" }"
-            },
-            {
-              "name": "Fail - Not friends",
-              "code": 403,
-              "body": "{ \"status\": \"error\", \"message\": \"Add this user as a friend before sharing notes.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Update Permission",
+          "name": "Update Share Permission",
           "request": {
             "method": "PUT",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1027,7 +1243,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{ \"permission\": \"view\" }"
+              "raw": "{\n  \"permission\": \"view\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/share/{{user_id}}",
@@ -1042,18 +1258,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"permission\": \"view\" } }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Unshare",
+          "name": "Unshare Note",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/share/{{user_id}}",
               "host": [
@@ -1067,18 +1283,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "List Collaborators",
+          "name": "List Note Collaborators",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/notes/{{note_id}}/collaborators",
               "host": [
@@ -1091,45 +1307,23 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 1, \"shared_with\": 3, \"permission\": \"edit\", \"recipient\": { \"id\": 3, \"name\": \"Sita\", \"username\": \"sita\" } }\n  ]\n}"
-            }
-          ]
-        },
-        {
-          "name": "Shared with Me",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/shared-with-me",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "shared-with-me"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [\n      { \"id\": 1, \"title\": \"Sprint Planning\", \"user\": { \"id\": 2, \"username\": \"ramsharma\" }, \"pivot\": { \"permission\": \"edit\" } }\n    ]\n  }\n}"
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "👥 Friends",
+      "name": "07 Friends",
       "item": [
         {
-          "name": "My Friends",
+          "name": "List Friends",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/friends",
               "host": [
@@ -1138,20 +1332,21 @@
               "path": [
                 "friends"
               ]
-            }
+            },
+            "description": "Includes is_online based on recent Sanctum token activity."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"id\": 3, \"name\": \"Sita Devi\", \"username\": \"sita\", \"email\": \"sita@example.com\" }\n  ]\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Pending Requests",
+          "name": "Pending Friend Requests",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/friends/requests",
               "host": [
@@ -1163,19 +1358,47 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"received\": [{ \"id\": 1, \"sender\": { \"id\": 4, \"name\": \"Hari\", \"username\": \"hari\" }, \"status\": \"pending\" }],\n    \"sent\": [{ \"id\": 2, \"receiver\": { \"id\": 5, \"name\": \"Gita\", \"username\": \"gita\" }, \"status\": \"pending\" }]\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Send Friend Request (by username)",
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/friends/search?query=ra",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "friends",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "ra"
+                }
+              ]
+            },
+            "description": "Minimum query length is 2. Returns relationship and online status."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Friend Request",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1183,7 +1406,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"sita\"\n}"
+              "raw": "{\n  \"username\": \"{{username}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/friends/request",
@@ -1196,33 +1419,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Friend request sent to @sita.\"\n}"
-            },
-            {
-              "name": "Fail - Not found",
-              "code": 404,
-              "body": "{ \"status\": \"error\", \"message\": \"User not found.\" }"
-            },
-            {
-              "name": "Fail - Already friends",
-              "code": 400,
-              "body": "{ \"status\": \"error\", \"message\": \"Already friends.\" }"
-            },
-            {
-              "name": "Fail - Self",
-              "code": 400,
-              "body": "{ \"status\": \"error\", \"message\": \"Cannot add yourself.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Accept Request",
+          "name": "Accept Friend Request",
           "request": {
             "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/friends/accept/{{friendship_id}}",
               "host": [
@@ -1235,18 +1443,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Friend request accepted.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Reject Request",
+          "name": "Reject Friend Request",
           "request": {
             "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/friends/reject/{{friendship_id}}",
               "host": [
@@ -1259,23 +1467,13 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Rejected.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Cancel Sent Request",
+          "name": "Cancel Sent Friend Request",
           "request": {
             "method": "DELETE",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
               {
                 "key": "Accept",
                 "value": "application/json"
@@ -1291,8 +1489,7 @@
                 "request",
                 "{{friendship_id}}"
               ]
-            },
-            "description": "Cancel a pending friend request that the authenticated user sent."
+            }
           },
           "response": []
         },
@@ -1300,6 +1497,12 @@
           "name": "Remove Friend",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/friends/{{user_id}}",
               "host": [
@@ -1311,82 +1514,88 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Friend removed.\" }"
-            }
-          ]
-        },
-        {
-          "name": "Search Users",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/friends/search?query=ram",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "friends",
-                "search"
-              ],
-              "query": [
-                {
-                  "key": "query",
-                  "value": "ram"
-                }
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [{ \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\" }]\n}"
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "📁 Files",
+      "name": "08 Files",
       "item": [
         {
-          "name": "List Files",
+          "name": "List My Files",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/files",
+              "raw": "{{base_url}}/files?page=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "files"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Returns files owned by the current user. Folder APIs are removed/not used."
+          },
+          "response": []
+        },
+        {
+          "name": "Files Shared With Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/files/shared-with-me?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "files",
+                "shared-with-me"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"data\": [{\n      \"id\": 1,\n      \"original_name\": \"report.pdf\",\n      \"mime_type\": \"application/pdf\",\n      \"size\": 524288,\n      \"created_at\": \"2026-04-03T10:00:00Z\"\n    }]\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Upload File",
+          "name": "Upload File - JSON Base64",
           "request": {
             "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"file_base64\": \"data:text/plain;base64,SGVsbG8gTm90ZXhh\",\n  \"original_name\": \"hello.txt\",\n  \"mime_type\": \"text/plain\",\n  \"size\": 12,\n  \"note_id\": 1\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"file_base64\": \"data:text/plain;base64,SGVsbG8gTm90ZXhh\",\n  \"original_name\": \"hello.txt\",\n  \"mime_type\": \"text/plain\",\n  \"size\": 12,\n  \"note_id\": \"{{note_id}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/files/upload",
@@ -1397,30 +1606,60 @@
                 "files",
                 "upload"
               ]
-            }
+            },
+            "description": "Preferred frontend upload format. note_id is optional. Max upload size is 50 MB. Storage limit defaults to 1 GB per user."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 201,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"id\": 1, \"original_name\": \"report.pdf\", \"size\": 524288, \"note_id\": 1 }\n}"
+          "response": []
+        },
+        {
+          "name": "Upload File - Legacy Multipart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "note_id",
+                  "value": "{{note_id}}",
+                  "type": "text"
+                }
+              ]
             },
-            {
-              "name": "Fail - Storage full",
-              "code": 400,
-              "body": "{ \"status\": \"error\", \"message\": \"Storage limit reached. Delete unused files or ask an admin to increase your storage limit.\" }"
+            "url": {
+              "raw": "{{base_url}}/files/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "files",
+                "upload"
+              ]
             },
-            {
-              "name": "Fail - No note permission",
-              "code": 403,
-              "body": "{ \"status\": \"error\", \"message\": \"No edit permission for this note.\" }"
-            }
-          ]
+            "description": "Legacy multipart upload. Use JSON/base64 when host PHP temp buffering is restricted."
+          },
+          "response": []
         },
         {
           "name": "Download File",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/files/{{file_id}}/download",
               "host": [
@@ -1431,20 +1670,21 @@
                 "{{file_id}}",
                 "download"
               ]
-            }
+            },
+            "description": "Returns a temporary/signed download_url."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"download_url\": \"http://127.0.0.1:8000/api/files/1/content?expires=...&signature=...\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Preview File",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/files/{{file_id}}/preview",
               "host": [
@@ -1455,76 +1695,21 @@
                 "{{file_id}}",
                 "preview"
               ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"preview_url\": \"http://127.0.0.1:8000/api/files/1/preview-content?expires=...&signature=...\",\n  \"preview_type\": \"pdf\"\n}"
             },
-            {
-              "name": "Unsupported File",
-              "code": 415,
-              "body": "{\n  \"status\": \"error\",\n  \"message\": \"Preview is available only for PDF, text/code, and safe image files.\"\n}"
-            }
-          ]
+            "description": "Returns preview_url for PDF, text/code, and safe images only."
+          },
+          "response": []
         },
         {
-          "name": "Files Shared With Me",
+          "name": "List File Shares",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/files/shared-with-me",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "files",
-                "shared-with-me"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": { \"data\": [{ \"id\": 1, \"original_name\": \"report.pdf\", \"user\": { \"id\": 2, \"username\": \"ramsharma\" } }] }\n}"
-            }
-          ]
-        },
-        {
-          "name": "Share File With Friend",
-          "request": {
-            "method": "POST",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user_id\": {{user_id}}\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/files/{{file_id}}/share",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "files",
-                "{{file_id}}",
-                "share"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"File shared with @sita.\",\n  \"data\": { \"id\": 1, \"shared_with\": 3 }\n}"
-            }
-          ]
-        },
-        {
-          "name": "File Shares",
-          "request": {
-            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/files/{{file_id}}/shares",
               "host": [
@@ -1537,18 +1722,51 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [{ \"id\": 1, \"shared_with\": 3, \"recipient\": { \"id\": 3, \"username\": \"sita\" } }]\n}"
-            }
-          ]
+          "response": []
+        },
+        {
+          "name": "Share File With Friend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/files/{{file_id}}/share",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "files",
+                "{{file_id}}",
+                "share"
+              ]
+            },
+            "description": "Owner only. Target must be an accepted friend."
+          },
+          "response": []
         },
         {
           "name": "Unshare File",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/files/{{file_id}}/share/{{user_id}}",
               "host": [
@@ -1562,18 +1780,18 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Delete File",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/files/{{file_id}}",
               "host": [
@@ -1585,64 +1803,23 @@
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            }
-          ]
+          "response": []
         }
       ]
     },
     {
-      "name": "🌐 Public",
+      "name": "09 Admin",
       "item": [
         {
-          "name": "Public Settings",
+          "name": "Admin Dashboard",
           "request": {
             "method": "GET",
-            "auth": {
-              "type": "noauth"
-            },
-            "url": {
-              "raw": "{{base_url}}/settings/public",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "settings",
-                "public"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"site_name\": \"Notexa\",\n    \"site_logo\": \"\",\n    \"site_description\": \"Collaborative Note Taking Platform\",\n    \"privacy_policy\": \"<h1>Privacy Policy</h1>...\",\n    \"terms_conditions\": \"<h1>Terms</h1>...\",\n    \"about_us\": \"<h2>About Notexa</h2>...\",\n    \"ai_enabled\": true\n  }\n}"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "🔒 Admin",
-      "description": "Requires admin token. Set admin_token variable first by logging in as admin.",
-      "auth": {
-        "type": "bearer",
-        "bearer": [
-          {
-            "key": "token",
-            "value": "{{admin_token}}"
-          }
-        ]
-      },
-      "item": [
-        {
-          "name": "Dashboard",
-          "request": {
-            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/admin/dashboard",
               "host": [
@@ -1652,22 +1829,32 @@
                 "admin",
                 "dashboard"
               ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"total_users\": 10,\n    \"active_users\": 9,\n    \"total_notes\": 45,\n    \"total_shared_notes\": 12,\n    \"total_friendships\": 8,\n    \"total_files\": 15,\n    \"total_storage_gb\": 0.5,\n    \"total_storage_used\": \"512 MB\",\n    \"new_users_today\": 2,\n    \"new_users_month\": 10,\n    \"recent_signups\": 10,\n    \"notes_today\": 5,\n    \"users_chart\": [{ \"date\": \"2026-04-01\", \"count\": 3 }]\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "List Users",
+          "name": "Admin List Users",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/admin/users?search=&page=1",
+              "raw": "{{base_url}}/admin/users?search=&role=&page=1&per_page=20",
               "host": [
                 "{{base_url}}"
               ],
@@ -1681,49 +1868,75 @@
                   "value": ""
                 },
                 {
+                  "key": "role",
+                  "value": ""
+                },
+                {
                   "key": "page",
                   "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
                 }
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"data\": [{ \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\", \"notes_count\": 5, \"files_count\": 2 }] } }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "User Detail (Full Data)",
+          "name": "Admin User Detail",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/admin/users/2",
+              "raw": "{{base_url}}/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin",
                 "users",
-                "2"
+                "{{user_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"user\": { \"id\": 2, \"name\": \"Ram\", \"username\": \"ramsharma\", \"notes\": [], \"files\": [] },\n    \"friends\": [{ \"id\": 3, \"username\": \"sita\" }],\n    \"friends_count\": 1,\n    \"shared_by_user\": [],\n    \"shared_with_user\": [],\n    \"storage_used_mb\": 1.0,\n    \"storage_limit_mb\": 50.0,\n    \"activity\": []\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Update User",
+          "name": "Admin Update User",
           "request": {
             "method": "PUT",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1731,61 +1944,163 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"is_active\": true,\n  \"role\": \"user\",\n  \"storage_limit\": 52428800\n}"
+              "raw": "{\n  \"name\": \"Updated User\",\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\",\n  \"role\": \"user\",\n  \"is_active\": true,\n  \"storage_limit\": 1073741824\n}"
             },
             "url": {
-              "raw": "{{base_url}}/admin/users/2",
+              "raw": "{{base_url}}/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin",
                 "users",
-                "2"
+                "{{user_id}}"
               ]
-            }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Admin accounts cannot be deactivated. storage_limit is bytes; 1073741824 = 1 GB."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"id\": 2, \"is_active\": true } }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Delete User",
+          "name": "Admin Delete User",
           "request": {
             "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{base_url}}/admin/users/2",
+              "raw": "{{base_url}}/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin",
                 "users",
-                "2"
+                "{{user_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Admin users cannot be deleted."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin List Notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/notes?search=&user_id=&page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "notes"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": ""
+                },
+                {
+                  "key": "user_id",
+                  "value": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
               ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\" }"
-            },
-            {
-              "name": "Fail - Admin",
-              "code": 400,
-              "body": "{ \"status\": \"error\", \"message\": \"Cannot delete admin.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Get Settings",
+          "name": "Admin Delete Note",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/notes/{{note_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "notes",
+                "{{note_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Get Settings",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/admin/settings?group=",
               "host": [
@@ -1801,21 +2116,30 @@
                   "value": ""
                 }
               ]
-            }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Optional group examples: general, smtp, storage, ai, legal."
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    { \"key\": \"site_name\", \"value\": \"Notexa\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"site_logo\", \"value\": \"/storage/site/site-logo.png\", \"type\": \"string\", \"group\": \"general\" },\n    { \"key\": \"r2_access_key\", \"value\": \"\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_model\", \"value\": \"deepseek-v4-flash\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Update Settings (R2 Keys Example)",
+          "name": "Admin Update General Settings",
           "request": {
             "method": "PUT",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1823,7 +2147,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"settings\": [\n    { \"key\": \"r2_access_key\", \"value\": \"your_access_key\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_secret_key\", \"value\": \"your_secret\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_bucket\", \"value\": \"notexa-files\", \"type\": \"string\", \"group\": \"storage\" },\n    { \"key\": \"r2_endpoint\", \"value\": \"https://xxx.r2.cloudflarestorage.com\", \"type\": \"string\", \"group\": \"storage\" }\n  ]\n}"
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"site_name\",\n      \"value\": \"Notexa\",\n      \"type\": \"string\",\n      \"group\": \"general\"\n    },\n    {\n      \"key\": \"email_verification_enabled\",\n      \"value\": \"true\",\n      \"type\": \"boolean\",\n      \"group\": \"general\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/admin/settings",
@@ -1834,21 +2158,29 @@
                 "admin",
                 "settings"
               ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Update Settings (AI Provider Key)",
+          "name": "Admin Update SMTP Settings",
           "request": {
             "method": "PUT",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1856,7 +2188,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"settings\": [\n    { \"key\": \"ai_provider\", \"value\": \"deepseek\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_api_key\", \"value\": \"sk-your-deepseek-key\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_base_url\", \"value\": \"https://api.deepseek.com\", \"type\": \"string\", \"group\": \"ai\" },\n    { \"key\": \"deepseek_model\", \"value\": \"deepseek-v4-flash\", \"type\": \"string\", \"group\": \"ai\" }\n  ]\n}"
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"mail_host\",\n      \"value\": \"smtp.example.com\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_port\",\n      \"value\": \"587\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_username\",\n      \"value\": \"smtp-user\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_password\",\n      \"value\": \"smtp-password\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_encryption\",\n      \"value\": \"tls\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_from_address\",\n      \"value\": \"no-reply@example.com\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    },\n    {\n      \"key\": \"mail_from_name\",\n      \"value\": \"Notexa\",\n      \"type\": \"string\",\n      \"group\": \"smtp\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/admin/settings",
@@ -1867,21 +2199,195 @@
                 "admin",
                 "settings"
               ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Settings updated.\" }"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Upload Site Logo",
+          "name": "Admin Update Storage Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"storage_driver\",\n      \"value\": \"local\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    },\n    {\n      \"key\": \"r2_access_key\",\n      \"value\": \"\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    },\n    {\n      \"key\": \"r2_secret_key\",\n      \"value\": \"\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    },\n    {\n      \"key\": \"r2_bucket\",\n      \"value\": \"\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    },\n    {\n      \"key\": \"r2_endpoint\",\n      \"value\": \"\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    },\n    {\n      \"key\": \"r2_public_url\",\n      \"value\": \"\",\n      \"type\": \"string\",\n      \"group\": \"storage\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Update AI Settings - DeepSeek V4",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"ai_enabled\",\n      \"value\": \"true\",\n      \"type\": \"boolean\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"ai_provider\",\n      \"value\": \"deepseek\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"deepseek_api_key\",\n      \"value\": \"sk-your-deepseek-key\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"deepseek_model\",\n      \"value\": \"deepseek-v4-flash\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"deepseek_base_url\",\n      \"value\": \"https://api.deepseek.com\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Supported DeepSeek model examples: deepseek-v4-flash, deepseek-v4-pro. Deprecated legacy aliases are not used in the frontend editor."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Update AI Settings - OpenAI Compatible",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"ai_enabled\",\n      \"value\": \"true\",\n      \"type\": \"boolean\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"ai_provider\",\n      \"value\": \"openai\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"openai_api_key\",\n      \"value\": \"sk-your-openai-key\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"openai_model\",\n      \"value\": \"gpt-4.1-mini\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    },\n    {\n      \"key\": \"openai_base_url\",\n      \"value\": \"https://api.openai.com/v1\",\n      \"type\": \"string\",\n      \"group\": \"ai\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Update Legal Pages",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"settings\": [\n    {\n      \"key\": \"privacy_policy\",\n      \"value\": \"<h1>Privacy Policy</h1><p>Your privacy policy.</p>\",\n      \"type\": \"html\",\n      \"group\": \"legal\"\n    },\n    {\n      \"key\": \"terms_conditions\",\n      \"value\": \"<h1>Terms and Conditions</h1><p>Your terms.</p>\",\n      \"type\": \"html\",\n      \"group\": \"legal\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/admin/settings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "settings"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Upload Site Logo",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -1902,21 +2408,29 @@
                 "settings",
                 "logo"
               ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
             }
           },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Site logo uploaded successfully.\",\n  \"data\": { \"site_logo\": \"/storage/site/site-logo-example.png\" }\n}"
-            }
-          ]
+          "response": []
         },
         {
-          "name": "Test SMTP",
+          "name": "Admin Test SMTP",
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1924,7 +2438,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{ \"email\": \"test@example.com\" }"
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/admin/settings/smtp/test",
@@ -1937,57 +2451,151 @@
                 "smtp",
                 "test"
               ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"message\": \"Email sent.\" }"
             },
-            {
-              "name": "Fail",
-              "code": 500,
-              "body": "{ \"status\": \"error\", \"message\": \"SMTP Error: Connection refused\" }"
-            }
-          ]
-        },
-        {
-          "name": "All Notes (Admin)",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/admin/notes",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "admin",
-                "notes"
-              ]
-            }
-          },
-          "response": [
-            {
-              "name": "Success",
-              "code": 200,
-              "body": "{ \"status\": \"success\", \"data\": { \"data\": [] } }"
-            }
-          ]
-        },
-        {
-          "name": "Fail - Not Admin",
-          "request": {
-            "method": "GET",
             "auth": {
               "type": "bearer",
               "bearer": [
                 {
                   "key": "token",
-                  "value": "{{token}}"
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Shared Notes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/shared-notes?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "shared-notes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
                 }
               ]
             },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Friendships",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/friendships?status=accepted&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "friendships"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "accepted"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Activity Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/activity-logs?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "activity-logs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Admin Forbidden Check With User Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/admin/dashboard",
               "host": [
@@ -1997,15 +2605,20 @@
                 "admin",
                 "dashboard"
               ]
-            }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Should return 403 for non-admin users."
           },
-          "response": [
-            {
-              "name": "Fail",
-              "code": 403,
-              "body": "{ \"status\": \"error\", \"message\": \"Admin access required.\" }"
-            }
-          ]
+          "response": []
         }
       ]
     }
