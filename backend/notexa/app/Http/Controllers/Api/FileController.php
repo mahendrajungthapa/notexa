@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\File;
+use App\Models\FileFolder;
 use App\Models\FileShare;
 use App\Models\Note;
 use App\Models\User;
@@ -20,14 +21,72 @@ class FileController extends Controller
     // Owned files for the My Files page.
     public function index(Request $request)
     {
-        $files = $request->user()->files()
+        $query = $request->user()->files()
             ->with('shares.recipient:id,name,username,avatar')
-            ->orderByDesc('created_at')
-            ->paginate(20);
+            ->orderByDesc('created_at');
+
+        if ($request->has('folder_id')) {
+            $folderId = $this->folderIdFromRequest($request, 'folder_id');
+            if ($folderId && !$this->folderOwnedBy($folderId, $request->user()->id)) {
+                return response()->json(['status' => 'error', 'message' => 'Folder not found.'], 404);
+            }
+            $folderId ? $query->where('folder_id', $folderId) : $query->whereNull('folder_id');
+        }
+
+        $files = $query->paginate(20);
 
         $this->repairMissingSizes($files->getCollection());
 
         return response()->json(['status' => 'success', 'data' => $files]);
+    }
+
+    public function folders(Request $request)
+    {
+        $parentId = $this->folderIdFromRequest($request, 'parent_id');
+        if ($parentId && !$this->folderOwnedBy($parentId, $request->user()->id)) {
+            return response()->json(['status' => 'error', 'message' => 'Folder not found.'], 404);
+        }
+
+        $query = $request->user()->fileFolders()
+            ->withCount(['files', 'children'])
+            ->orderBy('name');
+
+        $parentId ? $query->where('parent_id', $parentId) : $query->whereNull('parent_id');
+
+        return response()->json(['status' => 'success', 'data' => $query->get()]);
+    }
+
+    public function createFolder(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|min:1|max:120',
+            'parent_id' => 'nullable',
+        ]);
+
+        $parentId = $this->folderIdFromRequest($request, 'parent_id');
+        if ($parentId && !$this->folderOwnedBy($parentId, $request->user()->id)) {
+            return response()->json(['status' => 'error', 'message' => 'Parent folder not found.'], 404);
+        }
+
+        $name = trim($validated['name']);
+        $duplicate = $request->user()->fileFolders()
+            ->where(function ($query) use ($parentId) {
+                $parentId ? $query->where('parent_id', $parentId) : $query->whereNull('parent_id');
+            })
+            ->whereRaw('lower(name) = ?', [strtolower($name)])
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json(['status' => 'error', 'message' => 'A folder with this name already exists here.'], 422);
+        }
+
+        $folder = FileFolder::create([
+            'user_id' => $request->user()->id,
+            'parent_id' => $parentId,
+            'name' => $name,
+        ])->loadCount(['files', 'children']);
+
+        return response()->json(['status' => 'success', 'data' => $folder], 201);
     }
 
     // Files that friends shared directly with the current user.
@@ -48,11 +107,17 @@ class FileController extends Controller
     {
         $request->validate([
             'note_id' => 'nullable|exists:notes,id',
+            'folder_id' => 'nullable',
         ]);
 
         $user = $request->user()->ensureDefaultStorageLimit();
         $uploaded = $request->file('file');
         $note = null;
+        $folderId = $this->folderIdFromRequest($request, 'folder_id');
+
+        if ($folderId && !$this->folderOwnedBy($folderId, $user->id)) {
+            return response()->json(['status' => 'error', 'message' => 'Folder not found.'], 404);
+        }
 
         if ($request->filled('note_id')) {
             $note = Note::findOrFail($request->note_id);
@@ -97,6 +162,7 @@ class FileController extends Controller
             $file = File::create(array_merge($fileData, [
                 'user_id' => $user->id,
                 'note_id' => $note?->id,
+                'folder_id' => $folderId,
             ]));
 
             $user->increment('storage_used', $fileData['size']);
@@ -312,5 +378,20 @@ class FileController extends Controller
 
             $file->forceFill(['size' => $storedSize])->saveQuietly();
         }
+    }
+
+    private function folderIdFromRequest(Request $request, string $key): ?int
+    {
+        $value = $request->input($key);
+        if ($value === null || $value === '' || $value === 'root' || $value === 'null') {
+            return null;
+        }
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+
+    private function folderOwnedBy(int $folderId, int $userId): bool
+    {
+        return FileFolder::where('id', $folderId)->where('user_id', $userId)->exists();
     }
 }

@@ -190,6 +190,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const localUserIdRef = useRef<number | null>(null);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder: 'Start writing your note...' }),

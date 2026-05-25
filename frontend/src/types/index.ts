@@ -108,6 +108,7 @@ export interface FileItem {
   id: number;
   user_id: number;
   note_id: number | null;
+  folder_id?: number | null;
   original_name: string;
   stored_name: string;
   path: string;
@@ -119,6 +120,17 @@ export interface FileItem {
   user?: Pick<User, 'id' | 'name' | 'username' | 'email' | 'avatar'>;
   shares?: FileShare[];
   pivot?: { shared_by: number };
+}
+
+export interface FileFolder {
+  id: number;
+  user_id: number;
+  parent_id: number | null;
+  name: string;
+  files_count?: number;
+  children_count?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FileShare {

@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { filesApi, friendsApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
-import { FileItem, FileShare, Friend } from '@/types';
+import { FileFolder, FileItem, FileShare, Friend } from '@/types';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
 import { countUnseenIds, markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 import toast from 'react-hot-toast';
-import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X, Share2, UserPlus } from 'lucide-react';
+import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X, Share2, UserPlus, FolderPlus, ChevronRight, Home } from 'lucide-react';
 
 function formatSize(bytes: number): string {
   if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
@@ -40,14 +40,27 @@ function extractFiles(payload: any): FileItem[] {
   return [];
 }
 
+function extractFolders(payload: any): FileFolder[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.folders)) return payload.folders;
+  return [];
+}
+
 export default function FilesPage() {
   const user = useAuthStore((s) => s.user);
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [folders, setFolders] = useState<FileFolder[]>([]);
   const [sharedFiles, setSharedFiles] = useState<FileItem[]>([]);
   const [activeTab, setActiveTab] = useState<'owned' | 'shared'>('owned');
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [currentFolder, setCurrentFolder] = useState<FileFolder | null>(null);
+  const [folderStack, setFolderStack] = useState<FileFolder[]>([]);
+  const [showFolderForm, setShowFolderForm] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [folderSaving, setFolderSaving] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [shareFile, setShareFile] = useState<FileItem | null>(null);
   const [shareRecipients, setShareRecipients] = useState<FileShare[]>([]);
@@ -59,6 +72,7 @@ export default function FilesPage() {
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [viewerName, setViewerName] = useState('');
   const [viewerIsImage, setViewerIsImage] = useState(false);
+  const currentFolderId = currentFolder?.id ?? null;
 
   const handleViewFile = async (file: FileItem) => {
     try {
@@ -79,11 +93,14 @@ export default function FilesPage() {
 
   const fetchFiles = async () => {
     try {
-      const [ownedRes, sharedRes] = await Promise.all([
-        filesApi.list(),
-        filesApi.sharedWithMe()
+      const folderParams = { folder_id: currentFolderId ?? 'root' };
+      const [ownedRes, sharedRes, foldersRes] = await Promise.all([
+        filesApi.list(folderParams),
+        filesApi.sharedWithMe(),
+        filesApi.folders({ parent_id: currentFolderId ?? 'root' })
       ]);
       setFiles(extractFiles(ownedRes.data));
+      setFolders(extractFolders(foldersRes.data));
       setSharedFiles(extractFiles(sharedRes.data));
     } catch {
       toast.error('Failed to load files');
@@ -91,7 +108,10 @@ export default function FilesPage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchFiles(); }, []);
+  useEffect(() => {
+    setLoading(true);
+    fetchFiles();
+  }, [currentFolderId]);
 
   useEffect(() => {
     if (!user?.id || loading || sharedFiles.length === 0) return;
@@ -121,7 +141,7 @@ export default function FilesPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const res = await filesApi.upload(file);
+      const res = await filesApi.upload(file, undefined, currentFolderId);
       const uploaded = res.data?.data;
       if (uploaded?.id) {
         setFiles((items) => [uploaded, ...items.filter((item) => item.id !== uploaded.id)]);
@@ -134,6 +154,44 @@ export default function FilesPage() {
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const openFolder = (folder: FileFolder) => {
+    setFolderStack((items) => [...items, folder]);
+    setCurrentFolder(folder);
+    setActiveTab('owned');
+  };
+
+  const openFolderAt = (index: number) => {
+    if (index < 0) {
+      setFolderStack([]);
+      setCurrentFolder(null);
+      return;
+    }
+
+    const nextStack = folderStack.slice(0, index + 1);
+    setFolderStack(nextStack);
+    setCurrentFolder(nextStack[nextStack.length - 1] || null);
+  };
+
+  const handleCreateFolder = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = newFolderName.trim();
+    if (!name) return;
+
+    setFolderSaving(true);
+    try {
+      const res = await filesApi.createFolder({ name, parent_id: currentFolderId });
+      const folder = res.data?.data;
+      if (folder?.id) setFolders((items) => [...items, folder].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewFolderName('');
+      setShowFolderForm(false);
+      toast.success('Folder created');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to create folder');
+    } finally {
+      setFolderSaving(false);
     }
   };
 
@@ -232,6 +290,8 @@ export default function FilesPage() {
   const limitLabel = user ? formatSize(user.storage_limit) : '1.00 GB';
   const usagePercent = user ? Math.min((user.storage_used / user.storage_limit) * 100, 100) : 0;
   const displayFiles = activeTab === 'owned' ? files : sharedFiles;
+  const ownedFolderItems = activeTab === 'owned' ? folders : [];
+  const isOwnedFolderEmpty = activeTab === 'owned' && folders.length === 0 && files.length === 0;
   const sharedUserIds = new Set(shareRecipients.map((item) => item.shared_with));
   const availableFriends = friends.filter((friend) => !sharedUserIds.has(friend.id));
 
@@ -242,8 +302,17 @@ export default function FilesPage() {
           <h1 className="text-2xl font-bold text-gray-900">My Files</h1>
           <p className="text-sm text-gray-500 mt-1">{usedLabel} / {limitLabel} used</p>
         </div>
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <input ref={inputRef} type="file" className="hidden" onChange={handleUpload} />
+          <button
+            type="button"
+            onClick={() => setShowFolderForm((value) => !value)}
+            disabled={activeTab !== 'owned'}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-bold hover:border-brand-200 hover:text-brand-700 transition disabled:opacity-50"
+          >
+            <FolderPlus size={16} />
+            New Folder
+          </button>
           <button onClick={() => inputRef.current?.click()} disabled={uploading}
             className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 transition disabled:opacity-50">
             {uploading ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Upload size={16} />}
@@ -265,7 +334,7 @@ export default function FilesPage() {
 
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
         {[
-          { key: 'owned' as const, label: 'My uploads', count: files.length },
+          { key: 'owned' as const, label: 'My uploads', count: files.length + folders.length },
           { key: 'shared' as const, label: 'Shared with me', count: sharedFiles.length },
         ].map((tab) => (
           <button
@@ -280,16 +349,95 @@ export default function FilesPage() {
         ))}
       </div>
 
+      {activeTab === 'owned' && (
+        <div className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-gray-500">
+            <button
+              type="button"
+              onClick={() => openFolderAt(-1)}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 transition ${!currentFolder ? 'bg-brand-50 text-brand-700' : 'hover:bg-gray-100 text-gray-500'}`}
+            >
+              <Home size={13} /> Files
+            </button>
+            {folderStack.map((folder, index) => (
+              <div key={folder.id} className="inline-flex items-center gap-1">
+                <ChevronRight size={13} className="text-gray-300" />
+                <button
+                  type="button"
+                  onClick={() => openFolderAt(index)}
+                  className={`rounded-lg px-2.5 py-1.5 transition ${folder.id === currentFolder?.id ? 'bg-brand-50 text-brand-700' : 'hover:bg-gray-100 text-gray-500'}`}
+                >
+                  {folder.name}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {showFolderForm && (
+            <form onSubmit={handleCreateFolder} className="flex flex-col sm:flex-row gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+              <input
+                value={newFolderName}
+                onChange={(event) => setNewFolderName(event.target.value)}
+                autoFocus
+                maxLength={120}
+                placeholder={`Folder name${currentFolder ? ` in ${currentFolder.name}` : ''}`}
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={folderSaving || !newFolderName.trim()}
+                  className="flex-1 sm:flex-none rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-brand-700 disabled:opacity-50 transition"
+                >
+                  {folderSaving ? 'Creating...' : 'Create'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFolderForm(false);
+                    setNewFolderName('');
+                  }}
+                  className="flex-1 sm:flex-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
       {/* Files list */}
       {loading ? (
         <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600" /></div>
-      ) : displayFiles.length === 0 ? (
+      ) : (activeTab === 'shared' ? displayFiles.length === 0 : isOwnedFolderEmpty) ? (
         <div className="text-center py-16">
           <FolderOpen size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{activeTab === 'owned' ? 'No files uploaded yet' : 'No files shared with you yet'}</p>
+          <p className="text-gray-500">{activeTab === 'owned' ? 'No files or folders here yet' : 'No files shared with you yet'}</p>
         </div>
       ) : (
         <div className="space-y-2">
+          {ownedFolderItems.map((folder) => (
+            <button
+              key={`folder-${folder.id}`}
+              type="button"
+              onClick={() => openFolder(folder)}
+              className="w-full flex items-center justify-between gap-3 bg-white rounded-xl border border-gray-200 p-4 text-left hover:border-brand-200 hover:bg-brand-50/40 transition"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-600">
+                  <FolderOpen size={21} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-900 text-sm truncate">{folder.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {(folder.files_count || 0)} file{folder.files_count === 1 ? '' : 's'} &middot; {(folder.children_count || 0)} folder{folder.children_count === 1 ? '' : 's'}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="shrink-0 text-gray-300" />
+            </button>
+          ))}
           {displayFiles.map((file) => (
             <div key={file.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center gap-3 min-w-0">

@@ -100,7 +100,9 @@ export const friendsApi = {
 
 export const filesApi = {
   list: (p?: any) => api.get('/files', { params: p }),
-  upload: async (file: File, noteId?: number) => {
+  folders: (p?: any) => api.get('/file-folders', { params: p }),
+  createFolder: (d: { name: string; parent_id?: number | null }) => api.post('/file-folders', d),
+  upload: async (file: File, noteId?: number, folderId?: number | null) => {
     const payload: any = {
       file_base64: await fileToDataUrl(file),
       original_name: file.name || 'upload.bin',
@@ -108,6 +110,7 @@ export const filesApi = {
       size: file.size,
     };
     if (noteId) payload.note_id = noteId;
+    if (folderId) payload.folder_id = folderId;
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('notexa_token') : '';
 
