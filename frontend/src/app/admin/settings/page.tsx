@@ -24,6 +24,25 @@ export default function AdminSettingsPage() {
   }, []);
 
   const getValue = (key: string) => settings.find((s) => s.key === key)?.value || '';
+  const settingDefaults: Record<string, string> = {
+    site_name: 'Notexa',
+    site_description: 'Collaborative Note Taking Platform',
+    smtp_port: '587',
+    smtp_encryption: 'tls',
+    smtp_from_name: 'Notexa',
+    email_verification_enabled: 'false',
+    storage_driver: 'local',
+    r2_bucket: 'notexa-files',
+    ai_enabled: 'true',
+    ai_provider: 'deepseek',
+    openai_base_url: 'https://api.openai.com/v1',
+    openai_model: 'gpt-4o-mini',
+    gemini_base_url: 'https://generativelanguage.googleapis.com/v1beta',
+    gemini_model: 'gemini-1.5-flash',
+    deepseek_base_url: 'https://api.deepseek.com',
+    deepseek_model: 'deepseek-v4-flash',
+  };
+  const settingType = (key: string) => (key === 'email_verification_enabled' || key === 'ai_enabled' ? 'boolean' : 'string');
   const keyGroup = (key: string, fallback = 'general') => {
     if (key.startsWith('smtp_')) return 'smtp';
     if (key === 'email_verification_enabled') return 'email';
@@ -61,19 +80,26 @@ export default function AdminSettingsPage() {
         'deepseek_api_key', 'deepseek_base_url', 'deepseek_model'
       ];
       const allowedKeys = group === 'ai' ? aiKeys : groupKeys[group];
-      const groupSettings = settings
-        .filter((s) => allowedKeys ? allowedKeys.includes(s.key) : s.group === group)
-        .map((s) => ({
-          key: s.key,
-          value: s.value || '',
-          type: s.type,
-          group: keyGroup(s.key, group)
-        }));
-      if (groupSettings.length === 0) {
-        toast.error('Nothing to save. Please update at least one setting first.');
-        return;
-      }
-      await adminApi.updateSettings(groupSettings);
+      const groupSettings = allowedKeys
+        ? allowedKeys.map((key) => {
+          const existing = settings.find((s) => s.key === key);
+          return {
+            key,
+            value: existing?.value ?? settingDefaults[key] ?? '',
+            type: existing?.type || settingType(key),
+            group: keyGroup(key, group)
+          };
+        })
+        : settings
+          .filter((s) => s.group === group)
+          .map((s) => ({
+            key: s.key,
+            value: s.value || '',
+            type: s.type || settingType(s.key),
+            group: keyGroup(s.key, group)
+          }));
+      const response = await adminApi.updateSettings(groupSettings);
+      if (response.data?.data) setSettings(response.data.data);
       toast.success('Settings saved!');
     } catch (err: any) { toast.error(err.response?.data?.message || 'Failed to save'); }
     finally { setSaving(false); }

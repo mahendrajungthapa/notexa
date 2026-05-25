@@ -133,9 +133,9 @@ class AdminController extends Controller
 
     public function updateSettings(Request $request)
     {
-        $request->validate(['settings' => 'required|array']);
+        $validated = $request->validate(['settings' => 'present|array']);
 
-        foreach ($request->settings as $s) {
+        foreach ($validated['settings'] as $s) {
             $key = $s['key'] ?? null;
             if (!$key) continue;
             $value = $s['value'] ?? '';

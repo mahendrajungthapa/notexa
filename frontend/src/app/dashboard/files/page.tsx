@@ -8,7 +8,7 @@ import { FileItem, FileShare, Friend } from '@/types';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
 import { countUnseenIds, markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 import toast from 'react-hot-toast';
-import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X, Share2, UserPlus } from 'lucide-react';
+import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X, Share2, UserPlus, ExternalLink } from 'lucide-react';
 
 function formatSize(bytes: number): string {
   if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
@@ -57,21 +57,56 @@ export default function FilesPage() {
 
   // Lightbox Document Viewer states
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [viewerExternalUrl, setViewerExternalUrl] = useState('');
   const [viewerName, setViewerName] = useState('');
   const [viewerIsImage, setViewerIsImage] = useState(false);
+
+  const openPreviewInNewTab = (url: string | null = viewerUrl || viewerExternalUrl) => {
+    if (!url || typeof document === 'undefined') return false;
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    return true;
+  };
+
+  const closeViewer = () => {
+    setViewerUrl(null);
+    setViewerExternalUrl('');
+    setViewerName('');
+    setViewerIsImage(false);
+  };
 
   const handleViewFile = async (file: FileItem) => {
     try {
       const res = await filesApi.preview(file.id);
       const rawUrl: string = res.data.preview_url;
       const previewType = res.data.preview_type;
-      const objectUrl = await createPreviewObjectUrl(rawUrl, file.mime_type || (previewType === 'pdf' ? 'application/pdf' : 'text/plain'));
+      const fallbackMimeType = file.mime_type || (previewType === 'pdf' ? 'application/pdf' : 'text/plain');
+      let previewUrl = rawUrl;
+
+      try {
+        previewUrl = await createPreviewObjectUrl(rawUrl, fallbackMimeType);
+      } catch {
+        previewUrl = rawUrl;
+      }
 
       setViewerName(file.original_name);
+      setViewerExternalUrl(rawUrl);
       setViewerIsImage(previewType === 'image');
-      setViewerUrl(objectUrl);
+      setViewerUrl(previewUrl);
 
-      toast.success(`Opening preview: ${file.original_name}`);
+      const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+      if (isMobile && previewType !== 'image') {
+        openPreviewInNewTab(previewUrl);
+        toast.success(`Opening preview: ${file.original_name}`);
+      } else {
+        toast.success(`Opening preview: ${file.original_name}`);
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to open file preview');
     }
@@ -434,15 +469,25 @@ export default function FilesPage() {
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl mx-auto flex flex-col h-[90vh] overflow-hidden border border-gray-150">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-              <h2 className="text-base font-extrabold text-gray-800 flex items-center gap-2 truncate">
-                <FileText size={18} className="text-red-500" /> {viewerName}
-              </h2>
-              <button 
-                onClick={() => setViewerUrl(null)} 
-                className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
-              >
-                <X size={18} />
-              </button>
+                <h2 className="min-w-0 text-base font-extrabold text-gray-800 flex items-center gap-2 truncate">
+                  <FileText size={18} className="text-red-500" /> {viewerName}
+                </h2>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPreviewInNewTab()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition"
+                >
+                  <ExternalLink size={14} /> Open
+                </button>
+                <button
+                  type="button"
+                  onClick={closeViewer}
+                  className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Viewer Pane */}
