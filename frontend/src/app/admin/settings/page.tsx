@@ -24,13 +24,22 @@ export default function AdminSettingsPage() {
   }, []);
 
   const getValue = (key: string) => settings.find((s) => s.key === key)?.value || '';
+  const keyGroup = (key: string, fallback = 'general') => {
+    if (key.startsWith('smtp_')) return 'smtp';
+    if (key === 'email_verification_enabled') return 'email';
+    if (key.startsWith('r2_') || key === 'storage_driver') return 'storage';
+    if (key.includes('policy') || key.includes('terms')) return 'legal';
+    if (key.startsWith('ai_') || key.startsWith('openai_') || key.startsWith('gemini_') || key.startsWith('deepseek_')) return 'ai';
+    return fallback;
+  };
   const setValue = (key: string, value: string, group: string = 'general') => {
+    const nextGroup = keyGroup(key, group);
     setSettings((prev) => {
       const exists = prev.some((s) => s.key === key);
       if (exists) {
-        return prev.map((s) => s.key === key ? { ...s, value } : s);
+        return prev.map((s) => s.key === key ? { ...s, value, group: nextGroup } : s);
       } else {
-        return [...prev, { id: 0, key, value, type: 'string', group }];
+        return [...prev, { id: 0, key, value, type: key === 'email_verification_enabled' || key === 'ai_enabled' ? 'boolean' : 'string', group: nextGroup }];
       }
     });
   };
@@ -38,23 +47,35 @@ export default function AdminSettingsPage() {
   const handleSave = async (group: string) => {
     setSaving(true);
     try {
+      const groupKeys: Record<string, string[]> = {
+        smtp: ['smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_encryption', 'smtp_from_address', 'smtp_from_name'],
+        email: ['email_verification_enabled'],
+        storage: ['storage_driver', 'r2_access_key', 'r2_secret_key', 'r2_bucket', 'r2_endpoint', 'r2_public_url'],
+        legal: ['privacy_policy', 'terms_conditions'],
+        general: ['site_name', 'site_logo', 'site_description'],
+      };
       const aiKeys = [
         'ai_enabled', 'ai_provider',
         'openai_api_key', 'openai_base_url', 'openai_model',
         'gemini_api_key', 'gemini_base_url', 'gemini_model',
         'deepseek_api_key', 'deepseek_base_url', 'deepseek_model'
       ];
+      const allowedKeys = group === 'ai' ? aiKeys : groupKeys[group];
       const groupSettings = settings
-        .filter((s) => s.group === group || (group === 'ai' && aiKeys.includes(s.key)))
+        .filter((s) => allowedKeys ? allowedKeys.includes(s.key) : s.group === group)
         .map((s) => ({
           key: s.key,
           value: s.value || '',
           type: s.type,
-          group: group === 'ai' && aiKeys.includes(s.key) ? 'ai' : s.group
+          group: keyGroup(s.key, group)
         }));
+      if (groupSettings.length === 0) {
+        toast.error('Nothing to save. Please update at least one setting first.');
+        return;
+      }
       await adminApi.updateSettings(groupSettings);
       toast.success('Settings saved!');
-    } catch { toast.error('Failed to save'); }
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Failed to save'); }
     finally { setSaving(false); }
   };
 
@@ -157,40 +178,45 @@ export default function AdminSettingsPage() {
 
         {tab === 'smtp' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
-                <input type="text" value={getValue('smtp_host')} onChange={(e) => setValue('smtp_host', e.target.value)}
+                <input type="text" value={getValue('smtp_host')} onChange={(e) => setValue('smtp_host', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="smtp.gmail.com" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
-                <input type="text" value={getValue('smtp_port')} onChange={(e) => setValue('smtp_port', e.target.value)}
+                <input type="text" value={getValue('smtp_port')} onChange={(e) => setValue('smtp_port', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="587" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <input type="text" value={getValue('smtp_username')} onChange={(e) => setValue('smtp_username', e.target.value)}
+                <input type="text" value={getValue('smtp_username')} onChange={(e) => setValue('smtp_username', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input type="password" value={getValue('smtp_password')} onChange={(e) => setValue('smtp_password', e.target.value)}
+                <input type="password" value={getValue('smtp_password')} onChange={(e) => setValue('smtp_password', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Encryption</label>
-                <select value={getValue('smtp_encryption')} onChange={(e) => setValue('smtp_encryption', e.target.value)}
+                <select value={getValue('smtp_encryption')} onChange={(e) => setValue('smtp_encryption', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
                   <option value="tls">TLS</option><option value="ssl">SSL</option><option value="">None</option>
                 </select></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">From Address</label>
-                <input type="email" value={getValue('smtp_from_address')} onChange={(e) => setValue('smtp_from_address', e.target.value)}
+                <input type="email" value={getValue('smtp_from_address')} onChange={(e) => setValue('smtp_from_address', e.target.value, 'smtp')}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" /></div>
             </div>
-            <div className="flex gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">From Name</label>
+              <input type="text" value={getValue('smtp_from_name') || 'Notexa'} onChange={(e) => setValue('smtp_from_name', e.target.value, 'smtp')}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
               <button onClick={() => handleSave('smtp')} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-medium hover:bg-brand-700 disabled:opacity-50">
                 <Save size={16} /> Save SMTP
               </button>
-              <div className="flex gap-2 ml-auto">
+              <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto">
                 <input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-48" placeholder="test@email.com" />
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm outline-none w-full sm:w-48" placeholder="test@email.com" />
                 <button onClick={handleTestSmtp}
                   className="flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-medium hover:bg-gray-800">
                   <Send size={14} /> Test
@@ -209,7 +235,7 @@ export default function AdminSettingsPage() {
               </div>
               <button onClick={() => {
                 const current = getValue('email_verification_enabled');
-                setValue('email_verification_enabled', current === 'true' ? 'false' : 'true');
+                setValue('email_verification_enabled', current === 'true' ? 'false' : 'true', 'email');
               }}
                 className={`w-12 h-6 rounded-full transition relative ${getValue('email_verification_enabled') === 'true' ? 'bg-brand-600' : 'bg-gray-300'}`}>
                 <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition ${getValue('email_verification_enabled') === 'true' ? 'left-6' : 'left-0.5'}`} />
