@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { authApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
+import AuthHeader from '@/components/AuthHeader';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -136,7 +137,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen grid lg:grid-cols-2">
+    <>
+    <AuthHeader active="register" />
+    <main className="min-h-screen grid lg:grid-cols-2 pt-16">
       {/* Left Side */}
       <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
         <div className="absolute inset-0 z-0">
@@ -507,5 +510,6 @@ export default function RegisterPage() {
         </div>
       )}
     </main>
+    </>
   );
 }

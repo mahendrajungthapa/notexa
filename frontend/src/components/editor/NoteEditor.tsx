@@ -16,7 +16,7 @@ import {
   Quote, Code, Image, Link, AlignLeft, AlignCenter, AlignRight,
   Highlighter, Undo, Redo, Wand2, Layers, HelpCircle, ScanLine, Bot, Check, Languages,
   X, ChevronLeft, ChevronRight, Copy, RotateCw, Award, BookOpen, ArrowRight, Eye, Sparkles,
-  Heart, Play, Square, Plus, Trash2, Users, FileText, Share2
+  Heart, Play, Square, Plus, Trash2, Users, FileText, Share2, Upload
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -178,6 +178,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const sendPresenceRef = useRef<(isTyping?: boolean) => void>(() => {});
   const typingClearTimerRef = useRef<number | null>(null);
   const imageUploadInputRef = useRef<HTMLInputElement>(null);
+  const ocrImageInputRef = useRef<HTMLInputElement>(null);
+  const localUserIdRef = useRef<number | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -245,6 +247,16 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   useEffect(() => {
     if (editor) editor.setEditable(editable);
   }, [editable, editor]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const cachedUser = JSON.parse(localStorage.getItem('notexa_user') || '{}');
+      localUserIdRef.current = Number(cachedUser?.id) || null;
+    } catch {
+      localUserIdRef.current = null;
+    }
+  }, []);
 
   // Curated ADHD Positive Reinforcement Phrases
   const ADHD_AFFIRMATIONS = [
@@ -458,6 +470,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
     provider.awareness.setLocalStateField('user', {
       id: localClientIdRef.current,
+      userId: localUserIdRef.current,
       name: userName,
       color: localColorRef.current,
     });
@@ -493,7 +506,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           ...(s.user || {}),
           isEditing: !!s.editing?.at && now - Number(s.editing.at) < 2500,
         }))
-        .filter((u: any) => u && u.id !== localClientIdRef.current);
+        .filter((u: any) => u && u.id !== localClientIdRef.current && (!localUserIdRef.current || Number(u.userId) !== localUserIdRef.current));
       setCollabPeers(active);
     };
     const updateStatus = (event: any) => {
@@ -551,7 +564,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
     const normalizePresence = (items: any[]) => {
       const mapped = (items || [])
-        .filter((p: any) => p.client_id !== localClientIdRef.current)
+        .filter((p: any) => p.client_id !== localClientIdRef.current && (!localUserIdRef.current || Number(p.user_id) !== localUserIdRef.current))
         .map((p: any) => ({
           id: p.client_id || `user-${p.user_id}`,
           userId: p.user_id,
@@ -624,6 +637,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [showQuizResults, setShowQuizResults] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('Spanish');
   const [ocrImageUrl, setOcrImageUrl] = useState('');
+  const [ocrImagePreview, setOcrImagePreview] = useState('');
+  const [ocrImageName, setOcrImageName] = useState('');
 
   const runAICall = async (systemPrompt: string, userPrompt: string) => {
     if (!noteId) {
@@ -825,17 +840,56 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     }
   };
 
+  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('Unable to read image'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleOcrImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const imageFile = event.target.files?.[0];
+    if (!imageFile) return;
+
+    if (!imageFile.type.startsWith('image/')) {
+      toast.error('Please choose a PNG, JPG, WebP, or other image file.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxOcrBytes = 6 * 1024 * 1024;
+    if (imageFile.size > maxOcrBytes) {
+      toast.error('OCR image is too large. Maximum size is 6MB.');
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(imageFile);
+      setOcrImageUrl(dataUrl);
+      setOcrImagePreview(dataUrl);
+      setOcrImageName(imageFile.name);
+      setAiResult('');
+      toast.success('Image ready for OCR.');
+    } catch (error: any) {
+      toast.error(error.message || 'Could not read image.');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   const handleOCR = async () => {
     if (!ocrImageUrl.trim()) return;
     setAiLoading(true);
     setAiResult('');
     setAiResultApplied(false);
     try {
-      const sysPrompt = "You are a perfect OCR text extraction machine. Extract all legible text from the image url provided. Return ONLY the plain transcribed text. CRITICAL: Absolutely NO labels, markdown formatting, introductory conversational remarks, preamble, greetings, or outro comments.";
-      const res = await runAICall(sysPrompt, ocrImageUrl);
+      const response = await notesApi.aiOcr(Number(noteId), { image: ocrImageUrl });
+      const res = response.data?.data?.text || response.data?.text || '';
+      if (!res) throw new Error('No text was found in this image.');
       setAiResult(res);
     } catch (err: any) {
-      toast.error(err.message || "Failed to extract text from image.");
+      toast.error(err.response?.data?.message || err.message || "Failed to extract text from image.");
     } finally {
       setAiLoading(false);
     }
@@ -1067,7 +1121,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             <ToolButton onClick={handleQuiz} title="Create Quiz" className="hover:bg-emerald-100 hover:text-emerald-600 group">
               <HelpCircle size={16} className="text-emerald-500 group-hover:text-emerald-600 group-hover:scale-110 transition-transform" />
             </ToolButton>
-            <ToolButton onClick={() => { setAiFeature('ocr'); setAiResult(''); setOcrImageUrl(''); }} title="Extract Text (OCR)" className="hover:bg-orange-100 hover:text-orange-600 group">
+            <ToolButton onClick={() => { setAiFeature('ocr'); setAiResult(''); setOcrImageUrl(''); setOcrImagePreview(''); setOcrImageName(''); }} title="Extract Text (OCR)" className="hover:bg-orange-100 hover:text-orange-600 group">
               <ScanLine size={16} className="text-orange-500 group-hover:text-orange-600 group-hover:scale-110 transition-transform" />
             </ToolButton>
             <ToolButton onClick={() => { setAiFeature('translate'); setAiResult(''); }} title="Check Grammar / Translate" className="hover:bg-cyan-100 hover:text-cyan-600 group">
@@ -1669,10 +1723,36 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
             <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1 py-1 custom-scrollbar">
               <input
+                ref={ocrImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleOcrImageSelected}
+              />
+              <button
+                type="button"
+                onClick={() => ocrImageInputRef.current?.click()}
+                className="w-full rounded-2xl border-2 border-dashed border-orange-200 bg-orange-50/60 px-4 py-4 text-sm font-black text-orange-700 hover:bg-orange-100 transition flex items-center justify-center gap-2"
+              >
+                <Upload size={16} /> Upload image for OCR
+              </button>
+
+              {ocrImagePreview && (
+                <div className="rounded-2xl border border-orange-100 bg-slate-50 p-3">
+                  <img src={ocrImagePreview} alt={ocrImageName || 'OCR upload'} className="max-h-48 w-full rounded-xl object-contain bg-white" />
+                  {ocrImageName && <p className="mt-2 truncate text-xs font-bold text-slate-500">{ocrImageName}</p>}
+                </div>
+              )}
+
+              <input
                 type="text"
                 value={ocrImageUrl}
-                onChange={(e) => setOcrImageUrl(e.target.value)}
-                placeholder="Paste link to handwritten notes or textbook image..."
+                onChange={(e) => {
+                  setOcrImageUrl(e.target.value);
+                  setOcrImagePreview(e.target.value.startsWith('data:image/') || /^https?:\/\//i.test(e.target.value) ? e.target.value : '');
+                  setOcrImageName('');
+                }}
+                placeholder="Or paste an image URL..."
                 className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm transition bg-slate-50 font-semibold"
               />
 

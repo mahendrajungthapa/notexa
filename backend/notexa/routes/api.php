@@ -48,6 +48,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth & Profile
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/streak/complete', [AuthController::class, 'completeStreak'])
+        ->middleware('throttle:10,1');
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::put('/change-password', [AuthController::class, 'changePassword']);
 
@@ -65,6 +67,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/notes/{note}/permanent', [NoteController::class, 'permanentDelete']);
     Route::patch('/notes/{note}/pin', [NoteController::class, 'togglePin']);
     Route::get('/notes/{note}/versions', [NoteController::class, 'versions']);
+    Route::post('/notes/{note}/versions/{version}/restore', [NoteController::class, 'restoreVersion']);
 
     // Share code
     Route::get('/notes/{note}/share-code', [NoteController::class, 'getShareCode']);
@@ -74,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // AI Summary
     Route::post('/notes/{note}/ai-summary', [NoteController::class, 'aiSummary']);
     Route::post('/notes/{note}/ai-query', [NoteController::class, 'aiQuery']);
+    Route::post('/notes/{note}/ai-ocr', [NoteController::class, 'aiOcr']);
 
     // Note Sharing
     Route::get('/shared-with-me', [NoteShareController::class, 'sharedWithMe']);

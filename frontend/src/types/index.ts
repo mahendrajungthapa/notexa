@@ -12,6 +12,8 @@ export interface User {
   storage_used: number;
   storage_limit: number;
   is_active: boolean;
+  streak_count?: number;
+  last_streak_date?: string | null;
   email_verified_at: string | null;
   created_at: string;
   updated_at: string;
@@ -66,9 +68,13 @@ export interface NoteVersion {
   user_id: number;
   content: string;
   plain_text: string | null;
+  change_summary?: string | null;
+  restored_from_version_id?: number | null;
   version_number: number;
+  word_count?: number;
   created_at: string;
-  user?: Pick<User, 'id' | 'name'>;
+  user?: Pick<User, 'id' | 'name' | 'username'>;
+  restored_from?: Pick<NoteVersion, 'id' | 'version_number'> | null;
 }
 
 // ═══════════════════════════════════════════

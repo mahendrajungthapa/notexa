@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
+import { authApi, filesApi, friendsApi, notesApi } from '@/services/api';
 import {
   FileText, Users, Share2, FolderOpen, Settings,
   LogOut, LayoutDashboard, Menu, X, KeyRound, ChevronLeft, ChevronRight, Heart, Trash2
@@ -24,9 +25,10 @@ const userNav = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const { user, isAuthenticated, isLoading, logout, setUser } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [navBadges, setNavBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -71,6 +73,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const countItems = (payload: any) => {
+      if (typeof payload?.data?.total === 'number') return payload.data.total;
+      if (typeof payload?.total === 'number') return payload.total;
+      if (Array.isArray(payload?.data?.data)) return payload.data.data.length;
+      if (Array.isArray(payload?.data)) return payload.data.length;
+      if (Array.isArray(payload)) return payload.length;
+      return 0;
+    };
+
+    const refreshBadges = async () => {
+      try {
+        const [requestsRes, sharedNotesRes, sharedFilesRes] = await Promise.all([
+          friendsApi.pendingRequests(),
+          notesApi.sharedWithMe({ per_page: 1 }),
+          filesApi.sharedWithMe({ per_page: 1 }),
+        ]);
+
+        const receivedRequests = requestsRes.data?.data?.received || [];
+        const sharedNotes = countItems(sharedNotesRes.data?.data || sharedNotesRes.data);
+        const sharedFiles = countItems(sharedFilesRes.data?.data || sharedFilesRes.data);
+
+        setNavBadges({
+          '/dashboard/friends': receivedRequests.length,
+          '/dashboard/shared': sharedNotes,
+          '/dashboard/files': sharedFiles,
+        });
+      } catch {
+        // Badge counts are helpful, but should never block navigation.
+      }
+    };
+
+    void refreshBadges();
+    const timer = window.setInterval(refreshBadges, 30000);
+    return () => window.clearInterval(timer);
+  }, [isAuthenticated]);
+
   // Global Streak Tracker
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -88,6 +129,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       sessionTime = 0;
     }
 
+    const syncStreak = async (showToast: boolean) => {
+      try {
+        const res = await authApi.completeStreak();
+        const updatedUser = res.data?.data?.user || res.data?.user;
+        if (updatedUser) setUser(updatedUser);
+        if (showToast) {
+          toast.success("Awesome! You've studied for 10 minutes today. Streak updated!", { duration: 5000, id: 'global-streak-toast' });
+        }
+        window.dispatchEvent(new CustomEvent('notexa_streak_updated', { detail: { user: updatedUser } }));
+      } catch {
+        if (showToast) {
+          toast.error('Focus time completed, but the streak could not sync yet.', { id: 'global-streak-toast' });
+        }
+        window.dispatchEvent(new Event('notexa_streak_updated'));
+      }
+    };
+
+    if (localStorage.getItem('notexa_streak_earned') === 'true') {
+      void syncStreak(false);
+    }
+
     const timer = setInterval(() => {
       sessionTime += 1;
       localStorage.setItem('notexa_session_time', sessionTime.toString());
@@ -95,13 +157,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const earned = localStorage.getItem('notexa_streak_earned') === 'true';
       if (sessionTime >= REQUIRED_MINUTES * 60 && !earned) {
         localStorage.setItem('notexa_streak_earned', 'true');
-        toast.success("Awesome! You've studied for 10 minutes today. Streak updated! 🔥", { duration: 5000, id: 'global-streak-toast' });
-        window.dispatchEvent(new Event('notexa_streak_updated'));
+        void syncStreak(true);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, setUser]);
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -178,6 +239,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav className="flex-1 px-4 py-2 space-y-2.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
             {userNav.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+              const badgeCount = navBadges[item.href] || 0;
               return (
                 <Link
                   key={item.href}
@@ -189,7 +251,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 border border-transparent hover:border-slate-100/50'
                     }`}
                 >
-                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={`shrink-0 transition-colors duration-300 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
+                  <span className="relative shrink-0">
+                    <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className={`transition-colors duration-300 ${isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
+                    {badgeCount > 0 && (
+                      <span className="absolute -right-2.5 -top-2.5 flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white">
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
+                  </span>
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               );

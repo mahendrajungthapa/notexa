@@ -139,6 +139,28 @@ class AuthController extends Controller
         ]);
     }
 
+    public function completeStreak(Request $request)
+    {
+        $user = $request->user();
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $lastDate = optional($user->last_streak_date)->toDateString();
+
+        if ($lastDate !== $today) {
+            $user->forceFill([
+                'streak_count' => $lastDate === $yesterday ? ((int) $user->streak_count + 1) : 1,
+                'last_streak_date' => $today,
+            ])->save();
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $lastDate === $today ? 'Study streak already completed today.' : 'Study streak completed.',
+            'user' => $user->fresh(),
+            'streak_count' => (int) $user->fresh()->streak_count,
+        ]);
+    }
+
     public function updateProfile(Request $request)
     {
         $request->validate([

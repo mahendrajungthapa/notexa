@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { authApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
+import AuthHeader from '@/components/AuthHeader';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,14 +38,11 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen grid lg:grid-cols-2">
+    <>
+    <AuthHeader active="login" />
+    <main className="min-h-screen grid lg:grid-cols-2 pt-16">
       {/* Section 1: Brand Message / Visual side (Left side on Desktop) */}
       <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-surface-container-low textured-bg min-h-[50vh] lg:min-h-screen">
-        {/* Brand Logo Floating */}
-        <div className="absolute top-8 left-8 lg:top-12 lg:left-12 z-20">
-          <span className="text-3xl font-black text-primary tracking-tighter font-headline">NotExA</span>
-        </div>
-
         {/* Background Decorative Element */}
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary-fixed-dim/30 rounded-full blur-[120px]"></div>
 
@@ -211,5 +209,6 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }

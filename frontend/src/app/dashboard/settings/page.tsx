@@ -49,7 +49,9 @@ export default function SettingsPage() {
     updateUI();
     const timer = setInterval(updateUI, 1000);
 
-    const handleEarned = () => {
+    const handleEarned = (event: Event) => {
+      const updatedUser = (event as CustomEvent)?.detail?.user;
+      if (updatedUser) setUser(updatedUser);
       setStreakEarned(true);
     };
 
@@ -242,6 +244,9 @@ export default function SettingsPage() {
     }, 350);
   };
 
+  const streakCount = Number((user as any)?.streak_count ?? (user as any)?.streak ?? 0);
+  const displayStreakCount = streakEarned ? Math.max(streakCount, 1) : streakCount;
+
   return (
     <div className="w-full flex flex-col gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
@@ -279,7 +284,7 @@ export default function SettingsPage() {
               </span>
               <span className={`px-3 py-1 ${streakEarned ? 'bg-orange-100 text-orange-600 border border-orange-200 shadow-sm' : 'bg-surface-container text-outline-variant opacity-70'} text-[10px] font-bold uppercase tracking-widest rounded-full flex items-center gap-1 transition-all duration-500`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={streakEarned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>
-                {streakEarned ? ((user as any)?.streak || 0) + 1 : ((user as any)?.streak || 0)} Day Streak
+                {displayStreakCount} Day Streak
                 {!streakEarned && (
                   <span className="ml-1 opacity-75 font-mono tracking-tighter">
                     ({Math.floor(sessionTime / 60)}:{String(sessionTime % 60).padStart(2, '0')})

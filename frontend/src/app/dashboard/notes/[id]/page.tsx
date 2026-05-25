@@ -332,20 +332,21 @@ export default function NoteDetailPage() {
     if (!confirm(`Are you sure you want to revert to Version #${version.version_number}? This will replace your current note editor content.`)) return;
     try {
       toast.loading(`Reverting to Version #${version.version_number}...`, { id: 'revert-loading' });
-      
-      // Save it as current active draft on server
-      await notesApi.update(noteId, { title, content: version.content });
-      
-      // Update local states
-      setContent(version.content);
-      setLastSaved((prev) => ({ ...prev, content: version.content }));
+
+      const response = await notesApi.restoreVersion(noteId, version.id);
+      const restoredNote = response.data?.data?.note;
+      const restoredContent = restoredNote?.content ?? version.content;
+
+      setNote(restoredNote || note);
+      setContent(restoredContent);
+      setLastSaved((prev) => ({ ...prev, content: restoredContent }));
+      setLastCloudUpdatedAt(restoredNote?.updated_at || new Date().toISOString());
       setDirty(false);
       setSaveState('saved');
-      
+
       toast.success(`Successfully reverted note to Version #${version.version_number}!`, { id: 'revert-loading' });
       setShowHistory(false);
-      
-      // Fetch fresh note details to fully synchronize everything
+
       await fetchNote();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to revert version', { id: 'revert-loading' });
@@ -388,20 +389,17 @@ export default function NoteDetailPage() {
     setPreviewingVersionId(null);
     try {
       const response = await notesApi.versions(noteId);
-      console.log('Versions API Response:', response.data);
-      
-      let list = [];
-      if (response.data) {
-        if (Array.isArray(response.data)) {
-          list = response.data;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          list = response.data.data;
-        } else if (response.data.versions && Array.isArray(response.data.versions)) {
-          list = response.data.versions;
-        } else if (response.data.history && Array.isArray(response.data.history)) {
-          list = response.data.history;
-        }
-      }
+
+      const payload = response.data?.data || response.data;
+      const list = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(response.data?.versions)
+            ? response.data.versions
+            : Array.isArray(response.data?.history)
+              ? response.data.history
+              : [];
       setVersions(list);
     } catch (error: any) {
       console.error('Failed to load version history:', error);
@@ -923,6 +921,13 @@ export default function NoteDetailPage() {
                           </div>
                           <p className="text-[11px] text-slate-400 font-semibold">
                             {new Date(v.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                          </p>
+                          <p className="text-xs font-semibold text-slate-600">
+                            {(v as any).change_summary || 'Edited note text'}
+                          </p>
+                          <p className="text-[11px] font-semibold text-slate-400">
+                            {(v as any).word_count ?? (v.plain_text || '').split(/\s+/).filter(Boolean).length} words
+                            {(v as any).restored_from?.version_number ? ` · restored from draft #${(v as any).restored_from.version_number}` : ''}
                           </p>
                         </div>
 

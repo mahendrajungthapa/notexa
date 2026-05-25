@@ -14,7 +14,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $fillable = [
         'name', 'username', 'email', 'password', 'avatar', 'institution', 'role',
-        'storage_used', 'storage_limit', 'is_active',
+        'storage_used', 'storage_limit', 'is_active', 'streak_count', 'last_streak_date',
         'email_verification_code_hash', 'email_verification_code_expires_at',
         'password_reset_code_hash', 'password_reset_code_expires_at',
     ];
@@ -25,6 +25,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email_verified_at' => 'datetime',
         'email_verification_code_expires_at' => 'datetime',
         'password_reset_code_expires_at' => 'datetime',
+        'last_streak_date' => 'date',
         'is_active' => 'boolean',
         'password' => 'hashed',
     ];

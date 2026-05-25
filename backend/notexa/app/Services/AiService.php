@@ -22,6 +22,22 @@ class AiService
         };
     }
 
+    public function ocrImage(string $imageDataOrUrl): string
+    {
+        $provider = $this->configuredProvider();
+
+        if (!$provider) {
+            throw new RuntimeException('No server AI provider is configured. Add an API key in Admin Settings.');
+        }
+
+        $prompt = 'Extract every legible word from this image. Return only the plain transcribed text, preserving line breaks when useful. Do not add labels, markdown, greetings, commentary, or explanations.';
+
+        return match ($provider['name']) {
+            'gemini' => $this->geminiVision($provider, $prompt, $imageDataOrUrl),
+            default => $this->openAiCompatibleVision($provider, $prompt, $imageDataOrUrl),
+        };
+    }
+
     public function summarize(string $text): ?string
     {
         $text = trim(preg_replace('/\s+/', ' ', $text));
@@ -87,6 +103,40 @@ class AiService
         return $text;
     }
 
+    private function openAiCompatibleVision(array $provider, string $prompt, string $imageDataOrUrl): string
+    {
+        $response = Http::withToken($provider['key'])
+            ->acceptJson()
+            ->asJson()
+            ->timeout(55)
+            ->post(rtrim($provider['base_url'], '/') . '/chat/completions', [
+                'model' => $provider['model'],
+                'messages' => [
+                    ['role' => 'system', 'content' => 'You are an OCR engine. Return only transcribed text.'],
+                    [
+                        'role' => 'user',
+                        'content' => [
+                            ['type' => 'text', 'text' => $prompt],
+                            ['type' => 'image_url', 'image_url' => ['url' => $imageDataOrUrl]],
+                        ],
+                    ],
+                ],
+                'temperature' => 0,
+                'max_tokens' => 2000,
+            ]);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('The configured AI provider could not read this image. Use a vision-capable model or try a smaller PNG/JPEG image.');
+        }
+
+        $text = trim((string) ($response->json('choices.0.message.content') ?? ''));
+        if ($text === '') {
+            throw new RuntimeException('The OCR provider returned no text for this image.');
+        }
+
+        return $text;
+    }
+
     private function gemini(array $provider, string $systemPrompt, string $userPrompt): string
     {
         $url = rtrim($provider['base_url'], '/') . '/models/' . rawurlencode($provider['model']) . ':generateContent';
@@ -115,6 +165,59 @@ class AiService
         }
 
         return $text;
+    }
+
+    private function geminiVision(array $provider, string $prompt, string $imageDataOrUrl): string
+    {
+        $url = rtrim($provider['base_url'], '/') . '/models/' . rawurlencode($provider['model']) . ':generateContent';
+        $parts = [['text' => $prompt]];
+
+        $dataUrl = $this->parseDataUrl($imageDataOrUrl);
+        if ($dataUrl) {
+            $parts[] = [
+                'inline_data' => [
+                    'mime_type' => $dataUrl['mime_type'],
+                    'data' => $dataUrl['data'],
+                ],
+            ];
+        } else {
+            $parts[] = ['text' => 'Image URL: ' . $imageDataOrUrl];
+        }
+
+        $response = Http::acceptJson()
+            ->asJson()
+            ->timeout(55)
+            ->withQueryParameters(['key' => $provider['key']])
+            ->post($url, [
+                'contents' => [['parts' => $parts]],
+                'generationConfig' => [
+                    'temperature' => 0,
+                    'maxOutputTokens' => 2000,
+                ],
+            ]);
+
+        if (!$response->successful()) {
+            throw new RuntimeException('The configured AI provider could not read this image. Use a vision-capable model or try a smaller PNG/JPEG image.');
+        }
+
+        $text = trim((string) ($response->json('candidates.0.content.parts.0.text') ?? ''));
+        if ($text === '') {
+            throw new RuntimeException('The OCR provider returned no text for this image.');
+        }
+
+        return $text;
+    }
+
+    private function parseDataUrl(string $imageDataOrUrl): ?array
+    {
+        if (!preg_match('/^data:([^;]+);base64,(.+)$/', $imageDataOrUrl, $matches)) {
+            return null;
+        }
+
+        return [
+            'mime_type' => $matches[1],
+            'data' => $matches[2],
+        ];
     }
 
     private function apiKey(string $provider): string

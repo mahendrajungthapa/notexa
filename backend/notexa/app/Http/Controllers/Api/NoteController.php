@@ -50,7 +50,8 @@ class NoteController extends Controller
 
         NoteVersion::create([
             'note_id' => $note->id, 'user_id' => $request->user()->id,
-            'content' => $request->content ?? '', 'version_number' => 1,
+            'content' => $request->content ?? '', 'change_summary' => 'Initial version',
+            'version_number' => 1,
         ]);
 
         return response()->json(['status' => 'success', 'data' => $note], 201);
@@ -146,9 +147,10 @@ class NoteController extends Controller
 
         $data = $request->only(['title', 'content', 'color', 'is_pinned']);
         $contentChanged = false;
+        $previousContent = (string) ($note->content ?? '');
         if (array_key_exists('content', $data)) {
             $incomingContent = (string) ($data['content'] ?? '');
-            $contentChanged = $incomingContent !== (string) ($note->content ?? '');
+            $contentChanged = $incomingContent !== $previousContent;
             $data['content'] = $incomingContent;
             $data['plain_text'] = strip_tags($incomingContent);
         }
@@ -158,7 +160,9 @@ class NoteController extends Controller
             $lastV = $note->versions()->max('version_number') ?? 0;
             NoteVersion::create([
                 'note_id' => $note->id, 'user_id' => $request->user()->id,
-                'content' => $data['content'], 'version_number' => $lastV + 1,
+                'content' => $data['content'],
+                'change_summary' => $this->summarizeContentChange($previousContent, $data['content']),
+                'version_number' => $lastV + 1,
             ]);
         }
 
@@ -205,7 +209,82 @@ class NoteController extends Controller
     public function versions(Request $request, Note $note)
     {
         if (!$note->canView($request->user())) return response()->json(['status'=>'error','message'=>'Unauthorized'], 403);
-        return response()->json(['status' => 'success', 'data' => $note->versions()->with('user:id,name,username')->paginate(20)]);
+        $versions = $note->versions()
+            ->with(['user:id,name,username', 'restoredFrom:id,version_number'])
+            ->paginate(20);
+
+        $versions->through(fn (NoteVersion $version) => $this->versionPayload($note, $version));
+
+        return response()->json(['status' => 'success', 'data' => $versions]);
+    }
+
+    public function restoreVersion(Request $request, Note $note, NoteVersion $version)
+    {
+        if (!$note->canEdit($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'No edit permission'], 403);
+        }
+
+        if ($version->note_id !== $note->id) {
+            return response()->json(['status' => 'error', 'message' => 'Version not found for this note.'], 404);
+        }
+
+        $targetContent = (string) ($version->content ?? '');
+        $currentContent = (string) ($note->content ?? '');
+        $note->update([
+            'content' => $targetContent,
+            'plain_text' => strip_tags($targetContent),
+        ]);
+
+        $newVersion = null;
+        if ($targetContent !== $currentContent) {
+            $lastV = $note->versions()->max('version_number') ?? 0;
+            $newVersion = NoteVersion::create([
+                'note_id' => $note->id,
+                'user_id' => $request->user()->id,
+                'content' => $targetContent,
+                'change_summary' => "Restored from draft #{$version->version_number}",
+                'restored_from_version_id' => $version->id,
+                'version_number' => $lastV + 1,
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Restored draft #{$version->version_number}.",
+            'data' => [
+                'note' => $note->fresh(),
+                'version' => $newVersion ? $this->versionPayload($note, $newVersion->load(['user:id,name,username', 'restoredFrom:id,version_number'])) : null,
+            ],
+        ]);
+    }
+
+    public function aiOcr(Request $request, Note $note, AiService $ai)
+    {
+        if (!$note->canView($request->user())) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
+        if (!SiteSetting::get('ai_enabled', true)) {
+            return response()->json(['status' => 'error', 'message' => 'AI tools are disabled in admin settings.'], 403);
+        }
+
+        $validated = $request->validate([
+            'image' => 'required|string|max:12000000',
+        ]);
+
+        try {
+            $text = $ai->ocrImage($validated['image']);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 503);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => ['text' => $text],
+        ]);
     }
 
     // ── SHARE CODE: Generate / Get ──
@@ -363,5 +442,56 @@ class NoteController extends Controller
     private function presenceIndexKey(int $noteId): string
     {
         return "note_presence_index:{$noteId}";
+    }
+
+    private function versionPayload(Note $note, NoteVersion $version): array
+    {
+        $payload = $version->toArray();
+        $plainText = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags((string) $version->content))));
+
+        $payload['plain_text'] = $plainText;
+        $payload['word_count'] = $plainText === '' ? 0 : str_word_count($plainText);
+        $payload['change_summary'] = $version->change_summary
+            ?: $this->summarizeContentChange($this->previousVersionContent($note, $version), (string) $version->content);
+
+        return $payload;
+    }
+
+    private function previousVersionContent(Note $note, NoteVersion $version): string
+    {
+        $previous = $note->versions()
+            ->where('version_number', '<', $version->version_number)
+            ->orderByDesc('version_number')
+            ->first();
+
+        return (string) ($previous?->content ?? '');
+    }
+
+    private function summarizeContentChange(string $beforeHtml, string $afterHtml): string
+    {
+        $before = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($beforeHtml))));
+        $after = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($afterHtml))));
+
+        if ($before === '' && $after !== '') {
+            return 'Added ' . str_word_count($after) . ' words';
+        }
+
+        if ($before !== '' && $after === '') {
+            return 'Removed all note text';
+        }
+
+        $beforeWords = str_word_count($before);
+        $afterWords = str_word_count($after);
+        $delta = $afterWords - $beforeWords;
+
+        if ($delta > 0) {
+            return "Added {$delta} words";
+        }
+
+        if ($delta < 0) {
+            return 'Removed ' . abs($delta) . ' words';
+        }
+
+        return $before === $after ? 'No text change' : 'Edited note text';
     }
 }
