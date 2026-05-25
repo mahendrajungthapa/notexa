@@ -43,6 +43,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const desktopQuery = window.matchMedia('(min-width: 1024px)');
+    const syncSidebarMode = () => {
+      if (desktopQuery.matches) setSidebarOpen(false);
+    };
+
+    syncSidebarMode();
+    desktopQuery.addEventListener('change', syncSidebarMode);
+    return () => desktopQuery.removeEventListener('change', syncSidebarMode);
+  }, []);
+
   const toggleCollapse = () => {
     const next = !isCollapsed;
     setIsCollapsed(next);
@@ -248,6 +261,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
+  const sidebarCollapsed = isCollapsed && !sidebarOpen;
+
   return (
     <div className={`flex h-screen overflow-hidden bg-gray-50 ${isPookie ? 'pookie-mode' : ''}`}>
       {/* Mobile overlay / backdrop */}
@@ -258,14 +273,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar */}
       <aside className={`
         fixed lg:relative inset-y-0 left-0 z-50 bg-white border-r border-slate-100/60
-        transform transition-transform duration-300 lg:transform-none shadow-[2px_0_24px_-12px_rgba(0,0,0,0.06)] shrink-0 h-full
-        w-72 lg:${isCollapsed ? 'w-[85px]' : 'w-64'}
+        transform transition-[transform,width] duration-300 ease-out lg:transform-none shadow-[2px_0_24px_-12px_rgba(0,0,0,0.06)] shrink-0 h-full
+        w-[min(18rem,calc(100vw-1.5rem))] ${sidebarCollapsed ? 'lg:w-[88px]' : 'lg:w-64'}
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        {/* Floating Collapse Toggle on Sidebar Border - centered next to Settings options and in a highly clickable right size */}
+        {/* Floating Collapse Toggle on Sidebar Border */}
         <button
           onClick={toggleCollapse}
-          className="absolute top-[380px] -translate-y-1/2 right-0 translate-x-1/2 hidden lg:flex items-center justify-center w-10 h-10 bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-full shadow-md cursor-pointer z-50 sidebar-collapse-btn transition-colors duration-200"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!isCollapsed}
+          className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 hidden lg:flex items-center justify-center w-10 h-10 bg-white border border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-full shadow-md cursor-pointer z-50 sidebar-collapse-btn transition-colors duration-200"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? <ChevronRight size={18} strokeWidth={2.5} /> : <ChevronLeft size={18} strokeWidth={2.5} />}
@@ -273,12 +290,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className={`flex items-center shrink-0 border-b border-slate-50 py-6 transition-all duration-300 ${isCollapsed ? 'lg:justify-center lg:px-2 px-6 justify-between' : 'justify-between px-6'}`}>
+          <div className={`flex items-center shrink-0 border-b border-slate-50 py-6 transition-all duration-300 ${sidebarCollapsed ? 'lg:justify-center lg:px-2 px-6 justify-between' : 'justify-between px-6'}`}>
             <Link href="/dashboard/notes" className="flex items-center gap-3 group">
               <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform duration-300 shrink-0">
                 <FileText size={20} className="text-white" strokeWidth={2.5} />
               </div>
-              {(!isCollapsed || sidebarOpen) && (
+              {!sidebarCollapsed && (
                 <span className="text-2xl font-black text-slate-800 tracking-tight group-hover:text-indigo-600 transition-colors animate-fade-in shrink-0">NotExA</span>
               )}
             </Link>
@@ -290,12 +307,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* User info */}
-          <div className={`px-4 pb-4 mt-5 shrink-0 ${isCollapsed ? 'flex justify-center' : ''}`}>
-            <div className={`flex items-center rounded-[1.25rem] bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-indigo-100/50 transition-all duration-300 cursor-pointer group overflow-hidden ${isCollapsed ? 'p-2 justify-center' : 'p-4 gap-4'}`}>
+          <div className={`px-4 pb-4 mt-5 shrink-0 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+            <div className={`flex items-center rounded-[1.25rem] bg-white border border-slate-100/80 shadow-sm hover:shadow-md hover:border-indigo-100/50 transition-all duration-300 cursor-pointer group overflow-hidden ${sidebarCollapsed ? 'p-2 justify-center' : 'p-4 gap-4'}`}>
               <div className="w-10 h-10 bg-indigo-100/80 text-indigo-700 rounded-[0.85rem] flex items-center justify-center font-bold text-base shadow-inner shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
-              {!isCollapsed && (
+              {!sidebarCollapsed && (
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors flex items-center gap-1.5">
                     {user?.name || 'Scholar'}
@@ -316,8 +333,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   key={item.href}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  title={isCollapsed ? item.label : undefined}
-                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${isActive
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${sidebarCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${isActive
                     ? 'bg-indigo-50/80 text-indigo-700 shadow-[0_2px_10px_-4px_rgba(79,70,229,0.2)] border border-indigo-100/50'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 border border-transparent hover:border-slate-100/50'
                     }`}
@@ -330,7 +347,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </span>
                     )}
                   </span>
-                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               );
             })}
@@ -342,14 +359,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Link
                   href="/admin/analytics"
                   onClick={() => setSidebarOpen(false)}
-                  title={isCollapsed ? "Admin Panel" : undefined}
-                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${isCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${pathname.startsWith('/admin')
+                  title={sidebarCollapsed ? "Admin Panel" : undefined}
+                  className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide transition-all duration-300 group ${sidebarCollapsed ? 'justify-center p-3' : 'gap-4 px-5 py-3.5'} ${pathname.startsWith('/admin')
                     ? 'bg-red-50 text-red-700 border border-red-100'
                     : 'text-slate-500 hover:bg-slate-50 border border-transparent'
                     }`}
                 >
                   <LayoutDashboard size={20} strokeWidth={2} className="shrink-0 text-red-500" />
-                  {!isCollapsed && <span>Admin Panel</span>}
+                  {!sidebarCollapsed && <span>Admin Panel</span>}
                 </Link>
               </>
             )}
@@ -358,11 +375,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="border-t border-slate-100/60 my-5 mx-2" />
             <button
               onClick={handleLogout}
-              title={isCollapsed ? "Sign Out" : undefined}
-              className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-700 hover:border-red-100 border border-transparent transition-all duration-300 group mb-6 ${isCollapsed ? 'justify-center p-3 w-fit mx-auto' : 'gap-4 px-5 py-3.5 w-full'}`}
+              title={sidebarCollapsed ? "Sign Out" : undefined}
+              className={`flex items-center rounded-2xl text-sm font-extrabold tracking-wide text-slate-500 hover:bg-red-50 hover:text-red-700 hover:border-red-100 border border-transparent transition-all duration-300 group mb-6 ${sidebarCollapsed ? 'justify-center p-3 w-fit mx-auto' : 'gap-4 px-5 py-3.5 w-full'}`}
             >
               <LogOut size={20} strokeWidth={2} className="shrink-0 text-slate-400 group-hover:text-red-500 transition-colors duration-300" />
-              {!isCollapsed && <span>Sign Out</span>}
+              {!sidebarCollapsed && <span>Sign Out</span>}
             </button>
             {/* Sidebar Controls Footer */}
             <div className="mt-auto border-t border-slate-100/60 p-4 shrink-0 bg-white flex items-center justify-center transition-all duration-300">
@@ -370,15 +387,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <button
                 onClick={togglePookie}
                 className={`flex items-center justify-center transition-all duration-300 border
-                  ${isCollapsed ? 'w-11 h-11 rounded-full px-0' : 'px-3.5 py-2.5 rounded-xl gap-2 text-xs font-bold w-full'}
+                  ${sidebarCollapsed ? 'w-11 h-11 rounded-full px-0' : 'px-3.5 py-2.5 rounded-xl gap-2 text-xs font-bold w-full'}
                   ${isPookie 
                     ? 'bg-pink-100 text-pink-600 border-pink-200 hover:bg-pink-200 shadow-sm' 
                     : 'bg-white text-slate-600 border-slate-200 hover:text-pink-500 hover:bg-pink-50/50 hover:border-pink-200'
-                  }`}
+                }`}
                 title={isPookie ? "Deactivate Pookie Mode 🧸" : "Activate Pookie Mode! ✨🎀"}
               >
-                <Heart size={isCollapsed ? 18 : 14} className={`${isPookie ? 'fill-pink-500 text-pink-600 animate-pulse' : ''}`} strokeWidth={2.5} />
-                {!isCollapsed && <span className="truncate">Pookie Mode</span>}
+                <Heart size={sidebarCollapsed ? 18 : 14} className={`${isPookie ? 'fill-pink-500 text-pink-600 animate-pulse' : ''}`} strokeWidth={2.5} />
+                {!sidebarCollapsed && <span className="truncate">Pookie Mode</span>}
               </button>
             </div>
           </nav>
@@ -389,7 +406,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top bar for mobile */}
         <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-600 focus:outline-none" aria-label="Toggle Menu">
+          <button onClick={() => setSidebarOpen(true)} className="text-gray-600 focus:outline-none" aria-label="Open sidebar" aria-expanded={sidebarOpen}>
             <Menu size={24} />
           </button>
           <span className="font-bold text-gray-900">NotExA</span>
