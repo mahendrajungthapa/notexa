@@ -1320,11 +1320,11 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
       {aiFeature === 'ask' && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white/95 border border-indigo-100 rounded-3xl shadow-2xl w-full max-w-lg h-[calc(100dvh-1.5rem)] sm:h-[90dvh] lg:max-h-[760px] flex flex-col overflow-hidden">
-            <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4 md:px-6 shrink-0">
+            <div className="relative sticky top-0 z-20 flex items-center border-b border-slate-100 bg-white px-5 py-4 pr-16 md:px-6 md:pr-16 shrink-0">
               <h2 className="min-w-0 truncate text-base sm:text-lg font-extrabold flex items-center gap-2 text-indigo-900">
                 <Bot size={22} className="text-indigo-600" /> Smart AI Writer
               </h2>
-              <button type="button" onClick={() => setAiFeature(null)} className="shrink-0 p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition" aria-label="Close AI writer">
+              <button type="button" onClick={() => setAiFeature(null)} className="absolute right-3 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-slate-700 shadow-md ring-1 ring-slate-200 transition hover:bg-slate-50 hover:text-slate-950" aria-label="Close AI writer">
                 <X size={18} />
               </button>
             </div>
