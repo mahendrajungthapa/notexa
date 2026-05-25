@@ -20,11 +20,14 @@ class FileController extends Controller
     // Owned files for the My Files page.
     public function index(Request $request)
     {
-        return response()->json(['status' => 'success', 'data' =>
-            $request->user()->files()
-                ->with('shares.recipient:id,name,username,avatar')
-                ->orderByDesc('created_at')->paginate(20)
-        ]);
+        $files = $request->user()->files()
+            ->with('shares.recipient:id,name,username,avatar')
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        $this->repairMissingSizes($files->getCollection());
+
+        return response()->json(['status' => 'success', 'data' => $files]);
     }
 
     // Files that friends shared directly with the current user.
@@ -34,6 +37,8 @@ class FileController extends Controller
             ->with('user:id,name,username,avatar')
             ->orderByDesc('file_shares.created_at')
             ->paginate(20);
+
+        $this->repairMissingSizes($files->getCollection());
 
         return response()->json(['status' => 'success', 'data' => $files]);
     }
@@ -291,5 +296,21 @@ class FileController extends Controller
             'mime_type' => $mimeType !== '' ? $mimeType : 'application/octet-stream',
             'size' => strlen($contents),
         ];
+    }
+
+    private function repairMissingSizes($files): void
+    {
+        foreach ($files as $file) {
+            if ((int) $file->size > 0) {
+                continue;
+            }
+
+            $storedSize = $this->r2->storedSize($file->r2_key);
+            if (!$storedSize || $storedSize <= 0) {
+                continue;
+            }
+
+            $file->forceFill(['size' => $storedSize])->saveQuietly();
+        }
     }
 }

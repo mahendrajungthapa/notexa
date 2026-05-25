@@ -66,4 +66,38 @@ class FileUploadTest extends TestCase
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.original_name', 'legacy.txt');
     }
+
+    public function test_file_list_repairs_missing_size_from_local_storage(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create([
+            'username' => 'sizerepair',
+            'is_active' => true,
+        ]);
+
+        $path = "users/{$user->id}/report.pdf";
+        Storage::disk('public')->put($path, str_repeat('a', 1536));
+
+        $file = File::create([
+            'user_id' => $user->id,
+            'note_id' => null,
+            'original_name' => 'report.pdf',
+            'stored_name' => 'report.pdf',
+            'path' => $path,
+            'mime_type' => 'application/pdf',
+            'size' => 0,
+            'r2_key' => 'local:' . $path,
+            'r2_url' => null,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/files')
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('data.data.0.size', 1536);
+
+        $this->assertSame(1536, (int) $file->fresh()->size);
+    }
 }

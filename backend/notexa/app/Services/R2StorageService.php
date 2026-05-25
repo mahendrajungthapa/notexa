@@ -144,6 +144,24 @@ class R2StorageService
         ]);
     }
 
+    public function storedSize(string $path): ?int
+    {
+        try {
+            $disk = $this->diskFor($path);
+            $key = $this->cleanKey($path);
+
+            if (!Storage::disk($disk)->exists($key)) {
+                return null;
+            }
+
+            $size = Storage::disk($disk)->size($key);
+
+            return is_numeric($size) ? (int) $size : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function r2Configured(): bool
     {
         $this->applyR2Settings();

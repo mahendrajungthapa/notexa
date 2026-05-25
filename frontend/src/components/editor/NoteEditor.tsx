@@ -22,6 +22,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { filesApi, notesApi } from '@/services/api';
+import { formatFileSize } from '@/lib/utils';
 
 interface NoteEditorProps {
   content: string;
@@ -42,6 +43,11 @@ const normalizeImageWidth = (value: unknown) => {
   if (/^\d+(\.\d+)?%$/.test(trimmed)) return trimmed;
 
   return null;
+};
+
+const fileSizeLabel = (file: any) => {
+  const bytes = Number(file?.size ?? file?.file_size ?? file?.bytes ?? 0);
+  return bytes > 0 ? formatFileSize(bytes) : 'Unknown size';
 };
 
 const ResizableImage = ImageExt.extend({
@@ -2282,7 +2288,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                         <FileText size={16} className={`shrink-0 mt-0.5 ${isSelected ? 'text-pink-600 animate-bounce' : 'text-slate-400'}`} />
                         <div className="min-w-0">
                           <p className={`text-[11px] font-bold truncate leading-snug ${isSelected ? 'text-pink-800' : 'text-slate-700'}`}>{file.original_name}</p>
-                          <p className="text-[9px] font-semibold text-slate-400 mt-0.5">Size: {(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                          <p className="text-[9px] font-semibold text-slate-400 mt-0.5">Size: {fileSizeLabel(file)}</p>
                         </div>
                       </button>
                     );

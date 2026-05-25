@@ -13,10 +13,11 @@ export function cn(...inputs: ClassValue[]) {
  * Format file size from bytes to human readable.
  */
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
+  const i = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  return parseFloat((value / Math.pow(1024, i)).toFixed(2)) + ' ' + units[i];
 }
 
 /**
