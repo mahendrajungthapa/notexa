@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "notexa-api-current",
     "name": "Notexa API - Complete Backend Collection",
-    "description": "Complete Postman collection generated from the current Laravel backend routes.\n\nDefault local base URL: http://127.0.0.1:8000/api\nProduction API example: https://app.notexa.cloud/api\n\nAuth: Sanctum Bearer token. Use Login/Register to fill {{token}} manually, and Login as Admin for {{admin_token}}.\n\nRemoved: subscription, premium, upgrade, billing, payment gateway, archive, personal browser AI workspace, and folder APIs are not included because they are not part of the current backend.\n\nEmail verification: if enabled in Admin Settings, register/resend sends a 6-digit SMTP code and verify-code returns a token.\nForgot password: forgot-password sends a 6-digit SMTP code and reset-password applies it.\n\nAI endpoints use backend/admin configured providers only. OpenAI-compatible, Gemini, and DeepSeek settings are managed through Admin Settings.\n\nFiles use local storage by default unless admin settings enable Cloudflare R2. Upload is documented with the JSON/base64 PUT payload used by the frontend, plus legacy multipart POST.\n\nCollaboration uses note share codes for link access plus /presence heartbeat endpoints for online/joined/typing status.\n\nAdmin credential helper variables are included for local seeded installs: {{admin_login}} / {{admin_password}}.",
+    "description": "Complete Postman collection generated from the current Laravel backend routes.\n\nDefault local base URL: http://127.0.0.1:8000/api\nProduction API example: https://app.notexa.cloud/api\n\nAuth: Sanctum Bearer token. Use Login with Email/Login with Username to auto-save {{token}}, and Login as Admin to auto-save {{admin_token}}.\n\nRemoved: subscription, premium, upgrade, billing, payment gateway, archive, personal browser AI workspace, and folder APIs are not included because they are not part of the current backend.\n\nEmail verification: if enabled in Admin Settings, register/resend sends a 6-digit SMTP code and verify-code returns a token.\nForgot password: forgot-password sends a 6-digit SMTP code and reset-password applies it.\n\nAI endpoints use backend/admin configured providers only. OpenAI-compatible, Gemini, and DeepSeek settings are managed through Admin Settings.\n\nFiles use local storage by default unless admin settings enable Cloudflare R2. Upload is documented with the JSON/base64 PUT payload used by the frontend, plus legacy multipart POST.\n\nCollaboration uses note share codes for link access plus /presence heartbeat endpoints for online/joined/typing status.\n\nAdmin credential helper variables are included for local seeded installs: {{admin_login}} / {{admin_password}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -136,7 +136,7 @@
           "response": []
         },
         {
-          "name": "Login",
+          "name": "Login with Email",
           "request": {
             "method": "POST",
             "header": [
@@ -165,9 +165,73 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Login accepts either email or username in the login field. Returns token and email_verification_required flag."
+            "description": "Login accepts email or username in the login field. This request uses {{email}} and saves the returned Sanctum token into {{token}}."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || (json.data && json.data.token);",
+                  "if (token) {",
+                  "  pm.collectionVariables.set('token', token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with Username",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Login with a username and password. Saves the returned Sanctum token into {{token}}."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || (json.data && json.data.token);",
+                  "if (token) {",
+                  "  pm.collectionVariables.set('token', token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Login as Admin",
@@ -199,9 +263,24 @@
             "auth": {
               "type": "noauth"
             },
-            "description": "Use the returned token as {{admin_token}} for Admin endpoints."
+            "description": "Use the returned token as {{admin_token}} for Admin endpoints. Admin login may be an email or username."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const token = json.token || (json.data && json.data.token);",
+                  "if (token) {",
+                  "  pm.collectionVariables.set('admin_token', token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
         },
         {
           "name": "Forgot Password - Send Code",

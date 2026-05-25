@@ -21,8 +21,8 @@ This document and `postman/Notexa_API_Collection.json` are generated from the cu
 ## Postman Variables
 
 - `base_url`: `http://127.0.0.1:8000/api`
-- `token`: normal user Sanctum token
-- `admin_token`: admin Sanctum token
+- `token`: normal user Sanctum token, auto-filled by Login with Email or Login with Username
+- `admin_token`: admin Sanctum token, auto-filled by Login as Admin
 - `admin_login`: `admin@notexa.com`
 - `admin_password`: `NotexaAdmin@2026`
 - `note_id`, `version_id`, `file_id`, `user_id`, `friendship_id`: IDs from create/list requests
@@ -34,7 +34,8 @@ This document and `postman/Notexa_API_Collection.json` are generated from the cu
 | Group | Request | Method | URL |
 | --- | --- | --- | --- |
 | 01 Public Auth and Settings | Register | POST | `{{base_url}}/register` |
-| 01 Public Auth and Settings | Login | POST | `{{base_url}}/login` |
+| 01 Public Auth and Settings | Login with Email | POST | `{{base_url}}/login` |
+| 01 Public Auth and Settings | Login with Username | POST | `{{base_url}}/login` |
 | 01 Public Auth and Settings | Login as Admin | POST | `{{base_url}}/login` |
 | 01 Public Auth and Settings | Forgot Password - Send Code | POST | `{{base_url}}/forgot-password` |
 | 01 Public Auth and Settings | Reset Password with Code | POST | `{{base_url}}/reset-password` |
