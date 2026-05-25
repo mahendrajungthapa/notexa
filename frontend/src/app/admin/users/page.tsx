@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '@/services/api';
-import { User } from '@/types';
 import toast from 'react-hot-toast';
-import { Ban, ChevronLeft, ChevronRight, Search, Trash2 } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, MailCheck, MailX, Search, Trash2 } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -42,6 +41,11 @@ export default function AdminUsersPage() {
     try { await adminApi.deleteUser(id); toast.success('Deleted'); fetchUsers(); } catch (err: any) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
+  const formatVerifiedAt = (value?: string | null) => {
+    if (!value) return '';
+    return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  };
+
   return (
     <div className="pb-10 fade-in animate-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
@@ -71,6 +75,7 @@ export default function AdminUsersPage() {
                   <tr>
                     <th className="px-6 py-4">User</th>
                     <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Email Verified</th>
                     <th className="px-6 py-4">Notes</th>
                     <th className="px-6 py-4">Files</th>
                     <th className="px-6 py-4">Status</th>
@@ -95,6 +100,22 @@ export default function AdminUsersPage() {
                         <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest ${u.role === 'admin' ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
                           {u.role}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {u.email_verified_at ? (
+                          <div>
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-emerald-700">
+                              <MailCheck size={13} strokeWidth={2.5} />
+                              Verified
+                            </span>
+                            <p className="mt-1 text-[11px] font-semibold text-slate-400">{formatVerifiedAt(u.email_verified_at)}</p>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-amber-700">
+                            <MailX size={13} strokeWidth={2.5} />
+                            Not verified
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-600">{u.notes_count}</td>
                       <td className="px-6 py-4 whitespace-nowrap font-bold text-slate-600">{u.files_count}</td>

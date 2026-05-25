@@ -98,21 +98,16 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if (SiteSetting::get('email_verification_enabled', false) && !$user->hasVerifiedEmail()) {
-            return response()->json([
-                'status' => 'error',
-                'code' => 'email_not_verified',
-                'email' => $user->email,
-                'message' => 'Please verify your email before signing in.',
-            ], 403);
-        }
-
         $token = $user->createToken('auth-token')->plainTextToken;
+        $emailVerificationRequired = $user->role !== 'admin'
+            && SiteSetting::get('email_verification_enabled', false)
+            && !$user->hasVerifiedEmail();
 
         return response()->json([
             'status' => 'success',
             'user' => $user->fresh(),
             'token' => $token,
+            'email_verification_required' => $emailVerificationRequired,
         ]);
     }
 

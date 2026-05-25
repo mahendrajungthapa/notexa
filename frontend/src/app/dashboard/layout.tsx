@@ -4,10 +4,10 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
-import { authApi, filesApi, friendsApi, notesApi } from '@/services/api';
+import { authApi, filesApi, friendsApi, notesApi, publicApi } from '@/services/api';
 import {
   FileText, Users, Share2, FolderOpen, Settings,
-  LogOut, LayoutDashboard, Menu, X, KeyRound, ChevronLeft, ChevronRight, Heart, Trash2
+  LogOut, LayoutDashboard, Menu, X, KeyRound, ChevronLeft, ChevronRight, Heart, Trash2, MailCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
@@ -22,13 +22,18 @@ const userNav = [
   { href: '/dashboard/reedem', label: 'Redeem Share Code', icon: KeyRound },
 ];
 
+const settingEnabled = (value: unknown) => value === true || value === 'true' || value === 1 || value === '1';
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAuthenticated, isLoading, logout, setUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, logout, setUser, setAuth } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [navBadges, setNavBadges] = useState<Record<string, number>>({});
+  const [emailVerificationEnabled, setEmailVerificationEnabled] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationBusy, setVerificationBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -72,6 +77,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace('/auth/login');
     }
   }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setEmailVerificationEnabled(false);
+      return;
+    }
+
+    let ignore = false;
+    publicApi.settings()
+      .then((res) => {
+        if (!ignore) {
+          const payload = res.data?.data || {};
+          setEmailVerificationEnabled(settingEnabled(payload.email_verification_enabled));
+        }
+      })
+      .catch(() => {
+        if (!ignore) setEmailVerificationEnabled(false);
+      });
+
+    return () => { ignore = true; };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -175,6 +201,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = async () => {
     await logout();
     router.replace('/auth/login');
+  };
+
+  const mustVerifyEmail = emailVerificationEnabled && user?.role !== 'admin' && !user?.email_verified_at;
+
+  const handleVerifyLoggedInEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!user?.email) return;
+    if (verificationCode.length !== 6) {
+      toast.error('Enter the 6-digit verification code.');
+      return;
+    }
+
+    setVerificationBusy(true);
+    try {
+      const res = await authApi.verifyEmailCode({ email: user.email, code: verificationCode });
+      const updatedUser = res.data?.data?.user || res.data?.user;
+      const token = res.data?.data?.token || res.data?.token;
+
+      if (updatedUser && token) {
+        setAuth(updatedUser, token);
+      } else if (updatedUser) {
+        setUser(updatedUser);
+      } else {
+        const me = await authApi.me();
+        const refreshedUser = me.data?.data?.user || me.data?.user;
+        if (refreshedUser) setUser(refreshedUser);
+      }
+
+      setVerificationCode('');
+      toast.success(res.data?.message || 'Email verified successfully.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not verify email code.');
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
+
+  const handleResendLoggedInVerification = async () => {
+    if (!user?.email) return;
+    setVerificationBusy(true);
+    try {
+      const res = await authApi.resendVerification(user.email);
+      setVerificationCode('');
+      toast.success(res.data?.message || 'Verification code sent.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not send verification code.');
+    } finally {
+      setVerificationBusy(false);
+    }
   };
 
   return (
@@ -334,6 +409,62 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {isPookie && <PookieStickers />}
+
+      {mustVerifyEmail && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleVerifyLoggedInEmail}
+            className="w-full max-w-md rounded-3xl border border-white/70 bg-white p-6 shadow-2xl sm:p-8"
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <MailCheck size={28} strokeWidth={2.5} />
+            </div>
+            <div className="mt-5 text-center">
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">Verify your email</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+                Email verification is enabled for users. Enter the 6-digit code sent to {user?.email}, or send a new code.
+              </p>
+            </div>
+
+            <input
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              autoFocus
+              className="mt-6 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-center text-2xl font-black tracking-[0.45em] text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+              placeholder="000000"
+            />
+
+            <button
+              type="submit"
+              disabled={verificationBusy || verificationCode.length !== 6}
+              className="mt-5 flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black uppercase tracking-widest text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {verificationBusy ? 'Checking...' : 'Verify Email'}
+            </button>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleResendLoggedInVerification}
+                disabled={verificationBusy}
+                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Send Code
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100"
+              >
+                Sign Out
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Quicksand:wght@300..700&family=Pacifico&display=swap');

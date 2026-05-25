@@ -32,6 +32,7 @@ Route::get('/settings/public', function () {
         'terms_conditions' => \App\Models\SiteSetting::get('terms_conditions', ''),
         'about_us' => \App\Models\SiteSetting::get('about_us', ''),
         'ai_enabled' => \App\Models\SiteSetting::get('ai_enabled', true),
+        'email_verification_enabled' => \App\Models\SiteSetting::get('email_verification_enabled', false),
     ]]);
 });
 
