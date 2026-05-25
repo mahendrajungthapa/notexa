@@ -100,8 +100,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Files
     Route::get('/files', [FileController::class, 'index']);
     Route::get('/files/shared-with-me', [FileController::class, 'sharedWithMe']);
-    Route::get('/file-folders', [FileController::class, 'folders']);
-    Route::post('/file-folders', [FileController::class, 'createFolder']);
     Route::match(['POST', 'PUT'], '/files/upload', [FileController::class, 'upload']);
     Route::get('/files/{file}/download', [FileController::class, 'download']);
     Route::get('/files/{file}/preview', [FileController::class, 'preview']);

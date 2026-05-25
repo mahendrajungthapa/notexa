@@ -35,7 +35,6 @@ class User extends Authenticatable implements MustVerifyEmail
     // Owned content
     public function notes() { return $this->hasMany(Note::class); }
     public function files() { return $this->hasMany(File::class); }
-    public function fileFolders() { return $this->hasMany(FileFolder::class); }
     public function activityLogs() { return $this->hasMany(ActivityLog::class); }
 
     public function sentFriendRequests()

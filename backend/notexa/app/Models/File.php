@@ -7,13 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class File extends Model
 {
     protected $fillable = [
-        'user_id', 'note_id', 'folder_id', 'original_name', 'stored_name',
+        'user_id', 'note_id', 'original_name', 'stored_name',
         'path', 'mime_type', 'size', 'r2_key', 'r2_url',
     ];
 
     public function user() { return $this->belongsTo(User::class); }
     public function note() { return $this->belongsTo(Note::class); }
-    public function folder() { return $this->belongsTo(FileFolder::class, 'folder_id'); }
     public function shares() { return $this->hasMany(FileShare::class); }
 
     public function sharedWith()
