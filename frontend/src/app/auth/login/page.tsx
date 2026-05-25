@@ -97,17 +97,18 @@ export default function LoginPage() {
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Email Input */}
+            {/* Username or email input */}
             <div className="space-y-2">
-              <label className="block text-sm font-bold text-on-surface ml-1" htmlFor="email">Email</label>
+              <label className="block text-sm font-bold text-on-surface ml-1" htmlFor="login">Username or email</label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-xl pointer-events-none">alternate_email</span>
                 <input
                   className="w-full pl-12 pr-4 py-4 bg-surface-container-low border-none rounded-2xl focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant font-medium"
-                  id="email"
-                  name="email"
-                  placeholder="name@email.com"
-                  type="email"
+                  id="login"
+                  name="login"
+                  placeholder="username or name@email.com"
+                  type="text"
+                  autoComplete="username"
                   required
                   value={form.login}
                   onChange={(e) => setForm({ ...form, login: e.target.value })}
