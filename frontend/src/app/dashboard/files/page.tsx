@@ -6,6 +6,7 @@ import { filesApi, friendsApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import { FileItem, FileShare, Friend } from '@/types';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
+import { countUnseenIds, markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 import toast from 'react-hot-toast';
 import { Upload, Download, Trash2, FolderOpen, File, Image, FileText, Eye, X, Share2, UserPlus } from 'lucide-react';
 
@@ -91,6 +92,21 @@ export default function FilesPage() {
   };
 
   useEffect(() => { fetchFiles(); }, []);
+
+  useEffect(() => {
+    if (!user?.id || loading || sharedFiles.length === 0) return;
+
+    const unseenSharedFiles = countUnseenIds(user.id, 'shared_files', sharedFiles.map((file) => file.id));
+    if (unseenSharedFiles > 0 && activeTab === 'owned') {
+      setActiveTab('shared');
+      return;
+    }
+
+    if (activeTab === 'shared') {
+      markIdsSeen(user.id, 'shared_files', sharedFiles.map((file) => file.id));
+      refreshNavBadges();
+    }
+  }, [activeTab, loading, sharedFiles, user?.id]);
 
   useEffect(() => {
     return () => {

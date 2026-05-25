@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
-import { authApi, friendsApi, notesApi, publicApi } from '@/services/api';
+import { authApi, filesApi, friendsApi, notesApi, publicApi } from '@/services/api';
 import { countUnseenIds, NAV_BADGES_REFRESH_EVENT } from '@/lib/nav-badge-state';
 import {
   FileText, Users, Share2, FolderOpen, Settings,
@@ -105,17 +105,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const refreshBadges = async () => {
       try {
-        const [requestsRes, sharedNotesRes] = await Promise.all([
+        const [requestsRes, sharedNotesRes, sharedFilesRes] = await Promise.all([
           friendsApi.pendingRequests(),
           notesApi.sharedWithMe({ per_page: 100 }),
+          filesApi.sharedWithMe({ per_page: 100 }),
         ]);
 
         const receivedRequests = requestsRes.data?.data?.received || [];
         const sharedNotes = sharedNotesRes.data?.data?.data || [];
+        const sharedFiles = sharedFilesRes.data?.data?.data || sharedFilesRes.data?.data || [];
 
         setNavBadges({
           '/dashboard/friends': countUnseenIds(user.id, 'friend_requests', receivedRequests.map((request: any) => request.id)),
           '/dashboard/shared': countUnseenIds(user.id, 'shared_notes', sharedNotes.map((note: any) => note.id)),
+          '/dashboard/files': countUnseenIds(user.id, 'shared_files', sharedFiles.map((file: any) => file.id)),
         });
       } catch {
         // Badge counts are helpful, but should never block navigation.

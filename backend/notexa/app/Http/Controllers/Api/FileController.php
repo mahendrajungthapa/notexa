@@ -45,7 +45,7 @@ class FileController extends Controller
             'note_id' => 'nullable|exists:notes,id',
         ]);
 
-        $user = $request->user();
+        $user = $request->user()->ensureDefaultStorageLimit();
         $uploaded = $request->file('file');
         $note = null;
 

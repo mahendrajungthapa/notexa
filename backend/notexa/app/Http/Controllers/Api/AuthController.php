@@ -99,6 +99,8 @@ class AuthController extends Controller
             ], 403);
         }
 
+        $user->ensureDefaultStorageLimit();
+
         $token = $user->createToken('auth-token')->plainTextToken;
         $emailVerificationRequired = $user->role !== 'admin'
             && SiteSetting::get('email_verification_enabled', false)
@@ -120,7 +122,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $user = $request->user();
+        $user = $request->user()->ensureDefaultStorageLimit();
         return response()->json([
             'status' => 'success',
             'user' => $user,

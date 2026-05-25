@@ -6,6 +6,7 @@ use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AuthEmailVerificationTest extends TestCase
@@ -58,5 +59,24 @@ class AuthEmailVerificationTest extends TestCase
             ->assertJsonPath('email_verification_required', false)
             ->assertJsonPath('user.email', $admin->email)
             ->assertJsonStructure(['token']);
+    }
+
+    public function test_me_upgrades_legacy_storage_limit_to_one_gb(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'legacy_storage_user',
+            'storage_limit' => 52428800,
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/me');
+
+        $response->assertOk()
+            ->assertJsonPath('user.storage_limit', User::DEFAULT_STORAGE_LIMIT)
+            ->assertJsonPath('stats.storage_limit_mb', 1024);
+
+        $this->assertSame(User::DEFAULT_STORAGE_LIMIT, (int) $user->fresh()->storage_limit);
     }
 }

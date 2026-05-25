@@ -489,15 +489,18 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     sharedContentRef.current = sharedContent;
 
     let userName = 'Collaborator';
+    let username = '';
     try {
       const cachedUser = JSON.parse(localStorage.getItem('notexa_user') || '{}');
-      userName = cachedUser?.name || cachedUser?.username || userName;
+      username = cachedUser?.username || '';
+      userName = username ? `@${username}` : (cachedUser?.name || userName);
     } catch {}
 
     provider.awareness.setLocalStateField('user', {
       id: localClientIdRef.current,
       userId: localUserIdRef.current,
       name: userName,
+      username,
       color: localColorRef.current,
     });
     const readyTimer = window.setTimeout(() => setCollabStatus('connected'), 800);
@@ -594,7 +597,8 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
         .map((p: any) => ({
           id: p.client_id || `user-${p.user_id}`,
           userId: p.user_id,
-          name: p.name || p.username || 'Collaborator',
+          username: p.username || '',
+          name: p.username ? `@${p.username}` : (p.name || 'Collaborator'),
           color: p.color || '#6366f1',
           isEditing: !!p.is_typing,
           source: 'server',
@@ -1020,17 +1024,30 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   if (!editor) return null;
 
+  const peerIdentityKey = (peer: any) => {
+    if (peer.username) return `username:${String(peer.username).toLowerCase()}`;
+    if (peer.name) return `username:${String(peer.name).replace(/^@/, '').toLowerCase()}`;
+    if (peer.userId || peer.user_id) return `user:${peer.userId || peer.user_id}`;
+    return `client:${peer.id || peer.client_id || 'unknown'}`;
+  };
+
+  const peerDisplayName = (peer: any) => {
+    const rawUsername = String(peer.username || peer.name || '').replace(/^@/, '').trim();
+    return rawUsername ? `@${rawUsername}` : 'Collaborator';
+  };
+
   const activeCollabPeers = [...collabPeers, ...serverPeers].reduce((items: any[], peer: any) => {
-    const key = peer.id || peer.client_id || `user-${peer.userId || peer.user_id || peer.name}`;
+    const key = peerIdentityKey(peer);
     const existing = items.find((item) => item._key === key);
     if (existing) {
       existing.isEditing = existing.isEditing || peer.isEditing;
-      existing.name = existing.name || peer.name;
+      existing.name = peerDisplayName(peer);
+      existing.username = peer.username || existing.username;
       existing.color = existing.color || peer.color;
       return items;
     }
 
-    items.push({ ...peer, _key: key });
+    items.push({ ...peer, _key: key, name: peerDisplayName(peer) });
     return items;
   }, []);
 

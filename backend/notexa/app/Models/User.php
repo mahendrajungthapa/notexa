@@ -70,6 +70,16 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isAdmin(): bool { return $this->role === 'admin'; }
 
+    public function ensureDefaultStorageLimit(): self
+    {
+        if ((int) $this->storage_limit < self::DEFAULT_STORAGE_LIMIT) {
+            $this->forceFill(['storage_limit' => self::DEFAULT_STORAGE_LIMIT])->save();
+            $this->refresh();
+        }
+
+        return $this;
+    }
+
     public function hasStorageSpace(int $bytes): bool
     {
         return ($this->storage_used + $bytes) <= $this->storage_limit;

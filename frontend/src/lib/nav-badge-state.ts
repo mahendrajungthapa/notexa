@@ -1,6 +1,6 @@
 export const NAV_BADGES_REFRESH_EVENT = 'notexa_nav_badges_refresh';
 
-type BadgeKind = 'friend_requests' | 'shared_notes';
+type BadgeKind = 'friend_requests' | 'shared_notes' | 'shared_files';
 
 const keyFor = (userId: number | string, kind: BadgeKind) => `notexa_seen_${kind}_${userId}`;
 
