@@ -212,8 +212,8 @@ export default function FilesPage() {
     }
   };
 
-  const usedMB = user ? (user.storage_used / 1048576).toFixed(1) : '0';
-  const limitMB = user ? (user.storage_limit / 1048576).toFixed(0) : '50';
+  const usedLabel = user ? formatSize(user.storage_used) : '0 B';
+  const limitLabel = user ? formatSize(user.storage_limit) : '1.00 GB';
   const usagePercent = user ? Math.min((user.storage_used / user.storage_limit) * 100, 100) : 0;
   const displayFiles = activeTab === 'owned' ? files : sharedFiles;
   const sharedUserIds = new Set(shareRecipients.map((item) => item.shared_with));
@@ -224,7 +224,7 @@ export default function FilesPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Files</h1>
-          <p className="text-sm text-gray-500 mt-1">{usedMB} MB / {limitMB} MB used</p>
+          <p className="text-sm text-gray-500 mt-1">{usedLabel} / {limitLabel} used</p>
         </div>
         <div>
           <input ref={inputRef} type="file" className="hidden" onChange={handleUpload} />

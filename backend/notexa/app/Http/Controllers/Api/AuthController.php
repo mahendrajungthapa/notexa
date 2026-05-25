@@ -28,6 +28,7 @@ class AuthController extends Controller
             'username' => strtolower($request->username),
             'email' => strtolower($request->email),
             'password' => Hash::make($request->password),
+            'storage_limit' => User::DEFAULT_STORAGE_LIMIT,
         ]);
 
         $emailEnabled = SiteSetting::get('email_verification_enabled', false);

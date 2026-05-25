@@ -46,7 +46,7 @@ Artisan::command('notexa:create-admin {email : Admin email address} {password? :
         'password' => $password,
         'role' => 'admin',
         'is_active' => true,
-        'storage_limit' => max((int) ($user->storage_limit ?? 0), 52428800),
+        'storage_limit' => max((int) ($user->storage_limit ?? 0), User::DEFAULT_STORAGE_LIMIT),
     ])->save();
 
     $this->info("Admin account ready: {$user->email}");

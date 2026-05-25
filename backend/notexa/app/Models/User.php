@@ -12,6 +12,8 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const DEFAULT_STORAGE_LIMIT = 1073741824; // 1 GB
+
     protected $fillable = [
         'name', 'username', 'email', 'password', 'avatar', 'institution', 'role',
         'storage_used', 'storage_limit', 'is_active', 'streak_count', 'last_streak_date',

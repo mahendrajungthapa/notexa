@@ -20,7 +20,7 @@ return new class extends Migration {
             $table->string('avatar')->nullable();
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->bigInteger('storage_used')->default(0);
-            $table->bigInteger('storage_limit')->default(52428800);
+            $table->bigInteger('storage_limit')->default(1073741824);
             $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
