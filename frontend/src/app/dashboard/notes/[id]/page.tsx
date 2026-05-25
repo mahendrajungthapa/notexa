@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import api, { notesApi, friendsApi, filesApi } from '@/services/api';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
+import { useAuthStore } from '@/contexts/authStore';
+import { markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 import { Note, Friend, NoteShare, FileItem, NoteVersion } from '@/types';
 import toast from 'react-hot-toast';
 import {
@@ -40,6 +42,7 @@ export default function NoteDetailPage() {
   const router = useRouter();
   const noteId = Number(params.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const user = useAuthStore((state) => state.user);
 
   const [note, setNote] = useState<Note | null>(null);
   const [permission, setPermission] = useState<string>('owner');
@@ -129,6 +132,10 @@ export default function NoteDetailPage() {
       setFiles(data.files || []);
       setCollaborators(data.shares || []);
       setShareCode(data.share_code || urlCollabToken || '');
+      if (user?.id && response.data.permission !== 'owner') {
+        markIdsSeen(user.id, 'shared_notes', [data.id]);
+        refreshNavBadges();
+      }
     } catch {
       const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
       const isCollabLink = params.has('collab_token') || params.has('token') || params.get('collab') === 'true';
@@ -137,7 +144,7 @@ export default function NoteDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [draftKey, noteId, router]);
+  }, [draftKey, noteId, router, user?.id]);
 
   useEffect(() => {
     fetchNote();

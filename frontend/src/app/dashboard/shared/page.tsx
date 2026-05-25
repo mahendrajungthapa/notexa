@@ -6,21 +6,29 @@ import { Note } from '@/types';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { Share2, Eye, Edit3, Users, FileText } from 'lucide-react';
+import { useAuthStore } from '@/contexts/authStore';
+import { markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 
 export default function SharedPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await notesApi.sharedWithMe();
-        setNotes(res.data.data?.data || []);
+        const res = await notesApi.sharedWithMe({ per_page: 100 });
+        const sharedNotes = res.data.data?.data || [];
+        setNotes(sharedNotes);
+        if (user?.id) {
+          markIdsSeen(user.id, 'shared_notes', sharedNotes.map((note: Note) => note.id));
+          refreshNavBadges();
+        }
       } catch { toast.error('Failed to load'); }
       finally { setLoading(false); }
     };
     fetch();
-  }, []);
+  }, [user?.id]);
 
   return (
     <div className="w-full pb-10 fade-in animate-in slide-in-from-bottom-4 duration-500">

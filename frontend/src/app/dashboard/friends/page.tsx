@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { friendsApi, notesApi, filesApi } from '@/services/api';
 import { Friend, Friendship, Note, FileItem } from '@/types';
 import toast from 'react-hot-toast';
-import { UserPlus, Users, Search, Check, X, Trash2, Mail, MoreHorizontal, Share, MessageSquareText, FileText } from 'lucide-react';
+import { UserPlus, Users, Search, Check, X, Trash2, MoreHorizontal, Share, FileText } from 'lucide-react';
+import { useAuthStore } from '@/contexts/authStore';
+import { markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 
 export default function FriendsPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -15,6 +17,7 @@ export default function FriendsPage() {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'friends' | 'requests' | 'add'>('friends');
+  const user = useAuthStore((state) => state.user);
 
   // Share note/file modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -38,6 +41,12 @@ export default function FriendsPage() {
   useEffect(() => { fetchData(); }, []);
 
   useEffect(() => {
+    if (tab !== 'requests' || !user?.id || received.length === 0) return;
+    markIdsSeen(user.id, 'friend_requests', received.map((request) => request.id));
+    refreshNavBadges();
+  }, [received, tab, user?.id]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     const profileUsername = new URLSearchParams(window.location.search).get('username');
     if (profileUsername) {
@@ -59,11 +68,11 @@ export default function FriendsPage() {
   };
 
   const handleAccept = async (id: number) => {
-    try { await friendsApi.acceptRequest(id); toast.success('Accepted!'); fetchData(); } catch { toast.error('Failed'); }
+    try { await friendsApi.acceptRequest(id); toast.success('Accepted!'); await fetchData(); refreshNavBadges(); } catch { toast.error('Failed'); }
   };
 
   const handleReject = async (id: number) => {
-    try { await friendsApi.rejectRequest(id); toast.success('Rejected'); fetchData(); } catch { toast.error('Failed'); }
+    try { await friendsApi.rejectRequest(id); toast.success('Rejected'); await fetchData(); refreshNavBadges(); } catch { toast.error('Failed'); }
   };
 
   const handleCancelRequest = async (id: number) => {

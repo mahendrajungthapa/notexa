@@ -498,7 +498,7 @@ export default function NotesPage() {
       <div className="mb-10 lg:mb-12">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">My Workspace</h1>
+            <h1 className="text-2xl font-bold text-gray-900">My Notes</h1>
             <p className="text-slate-500 text-sm mt-2 font-medium">
               Your active synthesis space. {notes.length} entries across {availableTags.length} categories.
             </p>

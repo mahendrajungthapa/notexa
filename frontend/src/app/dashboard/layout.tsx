@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
-import { authApi, filesApi, friendsApi, notesApi, publicApi } from '@/services/api';
+import { authApi, friendsApi, notesApi, publicApi } from '@/services/api';
+import { countUnseenIds, NAV_BADGES_REFRESH_EVENT } from '@/lib/nav-badge-state';
 import {
   FileText, Users, Share2, FolderOpen, Settings,
   LogOut, LayoutDashboard, Menu, X, KeyRound, ChevronLeft, ChevronRight, Heart, Trash2, MailCheck
@@ -100,33 +101,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const countItems = (payload: any) => {
-      if (typeof payload?.data?.total === 'number') return payload.data.total;
-      if (typeof payload?.total === 'number') return payload.total;
-      if (Array.isArray(payload?.data?.data)) return payload.data.data.length;
-      if (Array.isArray(payload?.data)) return payload.data.length;
-      if (Array.isArray(payload)) return payload.length;
-      return 0;
-    };
+    if (!isAuthenticated || !user?.id) return;
 
     const refreshBadges = async () => {
       try {
-        const [requestsRes, sharedNotesRes, sharedFilesRes] = await Promise.all([
+        const [requestsRes, sharedNotesRes] = await Promise.all([
           friendsApi.pendingRequests(),
-          notesApi.sharedWithMe({ per_page: 1 }),
-          filesApi.sharedWithMe({ per_page: 1 }),
+          notesApi.sharedWithMe({ per_page: 100 }),
         ]);
 
         const receivedRequests = requestsRes.data?.data?.received || [];
-        const sharedNotes = countItems(sharedNotesRes.data?.data || sharedNotesRes.data);
-        const sharedFiles = countItems(sharedFilesRes.data?.data || sharedFilesRes.data);
+        const sharedNotes = sharedNotesRes.data?.data?.data || [];
 
         setNavBadges({
-          '/dashboard/friends': receivedRequests.length,
-          '/dashboard/shared': sharedNotes,
-          '/dashboard/files': sharedFiles,
+          '/dashboard/friends': countUnseenIds(user.id, 'friend_requests', receivedRequests.map((request: any) => request.id)),
+          '/dashboard/shared': countUnseenIds(user.id, 'shared_notes', sharedNotes.map((note: any) => note.id)),
         });
       } catch {
         // Badge counts are helpful, but should never block navigation.
@@ -135,8 +124,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     void refreshBadges();
     const timer = window.setInterval(refreshBadges, 30000);
-    return () => window.clearInterval(timer);
-  }, [isAuthenticated]);
+    window.addEventListener(NAV_BADGES_REFRESH_EVENT, refreshBadges);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(NAV_BADGES_REFRESH_EVENT, refreshBadges);
+    };
+  }, [isAuthenticated, user?.id]);
 
   // Global Streak Tracker
   useEffect(() => {
