@@ -164,6 +164,7 @@ const ResizableImage = ImageExt.extend({
 export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '', onRealtimeActiveChange }: NoteEditorProps) {
   // Real-time collaboration state
   const [collabActive, setCollabActive] = useState(false);
+  const [collabPreferenceLoaded, setCollabPreferenceLoaded] = useState(false);
   const [collabStatus, setCollabStatus] = useState<'connecting' | 'connected' | 'offline'>('offline');
   const [collabPeers, setCollabPeers] = useState<any[]>([]);
   const [serverPeers, setServerPeers] = useState<any[]>([]);
@@ -409,6 +410,12 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [aiResult, setAiResult] = useState<any>(null);
   const [aiResultApplied, setAiResultApplied] = useState(false);
 
+  const getCollabStorageKey = () => {
+    if (noteId) return `notexa_collab_active_note_${noteId}`;
+    if (typeof window === 'undefined') return 'notexa_collab_active_note_unknown';
+    return `notexa_collab_active_${window.location.pathname}`;
+  };
+
   useEffect(() => {
     collabActiveRef.current = collabActive;
     onRealtimeActiveChange?.(collabActive);
@@ -418,10 +425,28 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('collab') === 'true' || params.has('collab_token') || params.has('token')) {
+    const urlEnabled = params.get('collab') === 'true' || params.has('collab_token') || params.has('token');
+    const savedEnabled = localStorage.getItem(getCollabStorageKey()) === 'true';
+    if (urlEnabled || savedEnabled) {
       setCollabActive(true);
     }
-  }, []);
+    setCollabPreferenceLoaded(true);
+  }, [noteId]);
+
+  useEffect(() => {
+    if (!collabPreferenceLoaded || typeof window === 'undefined') return;
+
+    localStorage.setItem(getCollabStorageKey(), collabActive ? 'true' : 'false');
+
+    const url = new URL(window.location.href);
+    if (collabActive) {
+      url.searchParams.set('collab', 'true');
+    } else {
+      url.searchParams.delete('collab');
+    }
+
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [collabActive, collabPreferenceLoaded, noteId]);
 
   const buildCollabLink = () => {
     if (typeof window === 'undefined') return '';

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { CalendarDays, Copy, ExternalLink, GraduationCap, Link as LinkIcon, ShieldCheck, UserPlus } from 'lucide-react';
+import { CalendarDays, Copy, ExternalLink, GraduationCap, Share2, ShieldCheck, UserPlus } from 'lucide-react';
 import { publicApi } from '@/services/api';
 import AuthHeader from '@/components/AuthHeader';
 import SiteFooter from '@/components/SiteFooter';
@@ -146,7 +146,7 @@ export default function PublicProfilePage() {
                 <div className="mt-8 grid gap-4 lg:grid-cols-[1fr_280px]">
                   <div className="rounded-3xl border border-slate-200 bg-slate-50/70 p-5">
                     <div className="flex items-center gap-2 text-sm font-black text-slate-900">
-                      <LinkIcon size={17} className="text-indigo-600" />
+                      <Share2 size={17} className="text-indigo-600" />
                       Public profile link
                     </div>
                     <a
