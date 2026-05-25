@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/contexts/authStore';
 import { useRouter } from 'next/navigation';
+import AuthHeader from '@/components/AuthHeader';
+import SiteFooter from '@/components/SiteFooter';
 import {
   FileEdit, Users2, Zap, CloudUpload, ShieldCheck, Target,
   Bot, Layers, ScanLine, Languages, BookOpen, Award
@@ -103,15 +105,8 @@ const stats = [
 export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuthStore();
-  const [scrolled, setScrolled] = useState(false);
   const [activeAiTool, setActiveAiTool] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -126,27 +121,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9ff] text-slate-900 selection:bg-indigo-500/15 selection:text-indigo-900 overflow-x-hidden font-sans">
-
-      {/* ── NAVBAR ── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-20 py-4 transition-all duration-300 ${scrolled ? 'bg-white/85 backdrop-blur-xl shadow-[0_2px_20px_-8px_rgba(0,0,0,0.1)] border-b border-slate-200/50' : 'bg-transparent'}`}>
-        <Link href="/" className="flex items-center gap-1.5 group">
-          <span className="text-[28px] font-black tracking-tighter bg-gradient-to-br from-[#3525cd] to-[#4f46e5] bg-clip-text text-transparent group-hover:opacity-90 transition-opacity font-headline">NotExA</span>
-        </Link>
-
-        <div className="hidden md:flex items-center gap-10">
-          <a href="#features" className="text-[14px] font-bold text-slate-500 hover:text-indigo-600 transition-colors duration-200">Features</a>
-          <a href="#ai-tools" className="text-[14px] font-bold text-slate-500 hover:text-indigo-600 transition-colors duration-200">AI Tools</a>
-          <Link href="/auth/login" className="text-[14px] font-bold text-slate-500 hover:text-indigo-600 transition-colors duration-200">Sign In</Link>
-          <Link href="/auth/register" className="px-6 py-2.5 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-sm font-bold shadow-md hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200">
-            Get Started Free →
-          </Link>
-        </div>
-
-        <div className="md:hidden flex gap-2">
-          <Link href="/auth/login" className="px-4 py-2 text-sm font-bold text-slate-600">Login</Link>
-          <Link href="/auth/register" className="px-4 py-2 bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-white rounded-xl text-sm font-bold shadow">Sign Up</Link>
-        </div>
-      </nav>
+      <AuthHeader />
 
       {/* ── HERO SECTION ── */}
       <section ref={heroRef} className="relative min-h-screen flex items-center pt-32 pb-24 px-6 lg:px-20 overflow-hidden">
@@ -567,22 +542,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="border-t border-slate-200/60 bg-white">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-20 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[20px] font-black tracking-tighter bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">NotExA</span>
-            <span className="text-slate-300 text-sm mx-2">·</span>
-            <p className="text-[13px] text-slate-400 font-bold">© 2026 College Minor Project</p>
-          </div>
-
-          <div className="flex gap-8">
-            <a href="#" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Privacy Policy</a>
-            <a href="#" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Terms of Service</a>
-            <a href="#features" className="text-[13px] font-bold text-slate-400 hover:text-indigo-600 transition-colors">Features</a>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

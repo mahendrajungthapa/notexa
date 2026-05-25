@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/services/api';
+import AuthHeader from '@/components/AuthHeader';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -53,7 +55,9 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface-container-lowest px-5 sm:px-6 py-10 sm:py-12">
+    <>
+    <AuthHeader active="login" />
+    <main className="min-h-screen flex items-center justify-center bg-surface-container-lowest px-5 sm:px-6 py-24">
       <div className="w-full max-w-md">
         <Link href="/auth/login" className="mb-8 inline-flex items-center text-sm font-bold text-primary hover:opacity-80">
           <span className="material-symbols-outlined mr-1 text-base">arrow_back</span>
@@ -144,5 +148,7 @@ export default function ForgotPasswordPage() {
         )}
       </div>
     </main>
+    <SiteFooter />
+    </>
   );
 }

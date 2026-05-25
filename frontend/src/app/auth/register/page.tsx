@@ -7,6 +7,7 @@ import { authApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
 import AuthHeader from '@/components/AuthHeader';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -139,9 +140,9 @@ export default function RegisterPage() {
   return (
     <>
     <AuthHeader active="register" />
-    <main className="min-h-screen grid lg:grid-cols-2 pt-16">
+    <main className="min-h-screen bg-surface-container-lowest px-4 py-24 sm:px-6 flex items-center justify-center">
       {/* Left Side */}
-      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-slate-900 min-h-[50vh] lg:min-h-screen">
+      <section className="hidden">
         <div className="absolute inset-0 z-0">
           <img
             alt="Modern minimalist library interior with warm wood accents, large windows, and students focused on digital devices in soft natural light"
@@ -244,8 +245,8 @@ export default function RegisterPage() {
       </section>
 
       {/* Right Side */}
-      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
-        <div className="w-full max-w-md">
+      <section className="w-full max-w-md">
+        <div className="w-full">
           <div className="mb-8 text-center pt-8 lg:pt-0">
             <h2 className="text-3xl font-headline font-bold text-on-surface mb-2 tracking-tight">
               Create an Account
@@ -432,14 +433,14 @@ export default function RegisterPage() {
               By clicking "Create Account", you agree to our
               <Link
                 className="text-primary font-semibold hover:underline px-1"
-                href="#"
+                href="/terms-and-conditions"
               >
                 Terms of Service
               </Link>
               and
               <Link
                 className="text-primary font-semibold hover:underline"
-                href="#"
+                href="/privacy-policy"
               >
                 Privacy Policy
               </Link>.
@@ -510,6 +511,7 @@ export default function RegisterPage() {
         </div>
       )}
     </main>
+    <SiteFooter />
     </>
   );
 }

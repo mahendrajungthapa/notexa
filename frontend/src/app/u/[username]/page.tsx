@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Copy, ExternalLink, UserPlus } from 'lucide-react';
+import { Copy, ExternalLink, UserPlus } from 'lucide-react';
 import { publicApi } from '@/services/api';
+import AuthHeader from '@/components/AuthHeader';
+import SiteFooter from '@/components/SiteFooter';
 
 type PublicProfile = {
   id: number;
@@ -58,12 +60,10 @@ export default function PublicProfilePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 flex items-center justify-center">
+    <>
+    <AuthHeader />
+    <main className="min-h-screen bg-slate-50 px-4 py-24 sm:px-6 flex items-center justify-center">
       <div className="w-full max-w-xl">
-        <Link href="/" className="mb-4 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-white hover:text-slate-900 transition">
-          <ArrowLeft size={16} /> Notexa
-        </Link>
-
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           {loading ? (
             <div className="space-y-5">
@@ -142,5 +142,7 @@ export default function PublicProfilePage() {
         </section>
       </div>
     </main>
+    <SiteFooter />
+    </>
   );
 }

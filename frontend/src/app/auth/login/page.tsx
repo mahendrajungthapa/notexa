@@ -7,6 +7,7 @@ import { authApi } from '@/services/api';
 import { useAuthStore } from '@/contexts/authStore';
 import toast from 'react-hot-toast';
 import AuthHeader from '@/components/AuthHeader';
+import SiteFooter from '@/components/SiteFooter';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,9 +41,9 @@ export default function LoginPage() {
   return (
     <>
     <AuthHeader active="login" />
-    <main className="min-h-screen grid lg:grid-cols-2 pt-16">
+    <main className="min-h-screen bg-surface-container-lowest px-4 py-24 sm:px-6 flex items-center justify-center">
       {/* Section 1: Brand Message / Visual side (Left side on Desktop) */}
-      <section className="relative overflow-hidden flex flex-col justify-center px-8 lg:px-24 py-16 lg:py-0 bg-surface-container-low textured-bg min-h-[50vh] lg:min-h-screen">
+      <section className="hidden">
         {/* Background Decorative Element */}
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-primary-fixed-dim/30 rounded-full blur-[120px]"></div>
 
@@ -88,8 +89,8 @@ export default function LoginPage() {
       </section>
 
       {/* Section 2: Auth / Login Flow side (Right side on Desktop) */}
-      <section className="flex flex-col justify-center items-center px-8 lg:px-20 py-20 lg:py-0 bg-surface-container-lowest min-h-screen">
-        <div className="w-full max-w-md">
+      <section className="w-full max-w-md">
+        <div className="w-full">
           <div className="mb-10 text-center">
             <h2 className="text-4xl font-headline font-bold text-on-surface mb-3 tracking-tight">Welcome back</h2>
             <p className="text-on-surface-variant font-body">Log in to your NotExA Account</p>
@@ -202,13 +203,14 @@ export default function LoginPage() {
           <div className="mt-16 text-center">
             <p className="text-[10px] text-outline-variant font-bold uppercase tracking-[0.2em] leading-loose max-w-xs mx-auto">
               By signing in, you agree to our <br />
-              <Link className="hover:text-on-surface transition-colors" href="#">Terms of Service</Link> &amp;
-              <Link className="hover:text-on-surface transition-colors ml-1" href="#">Privacy Policy</Link>
+              <Link className="hover:text-on-surface transition-colors" href="/terms-and-conditions">Terms of Service</Link> &amp;
+              <Link className="hover:text-on-surface transition-colors ml-1" href="/privacy-policy">Privacy Policy</Link>
             </p>
           </div>
         </div>
       </section>
     </main>
+    <SiteFooter />
     </>
   );
 }
