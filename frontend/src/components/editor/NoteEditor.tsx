@@ -19,6 +19,7 @@ import {
   Heart, Play, Square, Plus, Trash2, Users, FileText, Share2, Upload
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { filesApi, notesApi } from '@/services/api';
 
@@ -1014,21 +1015,22 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiPrompt('');
     setAiResultApplied(false);
   };
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
-      {editable && !aiFeature && (
+      {portalTarget && editable && !aiFeature && createPortal((
         <button
           type="button"
           onClick={openAiWriter}
-          className="fixed bottom-5 right-5 z-[90] flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-2xl shadow-indigo-600/30 ring-1 ring-white/60 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+          className="fixed bottom-5 right-5 z-[10000] flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-3 text-sm font-black text-white shadow-2xl shadow-indigo-600/30 ring-1 ring-white/60 transition hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
           aria-label="Open AI writer"
           title="Open AI writer"
         >
           <Bot size={18} strokeWidth={2.5} />
           <span>AI Writer</span>
         </button>
-      )}
+      ), portalTarget)}
 
       {/* Toolbar */}
       {editable && (
@@ -1337,7 +1339,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
          ═══════════════════════════════════════════ */}
 
       {/* Overlay 1: Ask AI */}
-      {aiFeature === 'ask' && (
+      {portalTarget && aiFeature === 'ask' && createPortal((
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4 animate-in fade-in duration-200">
           <button
             type="button"
@@ -1477,7 +1479,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
             )}
           </div>
         </div>
-      )}
+      ), portalTarget)}
 
       {/* Overlay 2: Summarize Drawer */}
       {aiFeature === 'summarize' && (
