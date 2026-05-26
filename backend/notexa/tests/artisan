@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+
+$root = dirname(__DIR__);
+$artisan = $root.DIRECTORY_SEPARATOR.'artisan';
+$cliTemp = sys_get_temp_dir().DIRECTORY_SEPARATOR.'notexa-cli-temp';
+
+chdir($root);
+
+if (! is_dir($cliTemp)) {
+    @mkdir($cliTemp, 0775, true);
+}
+
+if (is_dir($cliTemp) && is_writable($cliTemp)) {
+    putenv('NOTEXA_PHP_TEMP_DIR='.$cliTemp);
+    putenv('TMP='.$cliTemp);
+    putenv('TEMP='.$cliTemp);
+    putenv('TMPDIR='.$cliTemp);
+
+    $_ENV['NOTEXA_PHP_TEMP_DIR'] = $cliTemp;
+    $_ENV['TMP'] = $cliTemp;
+    $_ENV['TEMP'] = $cliTemp;
+    $_ENV['TMPDIR'] = $cliTemp;
+
+    $_SERVER['NOTEXA_PHP_TEMP_DIR'] = $cliTemp;
+    $_SERVER['TMP'] = $cliTemp;
+    $_SERVER['TEMP'] = $cliTemp;
+    $_SERVER['TMPDIR'] = $cliTemp;
+}
+
+if (isset($argv[0])) {
+    $argv[0] = $artisan;
+    $_SERVER['argv'] = $argv;
+    $_SERVER['argc'] = count($argv);
+}
+
+$_SERVER['SCRIPT_FILENAME'] = $artisan;
+$_SERVER['SCRIPT_NAME'] = '/artisan';
+$_SERVER['PHP_SELF'] = '/artisan';
+
+require $artisan;
