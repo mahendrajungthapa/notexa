@@ -302,6 +302,7 @@ function SortableNoteCard({ note, tag, onPin, onTrash, viewMode, activeSortMode 
 }
 
 export default function NotesPage() {
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -376,11 +377,15 @@ export default function NotesPage() {
         setNoteTagMap(storedMap);
       }
 
-      toast.success('Note created!');
+      toast.success('Note created. Opening editor...');
       setShowCreate(false);
       setNewTitle('');
       setNewColor('#ffffff');
-      fetchNotes();
+      if (newNote?.id) {
+        router.push(`/dashboard/notes/${newNote.id}`);
+      } else {
+        fetchNotes();
+      }
     } catch (err: any) {
       toast.error('Failed to create note');
     }
