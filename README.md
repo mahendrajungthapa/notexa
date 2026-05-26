@@ -11,6 +11,7 @@ The project is organized as a monorepo so the API, web frontend, mobile/desktop 
 - [Architecture](#architecture)
 - [Repository Structure](#repository-structure)
 - [Technology Stack](#technology-stack)
+- [Components and Frameworks Used](#components-and-frameworks-used)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Environment Files](#environment-files)
@@ -173,6 +174,159 @@ The backend is the source of truth for users, notes, sharing, files, settings, a
 - Shared Preferences
 - File Picker
 - Syncfusion PDF viewer
+
+## Components and Frameworks Used
+
+This section lists the main frameworks, libraries, and project components used across Notexa.
+
+### Backend Components
+
+| Component | Path | Framework or Package | Purpose |
+| --- | --- | --- | --- |
+| API routing | `backend/notexa/routes/api.php` | Laravel Router | Registers all `/api/...` routes for auth, notes, friends, files, admin, AI, OCR, and collaboration. |
+| Web routing | `backend/notexa/routes/web.php` | Laravel Router + Blade | Registers `/`, generated `/docs`, and public backend web pages. |
+| Auth controller | `backend/notexa/app/Http/Controllers/Api/AuthController.php` | Laravel, Sanctum, Mail, Hash | Registration, login, logout, profile, password change, email verification, forgot password, reset password, and streak completion. |
+| Note controller | `backend/notexa/app/Http/Controllers/Api/NoteController.php` | Laravel Eloquent, Cache | Notes CRUD, trash/restore, share codes, versions, AI calls, OCR, and collaboration presence. |
+| Note sharing controller | `backend/notexa/app/Http/Controllers/Api/NoteShareController.php` | Laravel Eloquent | Friend/direct note sharing, collaborators, and permissions. |
+| File controller | `backend/notexa/app/Http/Controllers/Api/FileController.php` | Laravel Storage, signed URLs | File upload, list, download, preview, delete, and sharing. |
+| Friend controller | `backend/notexa/app/Http/Controllers/Api/FriendController.php` | Laravel Eloquent | Friend search, requests, accept/reject/cancel, and remove friend. |
+| Profile controller | `backend/notexa/app/Http/Controllers/Api/ProfileController.php` | Laravel Eloquent | Public user profile lookup by username. |
+| Admin controller | `backend/notexa/app/Http/Controllers/Admin/AdminController.php` | Laravel Eloquent, Mail, Storage | Admin dashboard, users, notes, settings, logo upload, SMTP test, shared notes, friendships, and activity logs. |
+| Admin middleware | `backend/notexa/app/Http/Middleware/IsAdmin.php` | Laravel Middleware | Protects `/api/admin/...` routes. |
+| User model | `backend/notexa/app/Models/User.php` | Eloquent, Sanctum, MustVerifyEmail | Auth identity, storage limit, friends, shared notes/files, and admin checks. |
+| Note model | `backend/notexa/app/Models/Note.php` | Eloquent | Notes, shares, versions, files, permission helpers, trash behavior. |
+| File model | `backend/notexa/app/Models/File.php` | Eloquent | Uploaded file metadata and ownership. |
+| Site settings model | `backend/notexa/app/Models/SiteSetting.php` | Eloquent | Stores admin-managed settings for AI, SMTP, site content, storage, and verification. |
+| AI service | `backend/notexa/app/Services/AiService.php` | HTTP client logic | Calls DeepSeek, OpenAI-compatible, or Gemini providers using admin/env keys. |
+| OCR service | `backend/notexa/app/Services/OcrService.php` | `thiagoalessio/tesseract_ocr` | Backend-side OCR diagnostics and text extraction. |
+| R2 storage service | `backend/notexa/app/Services/R2StorageService.php` | Flysystem AWS S3 adapter | Local/R2 file storage abstraction. |
+| Mail settings service | `backend/notexa/app/Services/MailSettingsService.php` | Laravel Mail Config | Applies admin SMTP settings for verification/reset/test emails. |
+| Database migrations | `backend/notexa/database/migrations` | Laravel Migrations | Defines users, notes, files, shares, settings, activity logs, versions, and collaboration metadata. |
+| Seeders | `backend/notexa/database/seeders` | Laravel Seeders | Creates default admin and initial local data. |
+| Console commands | `backend/notexa/routes/console.php` | Laravel Artisan | Admin creation, temp directory repair, and OCR diagnostics. |
+| Backend tests | `backend/notexa/tests` | PHPUnit | Feature and unit tests for auth, settings, files, OCR, docs, and streaks. |
+
+### Backend Frameworks and Packages
+
+| Framework or Package | Used For |
+| --- | --- |
+| Laravel 13 | Main API framework, routing, controllers, middleware, validation, config, cache, mail, storage, and testing integration. |
+| Laravel Sanctum | Token authentication for frontend, Flutter, and Postman. |
+| Eloquent ORM | Database models, relationships, queries, pagination, and model factories. |
+| PHPUnit 12 | Automated backend tests. |
+| Flysystem AWS S3 v3 | Cloudflare R2-compatible object storage. |
+| Tesseract OCR wrapper | Server-side OCR image text extraction. |
+| Laravel Mail | SMTP verification codes, password reset codes, and admin SMTP test emails. |
+| Laravel signed URLs | Safe file preview/download URLs. |
+
+### Frontend Components
+
+| Component or Area | Path | Framework or Package | Purpose |
+| --- | --- | --- | --- |
+| App router pages | `frontend/src/app` | Next.js App Router | Public pages, auth pages, dashboard pages, admin pages, profile pages, and API proxy route. |
+| Landing page | `frontend/src/app/page.tsx` | Next.js, React, Tailwind | Public home/marketing page. |
+| Auth pages | `frontend/src/app/auth` | Next.js, React Hook-style state | Login, register, forgot password, and reset flows. |
+| Dashboard layout | `frontend/src/app/dashboard/layout.tsx` | Next.js, Zustand, Axios | Auth guard, sidebar, badges, email verification gate, and streak timer. |
+| Notes dashboard | `frontend/src/app/dashboard/notes/page.tsx` | React, dnd-kit, Tailwind | Notes list, grid/list view, create note, pin, trash, tags, sorting, and drag ordering. |
+| Note detail page | `frontend/src/app/dashboard/notes/[id]/page.tsx` | React, Axios, browser OCR | Note editor shell, files, AI/OCR actions, sharing, versions, and collaboration controls. |
+| Note editor | `frontend/src/components/editor/NoteEditor.tsx` | Tiptap, Yjs, y-webrtc | Rich editor, realtime collaboration, image upload, OCR popup, AI tools, PDF study panel, and formatting toolbar. |
+| Files page | `frontend/src/app/dashboard/files/page.tsx` | React, Axios, Tailwind | File upload, listing, preview, download, delete, and share UI. |
+| Friends page | `frontend/src/app/dashboard/friends/page.tsx` | React, Axios | Friend search, requests, online indicators, and friend actions. |
+| Shared page | `frontend/src/app/dashboard/shared/page.tsx` | React, Axios | Notes shared with the user and seen/unseen badge behavior. |
+| Trash page | `frontend/src/app/dashboard/trash/page.tsx` | React, Axios | Restore or permanently delete trashed notes. |
+| Settings page | `frontend/src/app/dashboard/settings/page.tsx` | React, Zustand | Profile editing, share profile, password change, stats, activity, and streak display. |
+| Admin layout | `frontend/src/app/admin/layout.tsx` | Next.js, React | Admin shell and navigation. |
+| Admin settings page | `frontend/src/app/admin/settings/page.tsx` | React, Axios | Site settings, SMTP, logo upload, AI keys, DeepSeek config, storage settings, and policy content. |
+| Admin users page | `frontend/src/app/admin/users/page.tsx` | React, Axios | User list, verified status, activation, and admin/user management. |
+| API service layer | `frontend/src/services/api.ts` | Axios | Central typed-ish HTTP client for all backend endpoints. |
+| API URL helper | `frontend/src/lib/api-url.ts` | TypeScript | Resolves backend URL from `NEXT_PUBLIC_API_URL`. |
+| Auth store | `frontend/src/contexts/authStore.ts` | Zustand | Stores user/token auth state. |
+| Browser OCR helper | `frontend/src/lib/browser-ocr.ts` | `tesseract.js` | Runs OCR in the browser when backend OCR is unavailable. |
+| Nav badge state | `frontend/src/lib/nav-badge-state.ts` | Local storage | Tracks unseen shared files, shared notes, and friend requests. |
+
+### Frontend Frameworks and Packages
+
+| Framework or Package | Used For |
+| --- | --- |
+| Next.js 16 | Web framework, app routing, production build, server/client page boundaries. |
+| React 19 | UI component model and client interactivity. |
+| TypeScript 6 | Type safety for frontend code. |
+| Tailwind CSS | Utility-first styling and responsive UI. |
+| Tiptap | Rich note editor and editor extensions. |
+| Yjs | Shared document model for realtime collaboration. |
+| y-webrtc | WebRTC provider/signaling for collaboration sessions. |
+| Axios | API requests to Laravel. |
+| Zustand | Client auth/session state. |
+| dnd-kit | Drag-and-drop note ordering. |
+| Lucide React | Icons throughout the UI. |
+| React Hot Toast | Toast notifications. |
+| Recharts | Admin/dashboard charts and metrics. |
+| Tesseract.js | Browser OCR fallback. |
+
+### Flutter App Components
+
+| Component or Area | Path | Framework or Package | Purpose |
+| --- | --- | --- | --- |
+| Flutter app root | `notexa_app/lib` | Flutter, Dart | Mobile/desktop client source. |
+| API service | `notexa_app/lib/services` | `http` | Calls the Laravel API. |
+| Local state/storage | `notexa_app/lib` | Provider, Shared Preferences | Auth/session and local app state. |
+| File support | `notexa_app/lib` | File Picker, Path Provider | Select and manage local files. |
+| PDF viewing | `notexa_app/lib` | Syncfusion PDF Viewer | Preview PDFs inside the app. |
+| Connectivity/offline handling | `notexa_app/lib` | connectivity_plus | Detect connectivity and manage offline sync behavior. |
+
+### Flutter Frameworks and Packages
+
+| Framework or Package | Used For |
+| --- | --- |
+| Flutter | Cross-platform UI framework. |
+| Dart | Flutter app language. |
+| Provider | App state management. |
+| http | API calls. |
+| shared_preferences | Local persisted key/value storage. |
+| file_picker | File selection. |
+| path_provider | Platform-safe local paths. |
+| connectivity_plus | Network status detection. |
+| syncfusion_flutter_pdfviewer | PDF preview. |
+| url_launcher | Open external links. |
+| google_fonts | App typography. |
+
+### Database and Data Components
+
+| Component | Used For |
+| --- | --- |
+| users | Auth identities, roles, storage limits, status, verification, streaks. |
+| notes | User notes, trash state, pin state, content, and plain text. |
+| note_versions | Version history and restore metadata. |
+| note_shares | Shared note permissions. |
+| files | Uploaded file metadata. |
+| file_shares | Shared file access. |
+| friendships | Friend request and accepted friend relationships. |
+| site_settings | Admin-controlled runtime settings. |
+| activity_logs | Admin-visible operational activity. |
+| cache/session tables | Laravel cache, sessions, queues, and runtime state where configured. |
+
+### External Services
+
+| Service | Used For |
+| --- | --- |
+| SMTP provider | Email verification, forgot password, reset password, SMTP test. |
+| DeepSeek API | Default backend AI provider option. |
+| OpenAI-compatible API | Optional backend AI provider option. |
+| Gemini API | Optional backend AI provider option. |
+| Cloudflare R2 | Optional cloud storage for uploaded files. |
+| Yjs signaling server | WebRTC collaboration discovery/signaling. |
+| Tesseract OCR binary | Optional backend OCR engine. |
+
+### Documentation and API Tooling
+
+| Component | Path | Purpose |
+| --- | --- | --- |
+| Root README | `README.md` | Complete project overview and setup guide. |
+| Backend README | `backend/notexa/README.md` | Backend-specific setup, API routes, env, deploy, and troubleshooting. |
+| Generated API docs | `/docs` on backend server | Dynamic route documentation generated from Laravel routes. |
+| Postman collection | `postman/Notexa_API_Collection.json` | API testing and endpoint examples. |
+| Guides | `guides` | Backend, frontend, and app setup guides. |
+| Project docs | `docs` | Beginner guides, study guides, project documentation, and update notes. |
 
 ## Requirements
 
