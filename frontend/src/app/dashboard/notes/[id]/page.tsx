@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { notesApi, friendsApi, filesApi, publicApi } from '@/services/api';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
+import { recognizeImageText } from '@/lib/browser-ocr';
 import { useAuthStore } from '@/contexts/authStore';
 import { markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
 import { Note, Friend, NoteShare, FileItem, NoteVersion } from '@/types';
@@ -99,6 +100,7 @@ export default function NoteDetailPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const [pdfPreview, setPdfPreview] = useState<{ title: string; url: string } | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -495,10 +497,19 @@ export default function NoteDetailPage() {
     }
 
     setOcrLoading(true);
+    setOcrProgress(0);
     try {
       const dataUrl = await fileToDataUrl(file);
-      const response = await notesApi.ocrImage(noteId, { image: dataUrl });
-      const text = response.data?.data?.text || response.data?.text || '';
+      let text = '';
+
+      try {
+        const response = await notesApi.ocrImage(noteId, { image: dataUrl });
+        text = response.data?.data?.text || response.data?.text || '';
+      } catch {
+        toast.loading('Server OCR unavailable. Running browser OCR...', { id: 'ocr-fallback' });
+        text = await recognizeImageText(dataUrl, setOcrProgress);
+        toast.dismiss('ocr-fallback');
+      }
 
       if (!text.trim()) {
         throw new Error('No text was found in this image.');
@@ -513,6 +524,7 @@ export default function NoteDetailPage() {
       toast.error(error.response?.data?.message || error.message || 'OCR failed.');
     } finally {
       setOcrLoading(false);
+      setOcrProgress(0);
       event.target.value = '';
     }
   };
@@ -669,7 +681,7 @@ export default function NoteDetailPage() {
               <input ref={ocrInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrSelected} />
               <button onClick={() => ocrInputRef.current?.click()} disabled={ocrLoading}
                 className="flex items-center gap-1.5 px-4 py-2.5 bg-orange-50 hover:bg-orange-100 border border-orange-100 text-orange-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
-                {ocrLoading ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} strokeWidth={2.5} />} OCR Image
+                {ocrLoading ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} strokeWidth={2.5} />} {ocrLoading && ocrProgress > 0 ? `OCR ${Math.round(ocrProgress * 100)}%` : 'OCR Image'}
               </button>
             </>
           )}

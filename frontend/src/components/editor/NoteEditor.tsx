@@ -22,6 +22,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
 import { filesApi, notesApi } from '@/services/api';
+import { recognizeImageText } from '@/lib/browser-ocr';
 import { formatFileSize } from '@/lib/utils';
 
 interface NoteEditorProps {
@@ -677,6 +678,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [ocrImageUrl, setOcrImageUrl] = useState('');
   const [ocrImagePreview, setOcrImagePreview] = useState('');
   const [ocrImageName, setOcrImageName] = useState('');
+  const [ocrProgress, setOcrProgress] = useState(0);
 
   const runAICall = async (systemPrompt: string, userPrompt: string) => {
     if (!aiEnabled) {
@@ -923,17 +925,28 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const handleOCR = async () => {
     if (!ocrImageUrl.trim()) return;
     setAiLoading(true);
+    setOcrProgress(0);
     setAiResult('');
     setAiResultApplied(false);
     try {
-      const response = await notesApi.ocrImage(Number(noteId), { image: ocrImageUrl });
-      const res = response.data?.data?.text || response.data?.text || '';
+      let res = '';
+
+      try {
+        const response = await notesApi.ocrImage(Number(noteId), { image: ocrImageUrl });
+        res = response.data?.data?.text || response.data?.text || '';
+      } catch {
+        toast.loading('Server OCR unavailable. Running browser OCR...', { id: 'ocr-fallback-editor' });
+        res = await recognizeImageText(ocrImageUrl, setOcrProgress);
+        toast.dismiss('ocr-fallback-editor');
+      }
+
       if (!res) throw new Error('No text was found in this image.');
       setAiResult(res);
     } catch (err: any) {
       toast.error(err.response?.data?.message || err.message || "Failed to extract text from image.");
     } finally {
       setAiLoading(false);
+      setOcrProgress(0);
     }
   };
 
@@ -1841,7 +1854,9 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               {aiLoading && (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <div className="h-10 w-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
-                  <p className="text-xs text-orange-700 font-bold animate-pulse">Reading image text with OCR...</p>
+                  <p className="text-xs text-orange-700 font-bold animate-pulse">
+                    {ocrProgress > 0 ? `Reading image text... ${Math.round(ocrProgress * 100)}%` : 'Reading image text with OCR...'}
+                  </p>
                 </div>
               )}
 
