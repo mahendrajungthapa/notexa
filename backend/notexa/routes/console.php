@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use App\Models\User;
+use App\Services\OcrService;
 use Illuminate\Support\Str;
 
 Artisan::command('inspire', function () {
@@ -72,3 +73,29 @@ Artisan::command('notexa:fix-temp', function () {
 
     return 0;
 })->purpose('Create the Notexa PHP temp directory and print the required PHP.ini values');
+
+Artisan::command('notexa:ocr-check', function () {
+    $diagnostics = app(OcrService::class)->diagnostics();
+
+    $this->info('Notexa OCR diagnostics');
+    $this->line('Configured TESSERACT_BINARY: ' . ($diagnostics['configured_binary'] ?: '(not set)'));
+    $this->line('Detected binary: ' . ($diagnostics['detected_binary'] ?: '(not found)'));
+    $this->line('Binary exists: ' . ($diagnostics['binary_exists'] ? 'yes' : 'no'));
+    $this->line('proc_open enabled: ' . ($diagnostics['proc_open_enabled'] ? 'yes' : 'no'));
+    $this->line('shell_exec enabled: ' . ($diagnostics['shell_exec_enabled'] ? 'yes' : 'no'));
+    $this->line('exec enabled: ' . ($diagnostics['exec_enabled'] ? 'yes' : 'no'));
+
+    if (! $diagnostics['detected_binary'] || ! $diagnostics['binary_exists']) {
+        $this->newLine();
+        $this->warn('Tesseract is not visible to PHP.');
+        $this->line('Ubuntu/Debian: sudo apt-get update && sudo apt-get install -y tesseract-ocr');
+        $this->line('Then set TESSERACT_BINARY=/usr/bin/tesseract in .env if needed.');
+    }
+
+    if (! $diagnostics['proc_open_enabled']) {
+        $this->newLine();
+        $this->warn('proc_open is disabled. The OCR wrapper needs proc_open enabled in PHP.');
+    }
+
+    return 0;
+})->purpose('Check whether PHP can run the Tesseract OCR binary');

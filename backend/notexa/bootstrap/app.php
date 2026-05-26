@@ -11,6 +11,7 @@ foreach ([
     $basePath . '/storage/framework/cache/data',
     $basePath . '/storage/framework/sessions',
     $compiledViewPath,
+    $basePath . '/storage/app/ocr',
     $basePath . '/storage/logs',
     $basePath . '/bootstrap/cache',
 ] as $path) {

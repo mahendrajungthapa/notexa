@@ -54,7 +54,7 @@ class OcrService
         } catch (RuntimeException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new RuntimeException('OCR engine is not available. Install the tesseract-ocr server package or set TESSERACT_BINARY to the full tesseract executable path.', previous: $e);
+            throw new RuntimeException('OCR engine is not available to PHP. Run php artisan notexa:ocr-check, install the tesseract-ocr server package, or set TESSERACT_BINARY to the full tesseract executable path.', previous: $e);
         } finally {
             if (is_file($path)) {
                 @unlink($path);
@@ -97,26 +97,81 @@ class OcrService
         ];
     }
 
-    private function tesseractBinary(): ?string
+    public function binaryPath(): ?string
     {
         $configured = trim((string) config('services.tesseract.binary', ''));
         if ($configured !== '') {
             return $configured;
         }
 
-        foreach ([
-            '/usr/bin/tesseract',
-            '/usr/local/bin/tesseract',
-            '/snap/bin/tesseract',
-            '/opt/homebrew/bin/tesseract',
-            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
-            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
-        ] as $candidate) {
+        $fromCommand = $this->findWithCommand();
+        if ($fromCommand) {
+            return $fromCommand;
+        }
+
+        foreach ($this->commonBinaryPaths() as $candidate) {
             if (is_file($candidate)) {
                 return $candidate;
             }
         }
 
         return null;
+    }
+
+    public function diagnostics(): array
+    {
+        $binary = $this->binaryPath();
+
+        return [
+            'configured_binary' => trim((string) config('services.tesseract.binary', '')),
+            'detected_binary' => $binary,
+            'binary_exists' => $binary ? (is_file($binary) || $binary === 'tesseract') : false,
+            'proc_open_enabled' => $this->functionEnabled('proc_open'),
+            'exec_enabled' => $this->functionEnabled('exec'),
+            'shell_exec_enabled' => $this->functionEnabled('shell_exec'),
+            'common_paths' => $this->commonBinaryPaths(),
+        ];
+    }
+
+    private function tesseractBinary(): ?string
+    {
+        return $this->binaryPath();
+    }
+
+    private function commonBinaryPaths(): array
+    {
+        return [
+            '/usr/bin/tesseract',
+            '/usr/local/bin/tesseract',
+            '/usr/local/tesseract/bin/tesseract',
+            '/snap/bin/tesseract',
+            '/opt/tesseract/bin/tesseract',
+            '/opt/homebrew/bin/tesseract',
+            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+        ];
+    }
+
+    private function findWithCommand(): ?string
+    {
+        if (! $this->functionEnabled('shell_exec')) {
+            return null;
+        }
+
+        $result = @shell_exec('command -v tesseract 2>/dev/null');
+        $path = trim((string) $result);
+
+        return $path !== '' ? $path : null;
+    }
+
+    private function functionEnabled(string $name): bool
+    {
+        if (! function_exists($name)) {
+            return false;
+        }
+
+        $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+
+        return ! in_array($name, $disabled, true);
     }
 }
