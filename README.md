@@ -1,53 +1,195 @@
 # Notexa
 
-Notexa is a full-stack collaborative note-taking platform built with a Laravel API, a Next.js web app, and a Flutter app. It supports rich notes, sharing, friends, file uploads, admin management, SMTP email verification, and AI-assisted summaries.
+Notexa is a full-stack collaborative note-taking platform with a Laravel API backend, a Next.js web application, and a Flutter client. It is built for rich academic notes, realtime collaboration, file sharing, AI-assisted writing, OCR, admin-controlled settings, SMTP email workflows, and cross-device access.
 
-## Features
+The project is organized as a monorepo so the API, web frontend, mobile/desktop app, Postman collection, and documentation can evolve together.
 
-- User registration, login, SMTP password reset codes, profile updates, and Laravel Sanctum token authentication.
-- Rich note editor with fixed-size toolbar icons, image upload, formatting, task lists, links, highlights, and code-friendly content.
-- Notes dashboard with mobile two-column grid cards, create, edit, pin, trash, restore, and permanent delete flows.
-- Version history for notes so recent edits can be previewed and restored.
-- Friend system using search, usernames, pending requests, accept/reject/cancel actions, and friend removal.
-- Note sharing through friends, permissions, collaborators, and share codes.
-- Realtime note collaboration with Tiptap Collaboration, Yjs, and WebRTC. Friends can be shared in directly, and a valid realtime collaboration link grants edit access to logged-in users.
-- File upload, safe PDF/text/image previews, download, note attachments, and direct file sharing with friends.
-- Admin area for users, notes, site settings, shared notes, friendships, and activity logs.
-- AI summary and prompt endpoints through the backend service layer; API keys are configured only in the Admin Panel.
-- Optional 6-digit SMTP email verification during registration.
-- Flutter app for mobile/desktop access to the same API, with local drafts and resilient offline note sync.
+## Table of Contents
 
-## Project Structure
+- [Project Summary](#project-summary)
+- [Major Features](#major-features)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Technology Stack](#technology-stack)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Environment Files](#environment-files)
+- [Default Admin](#default-admin)
+- [How API Routes Work](#how-api-routes-work)
+- [Authentication](#authentication)
+- [Core API Areas](#core-api-areas)
+- [Realtime Collaboration](#realtime-collaboration)
+- [AI and OCR](#ai-and-ocr)
+- [Files and Storage](#files-and-storage)
+- [Email and SMTP](#email-and-smtp)
+- [Frontend Notes](#frontend-notes)
+- [Flutter App Notes](#flutter-app-notes)
+- [Testing](#testing)
+- [Postman](#postman)
+- [Deployment Checklist](#deployment-checklist)
+- [Troubleshooting](#troubleshooting)
+- [Documentation Map](#documentation-map)
+
+## Project Summary
+
+Notexa provides:
+
+- a Laravel Sanctum API at `/api`
+- generated backend API documentation at `/docs`
+- a Next.js dashboard and admin panel
+- a Flutter app that talks to the same backend
+- local file storage by default, with optional Cloudflare R2-compatible storage
+- SMTP-based email verification and password reset
+- server-side AI endpoints configured from the admin panel
+- OCR through backend Tesseract or browser-side fallback in the web frontend
+
+## Major Features
+
+### Users and Authentication
+
+- Register and login with username or email.
+- Laravel Sanctum token authentication.
+- Optional 6-digit email verification through SMTP.
+- Forgot password and reset password through 6-digit SMTP codes.
+- User profile editing, public profile pages, and shareable profile links.
+- Admin-safe user management with active/inactive user support.
+
+### Notes
+
+- Rich Tiptap note editor.
+- Create note flow opens the new note editor immediately.
+- Formatting, headings, lists, task lists, links, highlights, alignment, images, code blocks, and blockquotes.
+- Image upload inside editor.
+- Resizable uploaded images.
+- Code blocks styled for readability.
+- Pin, trash, restore, and permanent delete.
+- Trash page.
+- Version history with editor/user metadata and restore support.
+- Study PDF side-by-side panel.
+- Daily study streak tracking.
+
+### Collaboration and Sharing
+
+- Friend system with requests, accept/reject/cancel, and friend removal.
+- Shared with me page.
+- Note sharing with view/edit permissions.
+- Direct share codes and collaboration links.
+- Realtime collaboration presence and typing status.
+- Collaborator list deduplicated by username/user identity.
+- Online status indicators for friends.
+
+### Files
+
+- Upload files to local storage by default.
+- Optional Cloudflare R2 configuration.
+- File listing and sharing.
+- Shared files badges.
+- Signed download and preview URLs.
+- Safe previews for PDF, images, and text/code-like files.
+- Preview content is served through controlled backend routes.
+
+### Admin Panel
+
+- Dashboard statistics.
+- User management.
+- Email verified status visibility.
+- Admin accounts cannot be deactivated from the inactive toggle.
+- Notes moderation.
+- Settings management.
+- Site logo upload.
+- Public content settings for privacy policy and terms.
+- SMTP settings and SMTP test email.
+- AI provider settings for DeepSeek, OpenAI-compatible APIs, and Gemini.
+- Storage settings for local/R2 usage.
+- Activity logs, shared notes, and friendships.
+
+### AI and OCR
+
+- Frontend AI tools are controlled by backend/admin settings.
+- No personal AI workspace/API key requirement in the frontend.
+- AI endpoints call backend services using admin-configured keys.
+- Supported providers: DeepSeek, OpenAI-compatible APIs, Gemini.
+- OCR image upload in the editor.
+- Backend OCR through Tesseract when installed.
+- Browser OCR fallback through `tesseract.js` when backend Tesseract is unavailable.
+
+## Architecture
+
+```text
+Next.js Web App  ─┐
+                  ├── Laravel API /api ─── Database
+Flutter App     ──┘          │
+                             ├── Local Storage or Cloudflare R2
+                             ├── SMTP Provider
+                             ├── AI Provider
+                             └── Tesseract OCR / Browser OCR fallback
+```
+
+The backend is the source of truth for users, notes, sharing, files, settings, and AI configuration. The frontend and Flutter app consume the same API.
+
+## Repository Structure
 
 | Path | Purpose |
 | --- | --- |
-| `backend/notexa` | Laravel API, database migrations, seeders, services, and admin/API controllers |
-| `frontend` | Next.js web frontend with the marketing pages, auth screens, dashboard, and admin UI |
-| `notexa_app` | Flutter app for Android, iOS, web, Windows, macOS, and Linux targets |
-| `postman` | Postman API collection for testing the backend endpoints |
-| `docs` | Project reports, beginner notes, upgrade notes, and study documentation |
+| `backend/notexa` | Laravel API, routes, controllers, migrations, seeders, services, tests, backend README |
+| `frontend` | Next.js web app, landing page, auth pages, dashboard, editor, admin panel |
+| `notexa_app` | Flutter client for Android, iOS, web, Windows, macOS, and Linux targets |
+| `postman` | Complete Postman API collection |
+| `docs` | Study guides, project docs, update notes, beginner guides |
 | `guides` | Practical setup guides for backend, frontend, and app development |
+| `outputs` | Generated local artifacts, excluded from normal app runtime |
 
-## Tech Stack
+## Technology Stack
 
-- Backend: PHP 8.3, Laravel 13, Laravel Sanctum, SQLite/MySQL/PostgreSQL-ready migrations.
-- Frontend: Next.js 16, React 18, TypeScript, Tailwind CSS, TipTap editor, Zustand, Axios.
-- App: Flutter 3, Dart, Provider, Shared Preferences, HTTP client, File Picker, PDF viewer.
-- Storage and services: local filesystem by default, Cloudflare R2-compatible configuration, SMTP mail configuration, and OpenAI/Gemini/DeepSeek AI settings.
+### Backend
+
+- PHP 8.3+
+- Laravel 13
+- Laravel Sanctum
+- PHPUnit 12
+- SQLite locally, MySQL/PostgreSQL-ready by configuration
+- Flysystem S3 adapter for Cloudflare R2-compatible storage
+- Tesseract OCR package
+
+### Frontend
+
+- Next.js 16
+- React 19
+- TypeScript 6
+- Tailwind CSS
+- Tiptap editor
+- Yjs and y-webrtc
+- Axios
+- Zustand
+- Lucide icons
+- Tesseract.js browser OCR fallback
+
+### Flutter
+
+- Flutter 3+
+- Dart 3.2+
+- Provider
+- HTTP client
+- Shared Preferences
+- File Picker
+- Syncfusion PDF viewer
 
 ## Requirements
 
 - Git
 - PHP 8.3 or newer
 - Composer
-- Node.js 24.15 or newer
-- npm 11.12 or newer
+- Node.js compatible with the frontend lockfile
+- npm
 - Flutter SDK 3.2 or newer
 - SQLite for the default local backend setup
+- Optional: Tesseract OCR binary
+- Optional: SMTP mailbox/provider
+- Optional: Cloudflare R2 account
 
 ## Quick Start
 
-Start the backend first because both the web frontend and Flutter app call the Laravel API.
+Start the backend first because both clients depend on it.
 
 ### 1. Backend
 
@@ -59,13 +201,15 @@ New-Item -ItemType File database/database.sqlite -Force
 php artisan key:generate
 php artisan migrate --seed
 php artisan storage:link
+php artisan notexa:fix-temp
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-Backend API:
+Backend URLs:
 
 ```text
-http://127.0.0.1:8000/api
+API:  http://127.0.0.1:8000/api
+Docs: http://127.0.0.1:8000/docs
 ```
 
 ### 2. Frontend
@@ -79,10 +223,17 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Web app:
+Frontend URL:
 
 ```text
 http://localhost:3000
+```
+
+For local API connection, set `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
+NEXT_PUBLIC_YJS_SIGNALING_URLS=wss://signaling.yjs.dev
 ```
 
 ### 3. Flutter App
@@ -95,61 +246,398 @@ flutter pub get
 flutter run
 ```
 
-For Android emulator, change the API base URL in `notexa_app/lib/services/api_service.dart` from `http://127.0.0.1:8000/api` to:
+For Android emulator, use:
 
 ```text
 http://10.0.2.2:8000/api
 ```
 
-## Default Local Account
-
-Running `php artisan migrate --seed` creates this admin account:
+For Windows/macOS/Linux/web local testing, use:
 
 ```text
-Email: admin@notexa.com
-Username: admin
-Password: password123
+http://127.0.0.1:8000/api
 ```
-
-Change this password immediately in any shared, staging, or production environment.
-
-To create a new admin or reset an existing admin password on the API server:
-
-```bash
-cd backend/notexa
-php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
-```
-
-Omit the password argument to be prompted securely.
 
 ## Environment Files
 
-Real environment files are not committed. Create local files from the templates:
+Local env files are intentionally not committed.
 
 | Project | Template | Local file |
 | --- | --- | --- |
 | Backend | `backend/notexa/.env.example` | `backend/notexa/.env` |
 | Frontend | `frontend/.env.example` | `frontend/.env.local` |
 
-Important values:
+### Backend Essentials
 
-- `APP_URL`: Backend public URL, usually `http://127.0.0.1:8000` locally.
-- `DB_CONNECTION`: `sqlite` locally, or change to `mysql`/`pgsql` with matching credentials.
-- `NEXT_PUBLIC_API_URL`: Frontend API URL, usually `http://127.0.0.1:8000/api` locally.
-- `CORS_ALLOWED_ORIGINS`: Comma-separated frontend origins. Production should include `https://notexa.cloud`, `https://www.notexa.cloud`, and `https://app.notexa.cloud`.
-- `CLOUDFLARE_R2_*`: Cloud storage credentials.
-- `MAIL_*`: SMTP settings for email verification and password reset codes.
+```env
+APP_URL=http://127.0.0.1:8000
+FRONTEND_URL=http://localhost:3000
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://notexa.cloud,https://www.notexa.cloud,https://app.notexa.cloud
 
-## Documentation
+DB_CONNECTION=sqlite
+DB_DATABASE=database/database.sqlite
 
-- Backend setup: `guides/backend/README.md`
-- Frontend setup: `guides/frontend/README.md`
-- Flutter app setup: `guides/app/README.md`
-- All setup guides: `guides/README.md`
-- API collection: `postman/Notexa_API_Collection.json`
-- API/Postman update notes: `docs/API_AND_POSTMAN_UPDATE.md`
-- Full study guide: `docs/NOTEXA_COMPLETE_STUDY_GUIDE.md`
-- Minor project documentation: `docs/NOTEXA_MINOR_PROJECT_DOCUMENTATION.md`
+FILESYSTEM_DISK=local
+
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS=hello@example.com
+
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+
+TESSERACT_BINARY=
+TESSERACT_LANG=eng
+TESSERACT_PSM=6
+```
+
+### Frontend Essentials
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
+NEXT_PUBLIC_YJS_SIGNALING_URLS=wss://signaling.yjs.dev
+```
+
+The frontend should use only `NEXT_PUBLIC_API_URL` for backend API calls. Do not hardcode live or local backend URLs in components.
+
+## Default Admin
+
+Running backend seeders creates:
+
+```text
+Email: admin@notexa.com
+Username: admin
+Password: NotexaAdmin@2026
+```
+
+Change this account before using any shared, staging, or production environment.
+
+Create or reset an admin:
+
+```powershell
+cd backend/notexa
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
+If the password argument is omitted, the command prompts securely.
+
+## How API Routes Work
+
+Laravel routes are split into:
+
+- `backend/notexa/routes/web.php`
+- `backend/notexa/routes/api.php`
+
+`web.php` contains small browser-facing routes:
+
+```text
+GET /
+GET /docs
+```
+
+`api.php` contains application endpoints. Laravel automatically prefixes them with `/api`.
+
+For example:
+
+```php
+Route::post('/login', [AuthController::class, 'login']);
+```
+
+is available as:
+
+```text
+POST /api/login
+```
+
+The backend `/docs` page is generated from the registered Laravel routes and shows:
+
+- route group
+- HTTP methods
+- full route path
+- access level
+- request body hints
+- controller action
+- route middleware
+- copyable route URL
+
+Open it locally:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Authentication
+
+Login accepts username or email:
+
+```json
+{
+  "login": "admin@example.com",
+  "password": "NotexaAdmin@2026"
+}
+```
+
+Protected endpoints require:
+
+```http
+Authorization: Bearer <token>
+Accept: application/json
+```
+
+Admin endpoints require a token for a user with `role=admin`.
+
+## Core API Areas
+
+Use `/docs` and `postman/Notexa_API_Collection.json` for the full, current endpoint list.
+
+### Public
+
+- `POST /api/register`
+- `POST /api/login`
+- `POST /api/forgot-password`
+- `POST /api/reset-password`
+- `POST /api/email/verification-notification`
+- `POST /api/email/verify-code`
+- `GET /api/settings/public`
+- `GET /api/profiles/{username}`
+
+### Authenticated User
+
+- `POST /api/logout`
+- `GET /api/me`
+- `PUT /api/profile`
+- `PUT /api/change-password`
+- `POST /api/streak/complete`
+
+### Notes
+
+- `GET /api/notes`
+- `POST /api/notes`
+- `GET /api/notes/{note}`
+- `PUT /api/notes/{note}`
+- `DELETE /api/notes/{note}`
+- `GET /api/notes/trashed`
+- `POST /api/notes/{note}/restore`
+- `DELETE /api/notes/{note}/permanent`
+- `PATCH /api/notes/{note}/pin`
+- `GET /api/notes/{note}/versions`
+- `POST /api/notes/{note}/versions/{version}/restore`
+
+### Sharing and Collaboration
+
+- `GET /api/shared-with-me`
+- `POST /api/notes/{note}/share`
+- `PUT /api/notes/{note}/share/{userId}`
+- `DELETE /api/notes/{note}/share/{userId}`
+- `GET /api/notes/{note}/collaborators`
+- `GET /api/notes/{note}/share-code`
+- `POST /api/notes/{note}/regenerate-code`
+- `POST /api/notes/redeem-code`
+- `GET /api/notes/{note}/presence`
+- `POST /api/notes/{note}/presence`
+
+### Files
+
+- `GET /api/files`
+- `GET /api/files/shared-with-me`
+- `POST|PUT /api/files/upload`
+- `GET /api/files/{file}/download`
+- `GET /api/files/{file}/preview`
+- `GET /api/files/{file}/shares`
+- `POST /api/files/{file}/share`
+- `DELETE /api/files/{file}/share/{userId}`
+- `DELETE /api/files/{file}`
+
+### Friends
+
+- `GET /api/friends`
+- `GET /api/friends/requests`
+- `POST /api/friends/request`
+- `PUT /api/friends/accept/{friendship}`
+- `PUT /api/friends/reject/{friendship}`
+- `DELETE /api/friends/request/{friendship}`
+- `DELETE /api/friends/{userId}`
+- `GET /api/friends/search`
+
+### AI and OCR
+
+- `POST /api/notes/{note}/ai-summary`
+- `POST /api/notes/{note}/ai-query`
+- `POST /api/notes/{note}/ocr`
+- `POST /api/notes/{note}/ai-ocr`
+
+### Admin
+
+- `GET /api/admin/dashboard`
+- `GET /api/admin/users`
+- `GET /api/admin/users/{user}`
+- `PUT /api/admin/users/{user}`
+- `DELETE /api/admin/users/{user}`
+- `GET /api/admin/notes`
+- `DELETE /api/admin/notes/{note}`
+- `GET /api/admin/settings`
+- `PUT /api/admin/settings`
+- `POST /api/admin/settings/logo`
+- `POST /api/admin/settings/smtp/test`
+- `GET /api/admin/shared-notes`
+- `GET /api/admin/friendships`
+- `GET /api/admin/activity-logs`
+
+## Realtime Collaboration
+
+The editor uses:
+
+- Tiptap Collaboration
+- Yjs
+- y-webrtc signaling URLs from `NEXT_PUBLIC_YJS_SIGNALING_URLS`
+- backend presence heartbeat endpoints
+
+Collaboration behavior:
+
+- Friends can be shared into a note directly.
+- Non-friends can use a valid collaboration/share link to gain access.
+- Presence is tracked through `/api/notes/{note}/presence`.
+- Live editor state is synchronized through Yjs/WebRTC.
+- Collaborator display is deduplicated by username/user identity.
+
+## AI and OCR
+
+AI is backend-managed. Users do not need personal AI keys in the frontend.
+
+Admin settings control:
+
+- AI enabled/disabled state
+- provider
+- API key
+- base URL
+- model
+
+Supported providers:
+
+- DeepSeek
+- OpenAI-compatible APIs
+- Gemini
+
+OCR options:
+
+- backend OCR with Tesseract
+- browser OCR fallback with `tesseract.js`
+
+Check backend OCR:
+
+```powershell
+cd backend/notexa
+php artisan notexa:ocr-check
+```
+
+Windows Tesseract example:
+
+```env
+TESSERACT_BINARY=C:\Program Files\Tesseract-OCR\tesseract.exe
+```
+
+Linux example:
+
+```env
+TESSERACT_BINARY=/usr/bin/tesseract
+```
+
+## Files and Storage
+
+Default storage is local:
+
+```env
+FILESYSTEM_DISK=local
+```
+
+Local file storage uses:
+
+```text
+backend/notexa/storage/app/public
+```
+
+Make files publicly reachable through Laravel:
+
+```powershell
+cd backend/notexa
+php artisan storage:link
+```
+
+Cloudflare R2-compatible storage can be configured with:
+
+```env
+CLOUDFLARE_R2_ACCESS_KEY_ID=
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=
+CLOUDFLARE_R2_BUCKET=notexa-files
+CLOUDFLARE_R2_URL=
+CLOUDFLARE_R2_ENDPOINT=
+```
+
+The admin panel also exposes storage-related settings.
+
+## Email and SMTP
+
+SMTP is used for:
+
+- email verification during registration
+- resend verification code
+- forgot password
+- reset password
+- admin SMTP test
+
+If email verification is enabled in admin settings, regular users must verify their email after login. Admin users are not forced through that verification gate.
+
+Use the admin SMTP test endpoint or admin panel after saving SMTP settings.
+
+## Frontend Notes
+
+The Next.js frontend includes:
+
+- public home page
+- login/register/forgot-password pages
+- dashboard shell
+- mobile-friendly sidebar
+- notes dashboard
+- rich note editor
+- shared notes
+- friends
+- files
+- trash
+- settings/profile
+- admin panel
+- privacy policy and terms pages
+
+Important frontend rule:
+
+```text
+All backend API calls should use NEXT_PUBLIC_API_URL.
+```
+
+## Flutter App Notes
+
+The Flutter app is in `notexa_app`.
+
+Typical commands:
+
+```powershell
+cd notexa_app
+flutter pub get
+flutter run
+flutter test
+```
+
+If running on Android emulator, replace local API URLs with:
+
+```text
+http://10.0.2.2:8000/api
+```
+
+The app includes API integration, note features, file/PDF support, local state, and offline sync handling.
 
 ## Testing
 
@@ -160,11 +648,31 @@ cd backend/notexa
 php artisan test
 ```
 
+Backend focused test:
+
+```powershell
+php artisan test --filter=AuthLoginTest
+```
+
+The repo also supports running this from `backend/notexa/tests`:
+
+```powershell
+php artisan test tests/Feature/AuthLoginTest.php
+```
+
 Frontend production build:
 
 ```powershell
 cd frontend
 npm run build
+```
+
+Frontend install/audit:
+
+```powershell
+cd frontend
+npm install
+npm audit --omit=dev
 ```
 
 Flutter:
@@ -174,9 +682,190 @@ cd notexa_app
 flutter test
 ```
 
+## Postman
+
+Postman collection:
+
+```text
+postman/Notexa_API_Collection.json
+```
+
+Recommended variables:
+
+```text
+base_url = http://127.0.0.1:8000/api
+token    = token returned by /login
+```
+
+The collection is intended to mirror the backend route surface and should be updated whenever API behavior changes.
+
+## Deployment Checklist
+
+### Backend
+
+1. Upload `backend/notexa` to the API host.
+2. Configure `.env`.
+3. Install Composer dependencies.
+4. Run migrations.
+5. Link storage.
+6. Create/reset admin credentials.
+7. Clear and rebuild caches.
+8. Confirm `/docs`, `/api/settings/public`, `/api/login`, SMTP, upload, AI, and OCR behavior.
+
+Useful commands:
+
+```powershell
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan storage:link
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan notexa:create-admin admin@example.com StrongPassword123 --name="Site Admin" --username=admin
+```
+
+### Frontend
+
+1. Set `NEXT_PUBLIC_API_URL` to the deployed backend `/api` URL.
+2. Set `NEXT_PUBLIC_YJS_SIGNALING_URLS`.
+3. Install dependencies.
+4. Build the app.
+5. Deploy the Next.js output to the web host.
+
+```powershell
+npm install
+npm run build
+npm run start
+```
+
+### Flutter
+
+1. Set the correct API base URL for the target platform.
+2. Run `flutter pub get`.
+3. Build the target package.
+
+```powershell
+flutter build apk
+flutter build web
+flutter build windows
+```
+
+## Troubleshooting
+
+### CORS
+
+If the browser blocks requests, check:
+
+- backend `CORS_ALLOWED_ORIGINS`
+- frontend `NEXT_PUBLIC_API_URL`
+- no duplicated CORS headers from hosting/server config
+- exact protocol/domain/port match
+
+Local example:
+
+```env
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
+```
+
+### Upload Temp Directory
+
+If PHP reports:
+
+```text
+Unable to create temporary file
+POST data can't be buffered; all data discarded
+```
+
+run:
+
+```powershell
+cd backend/notexa
+php artisan notexa:fix-temp
+```
+
+If the warning happens before Laravel starts, set these values in PHP.ini or hosting panel PHP options:
+
+```text
+upload_tmp_dir=/full/path/to/storage/app/php-temp
+sys_temp_dir=/full/path/to/storage/app/php-temp
+```
+
+Then restart PHP-FPM/LiteSpeed/Apache.
+
+### Laravel Cache Path
+
+If Laravel reports an invalid cache/view path:
+
+```powershell
+cd backend/notexa
+php artisan optimize:clear
+```
+
+Make sure these directories exist and are writable:
+
+```text
+storage/framework/cache/data
+storage/framework/sessions
+storage/framework/views
+storage/logs
+bootstrap/cache
+```
+
+### OCR
+
+If backend OCR says Tesseract is unavailable:
+
+```powershell
+php artisan notexa:ocr-check
+```
+
+Install Tesseract and set `TESSERACT_BINARY`. The web frontend can still use browser OCR fallback for normal UI usage.
+
+### Cloudflare 502
+
+A Cloudflare 502 usually means the origin server failed or returned an invalid response. Check:
+
+- PHP/Laravel logs
+- web server logs
+- PHP-FPM/LiteSpeed status
+- file and cache directory permissions
+- `.env` domain and database values
+- recent deploy/cache changes
+
+### Tests From `tests` Folder
+
+This works:
+
+```powershell
+cd backend/notexa/tests
+php artisan test tests/Feature/AuthLoginTest.php
+```
+
+The `tests/artisan` proxy forwards the command to the real backend `artisan`.
+
+## Documentation Map
+
+| Document | Purpose |
+| --- | --- |
+| `backend/notexa/README.md` | Backend-specific setup, routes, deployment, SMTP, storage, AI, OCR |
+| `guides/README.md` | Guide index |
+| `guides/backend/README.md` | Backend guide |
+| `guides/frontend/README.md` | Frontend guide |
+| `guides/app/README.md` | Flutter app guide |
+| `docs/API_AND_POSTMAN_UPDATE.md` | API/Postman update notes |
+| `docs/NOTEXA_COMPLETE_STUDY_GUIDE.md` | Study guide |
+| `docs/NOTEXA_MINOR_PROJECT_DOCUMENTATION.md` | Project documentation |
+| `docs/NEXTJS_BEGINNER_GUIDE.md` | Next.js beginner guide |
+| `docs/LARAVEL_BEGINNER_GUIDE.md` | Laravel beginner guide |
+| `docs/FLUTTER_BEGINNER_GUIDE.md` | Flutter beginner guide |
+| `docs/DATABASE_BEGINNER_GUIDE.md` | Database beginner guide |
+| `postman/Notexa_API_Collection.json` | Postman API collection |
+
 ## Repository Hygiene
 
-The repository tracks source code, lockfiles, setup guides, and lightweight documentation. It intentionally excludes generated or local-only files such as:
+The repository tracks source, lockfiles, guides, and documentation. It intentionally excludes generated/local-only files such as:
 
 - `node_modules`
 - Laravel `vendor`
@@ -184,14 +873,16 @@ The repository tracks source code, lockfiles, setup guides, and lightweight docu
 - `.next`
 - Flutter `.dart_tool` and `build`
 - Laravel logs, cache files, SQLite database files, and uploaded user files
-- zip archives, generated PDF/PPTX exports, and `outputs`
+- generated exports and archives
 
-## Production Checklist
+## Current Status
 
-- Set `APP_ENV=production` and `APP_DEBUG=false`.
-- Generate a production `APP_KEY`.
-- Use a production database and run migrations.
-- Configure HTTPS URLs for `APP_URL` and `NEXT_PUBLIC_API_URL`.
-- Configure mail, storage, and AI provider credentials.
-- Replace seeded demo credentials.
-- Run backend tests and frontend/app builds before deployment.
+The project currently targets local development with:
+
+```text
+Backend:  http://127.0.0.1:8000/api
+Frontend: http://localhost:3000
+Docs:     http://127.0.0.1:8000/docs
+```
+
+For production, configure the backend and frontend environment files with the live domains before building/deploying.
