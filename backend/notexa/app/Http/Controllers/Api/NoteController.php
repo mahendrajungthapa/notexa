@@ -8,6 +8,7 @@ use App\Models\NoteShare;
 use App\Models\NoteVersion;
 use App\Models\SiteSetting;
 use App\Services\AiService;
+use App\Services\OcrService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use RuntimeException;
@@ -258,14 +259,10 @@ class NoteController extends Controller
         ]);
     }
 
-    public function aiOcr(Request $request, Note $note, AiService $ai)
+    public function ocrImage(Request $request, Note $note, OcrService $ocr)
     {
         if (!$note->canView($request->user())) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
-        }
-
-        if (!SiteSetting::get('ai_enabled', true)) {
-            return response()->json(['status' => 'error', 'message' => 'AI tools are disabled in admin settings.'], 403);
         }
 
         $validated = $request->validate([
@@ -273,7 +270,7 @@ class NoteController extends Controller
         ]);
 
         try {
-            $text = $ai->ocrImage($validated['image']);
+            $text = $ocr->readImage($validated['image']);
         } catch (RuntimeException $e) {
             return response()->json([
                 'status' => 'error',

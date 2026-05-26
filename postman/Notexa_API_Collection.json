@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "notexa-api-current",
     "name": "Notexa API - Complete Backend Collection",
-    "description": "Complete Postman collection generated from the current Laravel backend routes.\n\nDefault local base URL: http://127.0.0.1:8000/api\nProduction API example: https://app.notexa.cloud/api\n\nAuth: Sanctum Bearer token. Use Login with Email/Login with Username to auto-save {{token}}, and Login as Admin to auto-save {{admin_token}}.\n\nRemoved: subscription, premium, upgrade, billing, payment gateway, archive, personal browser AI workspace, and folder APIs are not included because they are not part of the current backend.\n\nEmail verification: if enabled in Admin Settings, register/resend sends a 6-digit SMTP code and verify-code returns a token.\nForgot password: forgot-password sends a 6-digit SMTP code and reset-password applies it.\n\nAI endpoints use backend/admin configured providers only. OpenAI-compatible, Gemini, and DeepSeek settings are managed through Admin Settings.\n\nFiles use local storage by default unless admin settings enable Cloudflare R2. Upload is documented with the JSON/base64 PUT payload used by the frontend, plus legacy multipart POST.\n\nCollaboration uses note share codes for link access plus /presence heartbeat endpoints for online/joined/typing status.\n\nAdmin credential helper variables are included for local seeded installs: {{admin_login}} / {{admin_password}}.",
+    "description": "Complete Postman collection generated from the current Laravel backend routes.\n\nDefault local base URL: http://127.0.0.1:8000/api\nProduction API example: https://app.notexa.cloud/api\n\nAuth: Sanctum Bearer token. Use Login with Email/Login with Username to auto-save {{token}}, and Login as Admin to auto-save {{admin_token}}.\n\nRemoved: subscription, premium, upgrade, billing, payment gateway, archive, personal browser AI workspace, and folder APIs are not included because they are not part of the current backend.\n\nEmail verification: if enabled in Admin Settings, register/resend sends a 6-digit SMTP code and verify-code returns a token.\nForgot password: forgot-password sends a 6-digit SMTP code and reset-password applies it.\n\nAI endpoints use backend/admin configured providers only. OpenAI-compatible, Gemini, and DeepSeek settings are managed through Admin Settings. OCR uses the Laravel Tesseract package and works separately from AI settings.\n\nFiles use local storage by default unless admin settings enable Cloudflare R2. Upload is documented with the JSON/base64 PUT payload used by the frontend, plus legacy multipart POST.\n\nCollaboration uses note share codes for link access plus /presence heartbeat endpoints for online/joined/typing status.\n\nAdmin credential helper variables are included for local seeded installs: {{admin_login}} / {{admin_password}}.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -1202,9 +1202,47 @@
             "description": "General backend AI endpoint used by writer, grammar/translation, flashcards, dictionary, and similar frontend tools."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 OCR",
+      "item": [
+        {
+          "name": "OCR Image - Tesseract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image\": \"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notes/{{note_id}}/ocr",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notes",
+                "{{note_id}}",
+                "ocr"
+              ]
+            },
+            "description": "Extracts text from an uploaded image using the Laravel Tesseract OCR package. This endpoint is not controlled by ai_enabled and does not use AI provider keys."
+          },
+          "response": []
         },
         {
-          "name": "AI OCR Image",
+          "name": "OCR Image - Legacy AI OCR Path",
           "request": {
             "method": "POST",
             "header": [
@@ -1232,7 +1270,7 @@
                 "ai-ocr"
               ]
             },
-            "description": "OCR endpoint for uploaded image data URLs. Max string length is 12,000,000 characters."
+            "description": "Backward-compatible alias for /notes/{note}/ocr. Uses package OCR, not AI."
           },
           "response": []
         }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import api, { notesApi, friendsApi, filesApi } from '@/services/api';
+import { notesApi, friendsApi, filesApi, publicApi } from '@/services/api';
 import { createPreviewObjectUrl } from '@/lib/file-preview';
 import { useAuthStore } from '@/contexts/authStore';
 import { markIdsSeen, refreshNavBadges } from '@/lib/nav-badge-state';
@@ -32,16 +32,40 @@ import {
   Clock,
   ZoomIn,
   ZoomOut,
+  ScanLine,
 } from 'lucide-react';
 import NoteEditor from '@/components/editor/NoteEditor';
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'offline';
+
+const settingEnabled = (value: unknown) => value === true || value === 'true' || value === 1 || value === '1';
+
+const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(reader.error || new Error('Unable to read image'));
+  reader.readAsDataURL(file);
+});
+
+const escapeHtml = (value: string) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const textToHtml = (value: string) => value
+  .trim()
+  .split(/\n{2,}/)
+  .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br/>')}</p>`)
+  .join('');
 
 export default function NoteDetailPage() {
   const params = useParams();
   const router = useRouter();
   const noteId = Number(params.id);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ocrInputRef = useRef<HTMLInputElement>(null);
   const user = useAuthStore((state) => state.user);
 
   const [note, setNote] = useState<Note | null>(null);
@@ -74,10 +98,12 @@ export default function NoteDetailPage() {
   const [aiSummary, setAiSummary] = useState('');
   const [files, setFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const [pdfPreview, setPdfPreview] = useState<{ title: string; url: string } | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [realtimeActive, setRealtimeActive] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(true);
 
   const isOwner = permission === 'owner';
   const canEdit = permission === 'owner' || permission === 'edit';
@@ -149,6 +175,22 @@ export default function NoteDetailPage() {
   useEffect(() => {
     fetchNote();
   }, [fetchNote]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    publicApi.settings()
+      .then((res) => {
+        if (!ignore) {
+          setAiEnabled(settingEnabled(res.data?.data?.ai_enabled));
+        }
+      })
+      .catch(() => {
+        if (!ignore) setAiEnabled(true);
+      });
+
+    return () => { ignore = true; };
+  }, []);
 
   useEffect(() => {
     if (!note || !canEdit || typeof window === 'undefined') return;
@@ -417,6 +459,11 @@ export default function NoteDetailPage() {
   };
 
   const handleAiSummary = async () => {
+    if (!aiEnabled) {
+      toast.error('AI tools are disabled by the admin.');
+      return;
+    }
+
     if (dirty) await handleSave(true);
     setAiLoading(true);
     try {
@@ -427,6 +474,46 @@ export default function NoteDetailPage() {
       toast.error(error.response?.data?.message || 'AI Summary service unavailable');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleOcrSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file for OCR.');
+      event.target.value = '';
+      return;
+    }
+
+    const maxOcrBytes = 8 * 1024 * 1024;
+    if (file.size > maxOcrBytes) {
+      toast.error('OCR image is too large. Maximum size is 8MB.');
+      event.target.value = '';
+      return;
+    }
+
+    setOcrLoading(true);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const response = await notesApi.ocrImage(noteId, { image: dataUrl });
+      const text = response.data?.data?.text || response.data?.text || '';
+
+      if (!text.trim()) {
+        throw new Error('No text was found in this image.');
+      }
+
+      const sectionHtml = `<br/><hr/><h3>OCR Text</h3>${textToHtml(text)}`;
+      setContent((current) => `${current || ''}${sectionHtml}`);
+      setDirty(true);
+      setSaveState('dirty');
+      toast.success('OCR text inserted into the note.');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || 'OCR failed.');
+    } finally {
+      setOcrLoading(false);
+      event.target.value = '';
     }
   };
 
@@ -577,10 +664,15 @@ export default function NoteDetailPage() {
               <Edit3 size={14} strokeWidth={2.5} /> {isOwner ? 'Owner' : 'Editor'}
             </span>
           )}
-          <button onClick={handleAiSummary} disabled={aiLoading}
-            className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-100 text-amber-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
-            {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} strokeWidth={2.5} />} AI Summary
-          </button>
+          {canEdit && (
+            <>
+              <input ref={ocrInputRef} type="file" accept="image/*" className="hidden" onChange={handleOcrSelected} />
+              <button onClick={() => ocrInputRef.current?.click()} disabled={ocrLoading}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-orange-50 hover:bg-orange-100 border border-orange-100 text-orange-700 rounded-xl text-sm font-bold transition-all duration-300 disabled:opacity-50 shadow-sm hover:shadow">
+                {ocrLoading ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} strokeWidth={2.5} />} OCR Image
+              </button>
+            </>
+          )}
           {isOwner && (
             <button onClick={handleDeleteNote}
               className="flex items-center gap-2 px-5 py-2.5 bg-white border border-red-100 text-red-600 rounded-xl text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all duration-300 shadow-sm hover:shadow">
@@ -641,6 +733,7 @@ export default function NoteDetailPage() {
               editable={canEdit}
               noteId={noteId}
               collabToken={shareCode || note?.share_code || ''}
+              aiEnabled={aiEnabled}
               onRealtimeActiveChange={setRealtimeActive}
             />
           </div>
@@ -735,7 +828,7 @@ export default function NoteDetailPage() {
           </div>
 
           {/* AI Takeaways Panel */}
-          {aiSummary && (
+          {aiEnabled && aiSummary && (
             <div className="bg-amber-50/60 border border-amber-100/80 rounded-3xl p-5 shadow-sm relative overflow-hidden shrink-0 transition-all duration-300 animate-in fade-in slide-in-from-bottom duration-300">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-200/20 rounded-full blur-2xl pointer-events-none" />
               <div className="mb-3 flex items-center justify-between">

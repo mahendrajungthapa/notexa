@@ -16,6 +16,7 @@ This document and `postman/Notexa_API_Collection.json` are generated from the cu
 - Email verification and forgot password use 6-digit SMTP codes when enabled/configured.
 - File upload supports the frontend JSON/base64 `PUT /files/upload` payload and legacy multipart `POST /files/upload`.
 - File preview is limited to PDFs, text/code files, and safe image types.
+- OCR uses the Laravel Tesseract package through `POST /notes/{note}/ocr` and is separate from admin AI settings.
 - Realtime collaboration links use note share codes plus backend presence endpoints for joined/typing status.
 
 ## Postman Variables
@@ -69,7 +70,8 @@ This document and `postman/Notexa_API_Collection.json` are generated from the cu
 | 04 Realtime Collaboration Presence | Collaboration Heartbeat | POST | `{{base_url}}/notes/{{note_id}}/presence` |
 | 05 AI | AI Summary | POST | `{{base_url}}/notes/{{note_id}}/ai-summary` |
 | 05 AI | AI Query / Writer / Translation / Quiz Prompt | POST | `{{base_url}}/notes/{{note_id}}/ai-query` |
-| 05 AI | AI OCR Image | POST | `{{base_url}}/notes/{{note_id}}/ai-ocr` |
+| 05 OCR | OCR Image - Tesseract | POST | `{{base_url}}/notes/{{note_id}}/ocr` |
+| 05 OCR | OCR Image - Legacy AI OCR Path | POST | `{{base_url}}/notes/{{note_id}}/ai-ocr` |
 | 06 Note Sharing | Shared Notes With Me | GET | `{{base_url}}/shared-with-me?page=1&per_page=20` |
 | 06 Note Sharing | Share Note With Friend | POST | `{{base_url}}/notes/{{note_id}}/share` |
 | 06 Note Sharing | Update Share Permission | PUT | `{{base_url}}/notes/{{note_id}}/share/{{user_id}}` |

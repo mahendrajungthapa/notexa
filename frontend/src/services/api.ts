@@ -78,6 +78,7 @@ export const notesApi = {
   redeemCode: (code: string) => api.post('/notes/redeem-code', { code }),
   aiSummary: (id: number) => api.post(`/notes/${id}/ai-summary`),
   aiQuery: (id: number, data: { systemPrompt: string; userPrompt: string }) => api.post(`/notes/${id}/ai-query`, data),
+  ocrImage: (id: number, data: { image: string }) => api.post(`/notes/${id}/ocr`, data, { timeout: 60000 }),
   aiOcr: (id: number, data: { image: string }) => api.post(`/notes/${id}/ai-ocr`, data, { timeout: 60000 }),
   presence: (noteId: number, p?: any) => api.get(`/notes/${noteId}/presence`, { params: p }),
   heartbeat: (noteId: number, d: any) => api.post(`/notes/${noteId}/presence`, d),

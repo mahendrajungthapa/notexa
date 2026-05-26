@@ -30,6 +30,7 @@ interface NoteEditorProps {
   editable?: boolean;
   noteId?: number;
   collabToken?: string;
+  aiEnabled?: boolean;
   onRealtimeActiveChange?: (active: boolean) => void;
 }
 
@@ -167,7 +168,7 @@ const ResizableImage = ImageExt.extend({
   },
 });
 
-export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '', onRealtimeActiveChange }: NoteEditorProps) {
+export default function NoteEditor({ content, onChange, editable = true, noteId, collabToken = '', aiEnabled = true, onRealtimeActiveChange }: NoteEditorProps) {
   // Real-time collaboration state
   const [collabActive, setCollabActive] = useState(false);
   const [collabPreferenceLoaded, setCollabPreferenceLoaded] = useState(false);
@@ -678,6 +679,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   const [ocrImageName, setOcrImageName] = useState('');
 
   const runAICall = async (systemPrompt: string, userPrompt: string) => {
+    if (!aiEnabled) {
+      throw new Error('AI tools are disabled by the admin.');
+    }
+
     if (!noteId) {
       throw new Error('AI tools run through the backend. Please open a saved note first.');
     }
@@ -921,7 +926,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
     setAiResult('');
     setAiResultApplied(false);
     try {
-      const response = await notesApi.aiOcr(Number(noteId), { image: ocrImageUrl });
+      const response = await notesApi.ocrImage(Number(noteId), { image: ocrImageUrl });
       const res = response.data?.data?.text || response.data?.text || '';
       if (!res) throw new Error('No text was found in this image.');
       setAiResult(res);
@@ -1059,6 +1064,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
   }, []);
 
   const openAiWriter = () => {
+    if (!aiEnabled) return;
     setAiFeature('ask');
     setAiResult('');
     setAiPrompt('');
@@ -1068,7 +1074,7 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 tiptap-editor relative">
-      {portalTarget && editable && !aiFeature && createPortal((
+      {portalTarget && editable && aiEnabled && !aiFeature && createPortal((
         <button
           type="button"
           onClick={openAiWriter}
@@ -1168,6 +1174,13 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
               <Image size={16} className="text-cyan-500 group-hover:text-cyan-600 transition-colors" />
             )}
           </ToolButton>
+          <ToolButton
+            onClick={() => { setAiFeature('ocr'); setAiResult(''); setOcrImageUrl(''); setOcrImagePreview(''); setOcrImageName(''); }}
+            title="Extract Text from Image"
+            className="hover:bg-orange-100 hover:text-orange-600 group"
+          >
+            <ScanLine size={16} className="text-orange-500 group-hover:text-orange-600 group-hover:scale-110 transition-transform" />
+          </ToolButton>
           <ToolButton onClick={() => {
             const url = window.prompt('Enter link URL:');
             if (url) editor.chain().focus().setLink({ href: url }).run();
@@ -1178,30 +1191,29 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
           <div className="flex-1 min-w-[10px]" />
 
           {/* AI Features Group */}
-          <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
-            <ToolButton onClick={openAiWriter} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
-              <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <div className="w-px h-4 bg-indigo-200/50 mx-0.5" />
-            <ToolButton onClick={handleSummarize} title="Summarize Note" className="hover:bg-purple-100 hover:text-purple-600 group">
-              <Wand2 size={16} className="text-purple-500 group-hover:text-purple-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <ToolButton onClick={handleFlashcards} title="Generate Flashcards" className="hover:bg-pink-100 hover:text-pink-600 group">
-              <Layers size={16} className="text-pink-500 group-hover:text-pink-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <ToolButton onClick={handleQuiz} title="Create Quiz" className="hover:bg-emerald-100 hover:text-emerald-600 group">
-              <HelpCircle size={16} className="text-emerald-500 group-hover:text-emerald-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <ToolButton onClick={() => { setAiFeature('ocr'); setAiResult(''); setOcrImageUrl(''); setOcrImagePreview(''); setOcrImageName(''); }} title="Extract Text (OCR)" className="hover:bg-orange-100 hover:text-orange-600 group">
-              <ScanLine size={16} className="text-orange-500 group-hover:text-orange-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <ToolButton onClick={() => { setAiFeature('translate'); setAiResult(''); }} title="Check Grammar / Translate" className="hover:bg-cyan-100 hover:text-cyan-600 group">
-              <Languages size={16} className="text-cyan-500 group-hover:text-cyan-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-            <ToolButton onClick={handleWordMeaning} title="AI Dictionary (Highlight word first)" className="hover:bg-amber-100 hover:text-amber-600 group">
-              <BookOpen size={16} className="text-amber-500 group-hover:text-amber-600 group-hover:scale-110 transition-transform" />
-            </ToolButton>
-          </div>
+          {aiEnabled && (
+            <div className="flex items-center gap-0.5 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 p-1 rounded-xl border border-indigo-100/30">
+              <ToolButton onClick={openAiWriter} title="Ask AI" className="hover:bg-indigo-100 hover:text-indigo-600 group">
+                <Bot size={16} className="text-indigo-500 group-hover:text-indigo-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+              <div className="w-px h-4 bg-indigo-200/50 mx-0.5" />
+              <ToolButton onClick={handleSummarize} title="Summarize Note" className="hover:bg-purple-100 hover:text-purple-600 group">
+                <Wand2 size={16} className="text-purple-500 group-hover:text-purple-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+              <ToolButton onClick={handleFlashcards} title="Generate Flashcards" className="hover:bg-pink-100 hover:text-pink-600 group">
+                <Layers size={16} className="text-pink-500 group-hover:text-pink-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+              <ToolButton onClick={handleQuiz} title="Create Quiz" className="hover:bg-emerald-100 hover:text-emerald-600 group">
+                <HelpCircle size={16} className="text-emerald-500 group-hover:text-emerald-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+              <ToolButton onClick={() => { setAiFeature('translate'); setAiResult(''); }} title="Check Grammar / Translate" className="hover:bg-cyan-100 hover:text-cyan-600 group">
+                <Languages size={16} className="text-cyan-500 group-hover:text-cyan-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+              <ToolButton onClick={handleWordMeaning} title="AI Dictionary (Highlight word first)" className="hover:bg-amber-100 hover:text-amber-600 group">
+                <BookOpen size={16} className="text-amber-500 group-hover:text-amber-600 group-hover:scale-110 transition-transform" />
+              </ToolButton>
+            </div>
+          )}
 
           {/* ADHD, PDF, & Real-Time Collaboration Boosters Group */}
           <div className="flex items-center gap-0.5 bg-gradient-to-r from-rose-50/50 to-pink-50/50 p-1 rounded-xl border border-rose-100/30 ml-1.5 shadow-sm">
@@ -1826,22 +1838,10 @@ export default function NoteEditor({ content, onChange, editable = true, noteId,
                 </div>
               )}
 
-              <input
-                type="text"
-                value={ocrImageUrl}
-                onChange={(e) => {
-                  setOcrImageUrl(e.target.value);
-                  setOcrImagePreview(e.target.value.startsWith('data:image/') || /^https?:\/\//i.test(e.target.value) ? e.target.value : '');
-                  setOcrImageName('');
-                }}
-                placeholder="Or paste an image URL..."
-                className="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-sm transition bg-slate-50 font-semibold"
-              />
-
               {aiLoading && (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <div className="h-10 w-10 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin" />
-                  <p className="text-xs text-orange-700 font-bold animate-pulse">Running OCR Vision analysis...</p>
+                  <p className="text-xs text-orange-700 font-bold animate-pulse">Reading image text with OCR...</p>
                 </div>
               )}
 

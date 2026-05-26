@@ -78,7 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // AI Summary
     Route::post('/notes/{note}/ai-summary', [NoteController::class, 'aiSummary']);
     Route::post('/notes/{note}/ai-query', [NoteController::class, 'aiQuery']);
-    Route::post('/notes/{note}/ai-ocr', [NoteController::class, 'aiOcr']);
+    Route::post('/notes/{note}/ocr', [NoteController::class, 'ocrImage']);
+    Route::post('/notes/{note}/ai-ocr', [NoteController::class, 'ocrImage']);
 
     // Note Sharing
     Route::get('/shared-with-me', [NoteShareController::class, 'sharedWithMe']);
