@@ -7,6 +7,13 @@ import toast from 'react-hot-toast';
 import { User, Lock, Save, Share, Pencil, Mail, Building2, GraduationCap, FileText, CheckCircle2, Sparkles, KeyRound, ShieldCheck, Copy, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
+const localStreakDate = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+const normalizeStreakDate = (value: unknown) => (typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : null);
+
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
   const [name, setName] = useState(user?.name || '');
@@ -38,11 +45,17 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const updateUI = () => {
-      const dateStr = new Date().toDateString();
+      const dateStr = localStreakDate();
       const storedDate = localStorage.getItem('notexa_streak_date');
+      const backendStreakDate = normalizeStreakDate((user as any)?.last_streak_date);
+      const backendEarned = backendStreakDate === dateStr;
+
       if (storedDate === dateStr) {
         setSessionTime(parseInt(localStorage.getItem('notexa_session_time') || '0', 10));
-        setStreakEarned(localStorage.getItem('notexa_streak_earned') === 'true');
+        setStreakEarned(backendEarned || localStorage.getItem('notexa_streak_earned') === 'true');
+      } else {
+        setSessionTime(0);
+        setStreakEarned(backendEarned);
       }
     };
 
@@ -60,7 +73,7 @@ export default function SettingsPage() {
       clearInterval(timer);
       window.removeEventListener('notexa_streak_updated', handleEarned);
     };
-  }, []);
+  }, [user?.last_streak_date, setUser]);
 
   useEffect(() => {
     if (user?.name) setName(user.name);

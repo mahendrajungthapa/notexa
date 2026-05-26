@@ -24,6 +24,19 @@ const userNav = [
 ];
 
 const settingEnabled = (value: unknown) => value === true || value === 'true' || value === 1 || value === '1';
+const localStreakDate = () => {
+  const now = new Date();
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+const localTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+};
+const normalizeStreakDate = (value: unknown) => (typeof value === 'string' && value.length >= 10 ? value.slice(0, 10) : null);
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -152,7 +165,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isAuthenticated) return;
 
     const REQUIRED_MINUTES = 10;
-    const dateStr = new Date().toDateString();
+    const dateStr = localStreakDate();
     const storedDate = localStorage.getItem('notexa_streak_date');
     let sessionTime = parseInt(localStorage.getItem('notexa_session_time') || '0', 10);
 
@@ -161,27 +174,42 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.setItem('notexa_streak_date', dateStr);
       localStorage.setItem('notexa_session_time', '0');
       localStorage.setItem('notexa_streak_earned', 'false');
+      localStorage.removeItem('notexa_streak_syncing');
       sessionTime = 0;
     }
 
     const syncStreak = async (showToast: boolean) => {
+      if (localStorage.getItem('notexa_streak_syncing') === 'true') return;
+      localStorage.setItem('notexa_streak_syncing', 'true');
+
       try {
-        const res = await authApi.completeStreak();
+        const res = await authApi.completeStreak({
+          streak_date: dateStr,
+          timezone: localTimezone(),
+        });
         const updatedUser = res.data?.data?.user || res.data?.user;
         if (updatedUser) setUser(updatedUser);
+        localStorage.setItem('notexa_streak_date', dateStr);
+        localStorage.setItem('notexa_streak_earned', 'true');
         if (showToast) {
           toast.success("Awesome! You've studied for 10 minutes today. Streak updated!", { duration: 5000, id: 'global-streak-toast' });
         }
         window.dispatchEvent(new CustomEvent('notexa_streak_updated', { detail: { user: updatedUser } }));
       } catch {
+        localStorage.setItem('notexa_streak_earned', 'false');
         if (showToast) {
           toast.error('Focus time completed, but the streak could not sync yet.', { id: 'global-streak-toast' });
         }
         window.dispatchEvent(new Event('notexa_streak_updated'));
+      } finally {
+        localStorage.removeItem('notexa_streak_syncing');
       }
     };
 
-    if (localStorage.getItem('notexa_streak_earned') === 'true') {
+    if (
+      localStorage.getItem('notexa_streak_earned') === 'true'
+      && normalizeStreakDate(user?.last_streak_date) !== dateStr
+    ) {
       void syncStreak(false);
     }
 
@@ -190,14 +218,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       localStorage.setItem('notexa_session_time', sessionTime.toString());
 
       const earned = localStorage.getItem('notexa_streak_earned') === 'true';
-      if (sessionTime >= REQUIRED_MINUTES * 60 && !earned) {
-        localStorage.setItem('notexa_streak_earned', 'true');
+      const syncing = localStorage.getItem('notexa_streak_syncing') === 'true';
+      if (sessionTime >= REQUIRED_MINUTES * 60 && !earned && !syncing) {
         void syncStreak(true);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isAuthenticated, setUser]);
+  }, [isAuthenticated, setUser, user?.last_streak_date]);
 
   if (isLoading || !isAuthenticated) {
     return (

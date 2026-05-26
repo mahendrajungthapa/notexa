@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\SiteSetting;
 use App\Services\MailSettingsService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -139,23 +140,45 @@ class AuthController extends Controller
 
     public function completeStreak(Request $request)
     {
-        $user = $request->user();
-        $today = now()->toDateString();
-        $yesterday = now()->subDay()->toDateString();
-        $lastDate = optional($user->last_streak_date)->toDateString();
+        $timezoneAliases = [
+            'Asia/Katmandu' => 'Asia/Kathmandu',
+        ];
 
-        if ($lastDate !== $today) {
+        if ($request->filled('timezone')) {
+            $timezone = (string) $request->input('timezone');
+            $request->merge(['timezone' => $timezoneAliases[$timezone] ?? $timezone]);
+        }
+
+        $validated = $request->validate([
+            'streak_date' => 'sometimes|date_format:Y-m-d',
+            'timezone' => 'sometimes|nullable|timezone',
+        ]);
+
+        $user = $request->user();
+        $timezone = $validated['timezone'] ?? config('app.timezone', 'UTC');
+        $today = $validated['streak_date'] ?? CarbonImmutable::now($timezone)->toDateString();
+        $yesterday = CarbonImmutable::createFromFormat('Y-m-d', $today, $timezone)
+            ->subDay()
+            ->toDateString();
+        $lastDate = optional($user->last_streak_date)->toDateString();
+        $completedToday = $lastDate === $today;
+
+        if (! $completedToday) {
             $user->forceFill([
                 'streak_count' => $lastDate === $yesterday ? ((int) $user->streak_count + 1) : 1,
                 'last_streak_date' => $today,
             ])->save();
         }
 
+        $freshUser = $user->fresh();
+
         return response()->json([
             'status' => 'success',
-            'message' => $lastDate === $today ? 'Study streak already completed today.' : 'Study streak completed.',
-            'user' => $user->fresh(),
-            'streak_count' => (int) $user->fresh()->streak_count,
+            'message' => $completedToday ? 'Study streak already completed today.' : 'Study streak completed.',
+            'user' => $freshUser,
+            'streak_count' => (int) $freshUser->streak_count,
+            'last_streak_date' => optional($freshUser->last_streak_date)->toDateString(),
+            'streak_completed' => ! $completedToday,
         ]);
     }
 

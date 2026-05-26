@@ -17,6 +17,8 @@
             --code: #101828;
             --success: #047857;
             --warn: #9a3412;
+            --purple: #6d28d9;
+            --danger: #b91c1c;
         }
 
         * {
@@ -67,7 +69,7 @@
 
         .meta-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
             margin: 26px 0;
         }
@@ -112,6 +114,82 @@
             box-shadow: 0 0 0 3px var(--brand-soft);
         }
 
+        .quick-start {
+            display: grid;
+            grid-template-columns: 1.15fr .85fr;
+            gap: 14px;
+            margin: 24px 0;
+        }
+
+        .doc-card {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            padding: 18px;
+        }
+
+        .doc-card h2,
+        .doc-card h3 {
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+
+        .doc-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .code-block {
+            margin-top: 12px;
+            border-radius: 8px;
+            background: #101828;
+            color: #f8fafc;
+            overflow-x: auto;
+            padding: 14px;
+            font-size: 13px;
+        }
+
+        .code-block code {
+            color: inherit;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 10px;
+            align-items: end;
+            margin-top: 14px;
+        }
+
+        .select {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--ink);
+            font: inherit;
+            padding: 13px 14px;
+            outline: none;
+            min-width: 150px;
+        }
+
+        .group-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .group-nav a {
+            color: var(--brand);
+            background: var(--brand-soft);
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            padding: 7px 10px;
+            text-decoration: none;
+        }
+
         .section {
             margin-top: 24px;
             border: 1px solid var(--line);
@@ -148,7 +226,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 980px;
+            min-width: 1080px;
         }
 
         th,
@@ -209,6 +287,22 @@
             color: #1d4ed8;
         }
 
+        .method-post {
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .method-put,
+        .method-patch {
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .method-delete {
+            background: #fef2f2;
+            color: var(--danger);
+        }
+
         .access-public {
             background: #ecfdf5;
             color: var(--success);
@@ -222,7 +316,58 @@
         .access-bearer-token,
         .access-signed-url {
             background: #f5f3ff;
-            color: #5b21b6;
+            color: var(--purple);
+        }
+
+        .route-path {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .route-copy {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: #f8fafc;
+            color: var(--muted);
+            cursor: pointer;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 6px 9px;
+            white-space: nowrap;
+        }
+
+        .route-copy:hover {
+            color: var(--brand);
+            border-color: var(--brand);
+        }
+
+        .description {
+            margin-top: 7px;
+            color: var(--muted);
+            font-size: 13px;
+            max-width: 520px;
+        }
+
+        .request-hint {
+            display: inline-block;
+            max-width: 320px;
+            border-radius: 8px;
+            background: #f8fafc;
+            padding: 8px 10px;
+            white-space: normal;
+        }
+
+        .empty-results {
+            display: none;
+            margin-top: 18px;
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            background: var(--panel);
+            color: var(--muted);
+            padding: 18px;
         }
 
         .empty {
@@ -240,6 +385,11 @@
                 grid-template-columns: 1fr;
             }
 
+            .quick-start,
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
             .section-header {
                 align-items: flex-start;
                 flex-direction: column;
@@ -254,9 +404,34 @@
         <span class="eyebrow">Backend documentation</span>
         <h1>Notexa API Routes</h1>
         <p class="intro">
-            This page is generated from the registered Laravel API routes. Use Bearer token endpoints with the token returned from login.
+            This page is generated from the registered Laravel API routes, so it stays aligned with the backend. Use Bearer token endpoints with the token returned from login.
         </p>
     </header>
+
+    <section class="quick-start" aria-label="Quick start">
+        <div class="doc-card">
+            <h2>Quick Start</h2>
+            <p>Authenticate first, then send the returned token as an Authorization header for protected routes.</p>
+            <pre class="code-block"><code>POST {{ $baseUrl }}/login
+Content-Type: application/json
+
+{
+  "login": "admin@example.com",
+  "password": "your-password"
+}
+
+Authorization: Bearer &lt;token&gt;</code></pre>
+        </div>
+        <div class="doc-card">
+            <h3>Response Shape</h3>
+            <p>Most endpoints return a JSON object with <code>status</code>, optional <code>message</code>, and a <code>data</code> or resource payload. Validation errors return HTTP 422 with an <code>errors</code> object.</p>
+            <div class="group-nav" aria-label="Route groups">
+                @foreach ($groupedRoutes as $group => $routes)
+                    <a href="#group-{{ \Illuminate\Support\Str::slug($group) }}">{{ $group }} · {{ $routes->count() }}</a>
+                @endforeach
+            </div>
+        </div>
+    </section>
 
     <section class="meta-grid" aria-label="API metadata">
         <div class="meta-card">
@@ -271,13 +446,45 @@
             <span class="meta-label">Generated</span>
             <span class="meta-value">{{ $generatedAt }}</span>
         </div>
+        <div class="meta-card">
+            <span class="meta-label">Methods</span>
+            <span class="meta-value">
+                @foreach ($methodTotals as $method => $count)
+                    <span class="pill method method-{{ strtolower($method) }}">{{ $method }} {{ $count }}</span>
+                @endforeach
+            </span>
+        </div>
     </section>
 
-    <label for="route-search" class="meta-label">Search routes</label>
-    <input id="route-search" class="search" type="search" placeholder="Search by method, path, action, access, or middleware">
+    <section class="filter-grid" aria-label="Route filters">
+        <div>
+            <label for="route-search" class="meta-label">Search routes</label>
+            <input id="route-search" class="search" type="search" placeholder="Search by method, path, action, access, request body, or middleware">
+        </div>
+        <div>
+            <label for="method-filter" class="meta-label">Method</label>
+            <select id="method-filter" class="select">
+                <option value="">All methods</option>
+                @foreach ($methodTotals as $method => $count)
+                    <option value="{{ strtolower($method) }}">{{ $method }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div>
+            <label for="access-filter" class="meta-label">Access</label>
+            <select id="access-filter" class="select">
+                <option value="">All access</option>
+                <option value="public">Public</option>
+                <option value="bearer token">Bearer token</option>
+                <option value="signed url">Signed URL</option>
+                <option value="admin">Admin</option>
+            </select>
+        </div>
+    </section>
+    <div id="empty-results" class="empty-results">No routes match the current filters.</div>
 
     @forelse ($groupedRoutes as $group => $routes)
-        <section class="section route-section">
+        <section id="group-{{ \Illuminate\Support\Str::slug($group) }}" class="section route-section">
             <div class="section-header">
                 <h2>{{ $group }}</h2>
                 <span class="count">{{ $routes->count() }} routes</span>
@@ -287,8 +494,9 @@
                     <thead>
                     <tr>
                         <th>Method</th>
-                        <th>Path</th>
+                        <th>Endpoint</th>
                         <th>Access</th>
+                        <th>Request</th>
                         <th>Action</th>
                         <th>Name</th>
                         <th>Middleware</th>
@@ -298,17 +506,28 @@
                     @foreach ($routes as $route)
                         @php
                             $accessClass = 'access-'.strtolower(str_replace(' ', '-', $route['access']));
+                            $methodClass = strtolower($route['methods'][0] ?? 'get');
+                            $searchText = strtolower(implode(' ', $route['methods']).' '.$route['uri'].' '.$route['description'].' '.$route['request'].' '.$route['access'].' '.$route['action'].' '.$route['name'].' '.implode(' ', $route['middleware']));
                         @endphp
-                        <tr class="route-row" data-route="{{ strtolower(implode(' ', $route['methods']).' '.$route['uri'].' '.$route['access'].' '.$route['action'].' '.$route['name'].' '.implode(' ', $route['middleware'])) }}">
+                        <tr class="route-row" data-route="{{ $searchText }}" data-methods="{{ strtolower(implode(' ', $route['methods'])) }}" data-access="{{ strtolower($route['access']) }}">
                             <td>
                                 <div class="method-list">
                                     @foreach ($route['methods'] as $method)
-                                        <span class="pill method">{{ $method }}</span>
+                                        <span class="pill method method-{{ strtolower($method) }}">{{ $method }}</span>
                                     @endforeach
                                 </div>
                             </td>
-                            <td><code>/{{ $route['uri'] }}</code></td>
+                            <td>
+                                <div class="route-path">
+                                    <div>
+                                        <code>/{{ $route['uri'] }}</code>
+                                        <div class="description">{{ $route['description'] }}</div>
+                                    </div>
+                                    <button type="button" class="route-copy" data-copy="{{ $route['url'] }}">Copy URL</button>
+                                </div>
+                            </td>
                             <td><span class="pill {{ $accessClass }}">{{ $route['access'] }}</span></td>
+                            <td><code class="request-hint">{{ $route['request'] }}</code></td>
                             <td><code>{{ $route['action'] }}</code></td>
                             <td><code>{{ $route['name'] }}</code></td>
                             <td>
@@ -335,18 +554,50 @@
 
 <script>
     const searchInput = document.getElementById('route-search');
+    const methodFilter = document.getElementById('method-filter');
+    const accessFilter = document.getElementById('access-filter');
+    const emptyResults = document.getElementById('empty-results');
     const rows = Array.from(document.querySelectorAll('.route-row'));
 
-    searchInput.addEventListener('input', () => {
+    const applyFilters = () => {
         const query = searchInput.value.trim().toLowerCase();
+        const method = methodFilter.value;
+        const access = accessFilter.value;
+        let visibleTotal = 0;
 
         rows.forEach((row) => {
-            row.hidden = query.length > 0 && !row.dataset.route.includes(query);
+            const matchesQuery = query.length === 0 || row.dataset.route.includes(query);
+            const matchesMethod = method.length === 0 || row.dataset.methods.includes(method);
+            const matchesAccess = access.length === 0 || row.dataset.access === access;
+            const isVisible = matchesQuery && matchesMethod && matchesAccess;
+
+            row.hidden = !isVisible;
+            if (isVisible) visibleTotal += 1;
         });
 
         document.querySelectorAll('.route-section').forEach((section) => {
             const visibleRows = section.querySelectorAll('.route-row:not([hidden])').length;
             section.hidden = visibleRows === 0;
+        });
+
+        emptyResults.style.display = visibleTotal === 0 ? 'block' : 'none';
+    };
+
+    searchInput.addEventListener('input', applyFilters);
+    methodFilter.addEventListener('change', applyFilters);
+    accessFilter.addEventListener('change', applyFilters);
+
+    document.querySelectorAll('.route-copy').forEach((button) => {
+        button.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(button.dataset.copy);
+                const original = button.textContent;
+                button.textContent = 'Copied';
+                window.setTimeout(() => { button.textContent = original; }, 1200);
+            } catch {
+                button.textContent = 'Copy failed';
+                window.setTimeout(() => { button.textContent = 'Copy URL'; }, 1200);
+            }
         });
     });
 </script>
