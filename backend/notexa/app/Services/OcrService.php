@@ -27,34 +27,46 @@ class OcrService
                 throw new RuntimeException('OCR could not prepare the uploaded image.');
             }
 
-            $ocr = new TesseractOCR($path);
             $binary = $this->tesseractBinary();
             $language = (string) config('services.tesseract.lang', 'eng');
             $pageSegmentationMode = (string) config('services.tesseract.psm', '6');
+            $packageError = null;
 
-            if ($binary) {
-                $ocr->executable($binary);
+            try {
+                $ocr = new TesseractOCR($path);
+
+                if ($binary) {
+                    $ocr->executable($binary);
+                }
+
+                if ($language !== '') {
+                    $ocr->lang($language);
+                }
+
+                if ($pageSegmentationMode !== '') {
+                    $ocr->psm($pageSegmentationMode);
+                }
+
+                $text = $this->cleanText($ocr->run());
+                if ($text !== '') {
+                    return $text;
+                }
+
+                $packageError = 'The OCR package returned empty text.';
+            } catch (Throwable $e) {
+                $packageError = $e->getMessage();
             }
 
-            if ($language !== '') {
-                $ocr->lang($language);
+            if ($this->functionEnabled('exec')) {
+                $text = $this->runDirectTesseract($path, $binary, $language, $pageSegmentationMode);
+                if ($text !== '') {
+                    return $text;
+                }
             }
 
-            if ($pageSegmentationMode !== '') {
-                $ocr->psm($pageSegmentationMode);
-            }
-
-            $text = trim($ocr->run());
-
-            if ($text === '') {
-                throw new RuntimeException('OCR completed, but no readable text was found in this image.');
-            }
-
-            return $text;
-        } catch (RuntimeException $e) {
-            throw $e;
+            throw new RuntimeException($this->availabilityMessage($packageError));
         } catch (Throwable $e) {
-            throw new RuntimeException('OCR engine is not available to PHP. Run php artisan notexa:ocr-check, install the tesseract-ocr server package, or set TESSERACT_BINARY to the full tesseract executable path.', previous: $e);
+            throw new RuntimeException($this->availabilityMessage($e->getMessage()), previous: $e);
         } finally {
             if (is_file($path)) {
                 @unlink($path);
@@ -129,6 +141,7 @@ class OcrService
             'proc_open_enabled' => $this->functionEnabled('proc_open'),
             'exec_enabled' => $this->functionEnabled('exec'),
             'shell_exec_enabled' => $this->functionEnabled('shell_exec'),
+            'version' => $this->tesseractVersion($binary),
             'common_paths' => $this->commonBinaryPaths(),
         ];
     }
@@ -162,6 +175,63 @@ class OcrService
         $path = trim((string) $result);
 
         return $path !== '' ? $path : null;
+    }
+
+    private function tesseractVersion(?string $binary): ?string
+    {
+        if (! $binary || ! $this->functionEnabled('exec')) {
+            return null;
+        }
+
+        $output = [];
+        $exitCode = 1;
+        @exec(escapeshellarg($binary) . ' --version 2>&1', $output, $exitCode);
+
+        return $exitCode === 0 ? trim((string) ($output[0] ?? '')) : null;
+    }
+
+    private function runDirectTesseract(string $imagePath, ?string $binary, string $language, string $pageSegmentationMode): string
+    {
+        $binary ??= 'tesseract';
+        $command = escapeshellarg($binary) . ' ' . escapeshellarg($imagePath) . ' stdout';
+
+        if ($language !== '') {
+            $command .= ' -l ' . escapeshellarg($language);
+        }
+
+        if ($pageSegmentationMode !== '') {
+            $command .= ' --psm ' . escapeshellarg($pageSegmentationMode);
+        }
+
+        $output = [];
+        $exitCode = 1;
+        @exec($command . ' 2>&1', $output, $exitCode);
+        $text = $this->cleanText(implode("\n", $output));
+
+        if ($exitCode !== 0) {
+            throw new RuntimeException('Direct Tesseract execution failed: ' . ($text ?: 'unknown command error'));
+        }
+
+        return $text;
+    }
+
+    private function cleanText(string $text): string
+    {
+        $text = trim($text);
+        $text = preg_replace('/^Estimating resolution as \d+\s*/mi', '', $text) ?? $text;
+
+        return trim($text);
+    }
+
+    private function availabilityMessage(?string $detail = null): string
+    {
+        $message = 'OCR engine is not available to PHP. Run php artisan notexa:ocr-check, install the tesseract-ocr server package, or set TESSERACT_BINARY to the full tesseract executable path.';
+
+        if ($detail) {
+            $message .= ' Detail: ' . trim($detail);
+        }
+
+        return $message;
     }
 
     private function functionEnabled(string $name): bool

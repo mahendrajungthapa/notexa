@@ -81,6 +81,7 @@ Artisan::command('notexa:ocr-check', function () {
     $this->line('Configured TESSERACT_BINARY: ' . ($diagnostics['configured_binary'] ?: '(not set)'));
     $this->line('Detected binary: ' . ($diagnostics['detected_binary'] ?: '(not found)'));
     $this->line('Binary exists: ' . ($diagnostics['binary_exists'] ? 'yes' : 'no'));
+    $this->line('Version: ' . ($diagnostics['version'] ?: '(not runnable)'));
     $this->line('proc_open enabled: ' . ($diagnostics['proc_open_enabled'] ? 'yes' : 'no'));
     $this->line('shell_exec enabled: ' . ($diagnostics['shell_exec_enabled'] ? 'yes' : 'no'));
     $this->line('exec enabled: ' . ($diagnostics['exec_enabled'] ? 'yes' : 'no'));
