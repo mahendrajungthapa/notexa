@@ -57,7 +57,7 @@ class OcrService
                 $packageError = $e->getMessage();
             }
 
-            if ($this->functionEnabled('exec')) {
+            if ($binary && $this->functionEnabled('exec')) {
                 $text = $this->runDirectTesseract($path, $binary, $language, $pageSegmentationMode);
                 if ($text !== '') {
                     return $text;
@@ -142,6 +142,7 @@ class OcrService
             'exec_enabled' => $this->functionEnabled('exec'),
             'shell_exec_enabled' => $this->functionEnabled('shell_exec'),
             'version' => $this->tesseractVersion($binary),
+            'path' => getenv('PATH') ?: getenv('Path') ?: '',
             'common_paths' => $this->commonBinaryPaths(),
         ];
     }
@@ -185,15 +186,18 @@ class OcrService
 
         $output = [];
         $exitCode = 1;
-        @exec(escapeshellarg($binary) . ' --version 2>&1', $output, $exitCode);
+        @exec($this->shellCommand($binary) . ' --version 2>&1', $output, $exitCode);
 
         return $exitCode === 0 ? trim((string) ($output[0] ?? '')) : null;
     }
 
     private function runDirectTesseract(string $imagePath, ?string $binary, string $language, string $pageSegmentationMode): string
     {
-        $binary ??= 'tesseract';
-        $command = escapeshellarg($binary) . ' ' . escapeshellarg($imagePath) . ' stdout';
+        if (! $binary) {
+            throw new RuntimeException('Tesseract binary was not detected. Install Tesseract, then set TESSERACT_BINARY to C:\\Program Files\\Tesseract-OCR\\tesseract.exe on Windows or /usr/bin/tesseract on Linux.');
+        }
+
+        $command = $this->shellCommand($binary) . ' ' . escapeshellarg($imagePath) . ' stdout';
 
         if ($language !== '') {
             $command .= ' -l ' . escapeshellarg($language);
@@ -223,9 +227,18 @@ class OcrService
         return trim($text);
     }
 
+    private function shellCommand(string $binary): string
+    {
+        if ($binary === 'tesseract') {
+            return $binary;
+        }
+
+        return escapeshellarg($binary);
+    }
+
     private function availabilityMessage(?string $detail = null): string
     {
-        $message = 'OCR engine is not available to PHP. Run php artisan notexa:ocr-check, install the tesseract-ocr server package, or set TESSERACT_BINARY to the full tesseract executable path.';
+        $message = 'OCR engine is not available to PHP. Install Tesseract OCR and set TESSERACT_BINARY to its full executable path. Windows default: C:\\Program Files\\Tesseract-OCR\\tesseract.exe. Linux default: /usr/bin/tesseract. Then run php artisan optimize:clear and php artisan notexa:ocr-check.';
 
         if ($detail) {
             $message .= ' Detail: ' . trim($detail);

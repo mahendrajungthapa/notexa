@@ -85,11 +85,13 @@ Artisan::command('notexa:ocr-check', function () {
     $this->line('proc_open enabled: ' . ($diagnostics['proc_open_enabled'] ? 'yes' : 'no'));
     $this->line('shell_exec enabled: ' . ($diagnostics['shell_exec_enabled'] ? 'yes' : 'no'));
     $this->line('exec enabled: ' . ($diagnostics['exec_enabled'] ? 'yes' : 'no'));
+    $this->line('PATH: ' . ($diagnostics['path'] ?: '(empty)'));
 
     if (! $diagnostics['detected_binary'] || ! $diagnostics['binary_exists']) {
         $this->newLine();
         $this->warn('Tesseract is not visible to PHP.');
         $this->line('Ubuntu/Debian: sudo apt-get update && sudo apt-get install -y tesseract-ocr');
+        $this->line('Windows: install Tesseract, then set TESSERACT_BINARY=C:\Program Files\Tesseract-OCR\tesseract.exe');
         $this->line('Then set TESSERACT_BINARY=/usr/bin/tesseract in .env if needed.');
     }
 
